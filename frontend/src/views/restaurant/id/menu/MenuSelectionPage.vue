@@ -1,0 +1,176 @@
+<script setup>
+import { ref, computed } from 'vue';
+import { RouterLink, useRoute } from 'vue-router'; // Import useRoute to get dynamic params
+import { ArrowLeft, Plus, Minus, ShoppingCart } from 'lucide-vue-next';
+import Button from '@/components/ui/Button.vue';
+import Card from '@/components/ui/Card.vue';
+
+const route = useRoute();
+const restaurantId = route.params.id || '1'; // Default to '1' if id is not available
+
+const cart = ref([]); // Use ref for the cart array
+
+const menuItems = ref([
+  {
+    id: 1,
+    name: 'A코스',
+    price: 35000,
+    description: '전채 + 메인 + 디저트',
+    category: '코스 메뉴',
+  },
+  {
+    id: 2,
+    name: 'B코스',
+    price: 45000,
+    description: '전채 + 메인 + 디저트 + 와인',
+    category: '코스 메뉴',
+  },
+  {
+    id: 3,
+    name: 'C코스',
+    price: 55000,
+    description: '전채 + 메인 + 디저트 + 프리미엄 와인',
+    category: '코스 메뉴',
+  },
+  {
+    id: 4,
+    name: '파스타',
+    price: 18000,
+    category: '단품 메뉴',
+  },
+  {
+    id: 5,
+    name: '스테이크',
+    price: 28000,
+    category: '단품 메뉴',
+  },
+  {
+    id: 6,
+    name: '리조또',
+    price: 16000,
+    category: '단품 메뉴',
+  },
+]);
+
+const categories = ref(['코스 메뉴', '단품 메뉴']);
+
+const addToCart = (item) => {
+  const existingItem = cart.value.find((cartItem) => cartItem.id === item.id);
+  if (existingItem) {
+    existingItem.quantity++;
+  } else {
+    cart.value.push({ ...item, quantity: 1 });
+  }
+};
+
+const removeFromCart = (itemId) => {
+  const existingItem = cart.value.find((cartItem) => cartItem.id === itemId);
+  if (existingItem && existingItem.quantity > 1) {
+    existingItem.quantity--;
+  } else {
+    cart.value = cart.value.filter((cartItem) => cartItem.id !== itemId);
+  }
+};
+
+const getItemQuantity = (itemId) => {
+  return cart.value.find((item) => item.id === itemId)?.quantity || 0;
+};
+
+const totalAmount = computed(() => {
+  return cart.value.reduce((sum, item) => sum + item.price * item.quantity, 0);
+});
+const totalItems = computed(() => {
+  return cart.value.reduce((sum, item) => sum + item.quantity, 0);
+});
+</script>
+
+<template>
+  <div class="min-h-screen bg-[#f8f9fa]">
+    <!-- Header -->
+    <header class="sticky top-0 z-50 bg-white border-b border-[#e9ecef]">
+      <div class="max-w-[500px] mx-auto px-4 h-14 flex items-center">
+        <RouterLink :to="`/restaurant/${restaurantId}/booking`" class="mr-3">
+          <ArrowLeft class="w-6 h-6 text-[#1e3a5f]" />
+        </RouterLink>
+        <h1 class="font-semibold text-[#1e3a5f] text-base">메뉴 선택</h1>
+      </div>
+    </header>
+
+    <main class="max-w-[500px] mx-auto pb-32">
+      <div class="bg-white px-4 py-3 border-b border-[#e9ecef]">
+        <p class="text-sm text-[#495057] leading-relaxed">
+          회식에 필요한 메뉴를 선택해주세요. 1인당 최소 1개 이상 선택해야 합니다.
+        </p>
+      </div>
+
+      <div v-for="category in categories" :key="category" class="px-4 py-5">
+        <h3 class="text-base font-semibold text-[#1e3a5f] mb-4">{{ category }}</h3>
+        <div class="space-y-3">
+          <Card
+            v-for="item in menuItems.filter((mItem) => mItem.category === category)"
+            :key="item.id"
+            class="p-4 border-[#e9ecef] rounded-xl bg-white shadow-card hover:shadow-md transition-shadow"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex-1">
+                <h4 class="font-semibold text-[#1e3a5f] mb-1">{{ item.name }}</h4>
+                <p v-if="item.description" class="text-xs text-[#6c757d] mb-2 leading-relaxed">
+                  {{ item.description }}
+                </p>
+                <p class="text-base font-semibold text-[#1e3a5f]">{{ item.price.toLocaleString() }}원</p>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <template v-if="getItemQuantity(item.id) > 0">
+                  <button
+                    @click="removeFromCart(item.id)"
+                    class="w-8 h-8 rounded-full border-2 border-[#ff6b4a] bg-white text-[#ff6b4a] flex items-center justify-center hover:bg-[#fff5f3] transition-colors"
+                  >
+                    <Minus class="w-4 h-4" />
+                  </button>
+                  <span class="w-8 text-center font-semibold text-[#1e3a5f]">{{ getItemQuantity(item.id) }}</span>
+                  <button
+                    @click="addToCart(item)"
+                    class="w-8 h-8 rounded-full gradient-primary text-white flex items-center justify-center shadow-button-hover hover:shadow-button-pressed transition-shadow"
+                  >
+                    <Plus class="w-4 h-4" />
+                  </button>
+                </template>
+                <template v-else>
+                  <button
+                    @click="addToCart(item)"
+                    class="w-8 h-8 rounded-full border-2 border-[#dee2e6] bg-white text-[#6c757d] flex items-center justify-center hover:border-[#ff6b4a] hover:text-[#ff6b4a] transition-colors"
+                  >
+                    <Plus class="w-4 h-4" />
+                  </button>
+                </template>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </div>
+    </main>
+
+    <!-- Fixed Bottom Cart Summary -->
+    <div v-if="cart.length > 0" class="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e9ecef] z-50 shadow-lg">
+      <div class="max-w-[500px] mx-auto px-4 py-3">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <ShoppingCart class="w-5 h-5 text-[#ff6b4a]" />
+            <span class="font-semibold text-[#1e3a5f]">총 {{ totalItems }}개 선택</span>
+          </div>
+          <p class="text-lg font-bold text-[#1e3a5f]">{{ totalAmount.toLocaleString() }}원</p>
+        </div>
+        <RouterLink :to="`/restaurant/${restaurantId}/summary`">
+          <Button class="w-full h-12 gradient-primary text-white font-semibold text-base rounded-xl shadow-button-hover hover:shadow-button-pressed">
+            예약 확인하기
+          </Button>
+        </RouterLink>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+/* No specific styles needed here as Tailwind handles most of it. */
+</style>
