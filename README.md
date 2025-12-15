@@ -137,8 +137,14 @@
 
 ### Frontend
 
-- **Framework**: Vue.js
-- **UI Library**: 추가 예정
+- **Framework**: Vue.js 3.5.25 (Composition API)
+- **Build Tool**: Vite 5.2.0
+- **Styling**: Tailwind CSS 4.1.18
+- **State Management**: Pinia 3.0.4
+- **Routing**: Vue Router 4.6.3
+- **HTTP Client**: Axios 1.4.0
+- **Icons**: Lucide Vue Next 0.561.0
+- **UI Components**: Custom components (Button, Card, Input, Modal)
 
 ### Infrastructure & External APIs
 
@@ -150,6 +156,7 @@
 ### Development Tools
 
 - **Version Control**: Git, GitHub
+- **Code Quality**: Commitlint, Husky
 - **Database Tool**: MySQL Workbench
 - **IDE**: IntelliJ IDEA, VS Code
 
@@ -198,3 +205,144 @@
 | **김다혜**        | 예약·결제 모듈, 동시성 제어              |
 | **이현빈**        | 식당 정보 관리 모듈, ERD 관리            |
 | **전예원**        | 회원 관리, 보안·권한, GitHub 관리        |
+
+---
+
+## 📁 프로젝트 구조
+
+### 전체 디렉토리 구조
+
+```
+/webapp/
+├── frontend/              # Vue3 프론트엔드
+├── src/                   # Spring Boot 백엔드
+├── gradle/                # Gradle 빌드 설정
+├── .git/                  # Git 저장소
+├── .husky/                # Git Hooks 설정
+├── README.md              # 프로젝트 문서
+├── package.json           # 루트 패키지 (commitlint, husky)
+├── build.gradle           # Gradle 빌드 파일
+└── settings.gradle        # Gradle 설정
+```
+
+### 프론트엔드 구조 (`/frontend`)
+
+```
+frontend/
+├── src/
+│   ├── views/                    # 페이지 컴포넌트
+│   │   ├── HomeView.vue          # 메인 홈페이지
+│   │   ├── login/                # 로그인
+│   │   ├── signup/               # 회원가입
+│   │   ├── intro/                # 서비스 소개
+│   │   ├── mypage/               # 마이페이지
+│   │   │   └── favorites/        # 즐겨찾기
+│   │   ├── my-reservations/      # 내 예약 목록
+│   │   ├── restaurant/           # 식당 관련
+│   │   │   └── id/
+│   │   │       ├── RestaurantDetailPage.vue      # 식당 상세
+│   │   │       ├── booking/      # 예약하기
+│   │   │       ├── menu/         # 메뉴 선택
+│   │   │       ├── menus/        # 메뉴 전체보기
+│   │   │       ├── payment/      # 결제
+│   │   │       ├── confirmation/ # 예약 확인
+│   │   │       ├── summary/      # 요약
+│   │   │       └── reviews/      # 리뷰 목록 및 상세
+│   │   ├── partner/              # 파트너(식당) 관련
+│   │   │   ├── PartnerPage.vue
+│   │   │   └── signup/           # 파트너 회원가입
+│   │   └── business/             # 사업자 페이지
+│   │       ├── dashboard/        # 대시보드
+│   │       ├── reservations/     # 예약 관리
+│   │       ├── restaurant-info/  # 식당 정보 관리
+│   │       │   ├── edit/         # 식당 정보 수정
+│   │       │   └── menu/
+│   │       │       ├── add/      # 메뉴 추가
+│   │       │       └── edit/id/  # 메뉴 수정
+│   │       └── staff/            # 직원 관리
+│   │
+│   ├── components/
+│   │   └── ui/                   # UI 재사용 컴포넌트
+│   │       ├── Button.vue
+│   │       ├── Card.vue
+│   │       ├── Input.vue
+│   │       └── Modal 관련 컴포넌트들
+│   │
+│   ├── router/
+│   │   └── index.js              # Vue Router 설정
+│   │
+│   ├── stores/
+│   │   └── counter.js            # Pinia 상태관리
+│   │
+│   ├── assets/
+│   │   ├── main.css              # 전역 스타일
+│   │   └── base.css
+│   │
+│   ├── utils/
+│   │   └── index.js              # 유틸리티 함수
+│   │
+│   ├── App.vue                   # 루트 컴포넌트
+│   └── main.js                   # 앱 엔트리 포인트
+│
+├── public/                       # 정적 파일
+│   └── images/                   # 이미지 파일
+│
+├── package.json                  # 프론트엔드 의존성
+├── vite.config.js                # Vite 빌드 설정
+├── tailwind.config.js            # Tailwind CSS 설정
+├── postcss.config.js             # PostCSS 설정
+└── index.html                    # HTML 엔트리
+```
+
+### 주요 라우트
+
+| 경로                        | 컴포넌트                 | 설명                     |
+| --------------------------- | ------------------------ | ------------------------ |
+| `/`                         | HomeView                 | 메인 홈 (식당 추천 목록) |
+| `/intro`                    | ServiceIntroPage         | 서비스 소개              |
+| `/login`                    | LoginPage                | 로그인                   |
+| `/signup`                   | SignupPage               | 회원가입                 |
+| `/mypage`                   | MyPage                   | 마이페이지               |
+| `/mypage/favorites`         | FavoritesPage            | 즐겨찾기                 |
+| `/my-reservations`          | MyReservationsPage       | 내 예약 목록             |
+| `/restaurant/:id`           | RestaurantDetailPage     | 식당 상세                |
+| `/restaurant/:id/booking`   | RestaurantBookingPage    | 예약하기                 |
+| `/restaurant/:id/menu`      | MenuSelectionPage        | 메뉴 선택                |
+| `/restaurant/:id/payment`   | RestaurantPaymentPage    | 결제                     |
+| `/restaurant/:id/reviews`   | RestaurantReviewsPage    | 리뷰 목록                |
+| `/partner`                  | PartnerPage              | 파트너 입점 문의         |
+| `/business/dashboard`       | BusinessDashboardPage    | 사업자 대시보드          |
+| `/business/reservations`    | BusinessReservationsPage | 예약 관리                |
+| `/business/restaurant-info` | RestaurantInfoPage       | 식당 정보                |
+
+### 디자인 시스템
+
+#### 컬러 팔레트
+
+- **Primary**: `#ff6b4a` (브랜드 산호색)
+- **Primary Hover**: `#FF8A6D`
+- **Title**: `#1e3a5f` (다크 블루)
+- **Body Text**: `#495057` (회색)
+- **Secondary Text**: `#6c757d` (연한 회색)
+- **Border**: `#e9ecef`, `#dee2e6`
+- **Background**: `#f8f9fa`
+
+#### 주요 UI 컴포넌트
+
+- **Button**: Variant 지원 (outline, default)
+- **Card**: 식당 카드, 정보 표시
+- **Modal**: 필터, 검색, 계정 찾기
+- **Input**: 폼 입력
+
+---
+
+## 🔀 Git 브랜치 전략
+
+- `main`: 프로덕션 브랜치
+- `dev`: 개발 메인 브랜치
+- `feat/*`: 기능 개발 브랜치
+- `design/*`: 디자인 작업 브랜치
+
+### 현재 작업 브랜치
+
+- `feat/reviewSelected`: 리뷰 선택 페이지 개발
