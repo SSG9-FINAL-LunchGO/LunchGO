@@ -67,6 +67,7 @@ const representativeReviews = ref([
     id: 1,
     author: '김**',
     company: '네이버',
+    visitCount: 3,
     rating: 5,
     date: '2024.01.15',
     content:
@@ -84,6 +85,7 @@ const representativeReviews = ref([
     id: 2,
     author: '이**',
     company: null,
+    visitCount: 2,
     rating: 5,
     date: '2024.01.10',
     content:
@@ -100,6 +102,7 @@ const representativeReviews = ref([
     id: 3,
     author: '박**',
     company: '카카오',
+    visitCount: 1,
     rating: 4,
     date: '2024.01.05',
     content: '가격 대비 훌륭한 퀄리티입니다. 다음에 또 방문할게요.',
@@ -371,20 +374,32 @@ onMounted(() => {
             >
               <div class="flex items-center justify-between mb-3">
                 <div class="flex items-center gap-2">
-                  <span class="font-semibold text-[#1e3a5f] text-sm">{{
-                    review.author
-                  }}</span>
-                  <span
-                    v-if="review.company"
-                    class="font-semibold text-[#1e3a5f] text-sm"
-                    >({{ review.company }})</span
-                  >
-                  <div class="flex items-center gap-1">
-                    <Star
-                      v-for="(_, i) in Array.from({ length: review.rating })"
-                      :key="i"
-                      class="w-3.5 h-3.5 fill-[#ffc107] text-[#ffc107]"
-                    />
+                  <div class="flex flex-col">
+                    <div class="flex items-center gap-2">
+                      <span class="font-semibold text-[#1e3a5f] text-sm">{{
+                        review.author
+                      }}</span>
+                      <span
+                        v-if="review.company"
+                        class="font-semibold text-[#1e3a5f] text-sm"
+                        >({{ review.company }})</span
+                      >
+                      <div class="flex items-center gap-1">
+                        <Star
+                          v-for="(_, i) in Array.from({
+                            length: review.rating,
+                          })"
+                          :key="i"
+                          class="w-3.5 h-3.5 fill-[#ffc107] text-[#ffc107]"
+                        />
+                      </div>
+                    </div>
+                    <span
+                      v-if="review.visitCount"
+                      class="text-xs text-[#6c757d] mt-0.5"
+                    >
+                      {{ review.visitCount }}번째 방문
+                    </span>
                   </div>
                 </div>
                 <span class="text-xs text-[#6c757d]">{{ review.date }}</span>

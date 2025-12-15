@@ -1,7 +1,14 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
-import { ArrowLeft, Star, ChevronDown } from 'lucide-vue-next';
+import {
+  ArrowLeft,
+  Star,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  X,
+} from 'lucide-vue-next';
 import Card from '@/components/ui/Card.vue';
 
 const route = useRoute();
@@ -14,95 +21,124 @@ const reviews = ref([
   {
     id: 1,
     author: '김**',
-    company: '한화시스템', // Added company name
+    company: '한화시스템',
+    visitCount: 3,
     rating: 5,
-    date: '2024.01.15',
-    content: '회식하기 정말 좋았어요. 음식도 맛있고 분위기도 최고였습니다!',
+    date: '2024.01.20',
+    content:
+      '회식하기 정말 좋았어요. 음식도 맛있고 분위기도 최고였습니다! 특히 룸이 프라이빗해서 회사 동료들과 편하게 대화할 수 있었고, 음식 양도 정말 푸짐해서 배불리 먹었습니다. 다음에 또 방문하고 싶어요.',
     tags: ['룸이 있어 프라이빗해요', '대화하기 좋아요', '양이 푸짐해요'],
     images: [
       '/korean-appetizer-main-dessert.jpg',
       '/premium-course-meal-with-wine.jpg',
+      '/korean-fine-dining.jpg',
     ],
+    isExpanded: false,
   },
   {
     id: 2,
     author: '이**',
     company: '네이버',
+    visitCount: 2,
     rating: 5,
-    date: '2024.01.10',
-    content: '직원분들이 친절하시고 코스 구성이 알차서 만족스러웠습니다!',
+    date: '2024.01.20',
+    content:
+      '직원분들이 친절하시고 코스 구성이 알차서 만족스러웠습니다. 예약 시간에 맞춰 테이블이 완벽하게 세팅되어 있었고, 서비스도 훌륭했습니다.',
     tags: ['사장님이 친절해요', '예약 시간 맞춰 세팅돼요'],
-    images: [],
+    images: [
+      '/elegant-dining-room-setup.jpg',
+      '/restaurant-private-room-atmosphere.jpg',
+    ],
+    isExpanded: false,
   },
   {
     id: 3,
     author: '박**',
     company: '카카오',
+    visitCount: 1,
     rating: 4,
-    date: '2024.01.05',
+    date: '2024.01.19',
     content: '가격 대비 훌륭한 퀄리티입니다. 다음에 또 방문할게요.',
     tags: ['법카 쓰기 좋은 가격대에요', '주차가 편해요'],
-    images: ['/italian-pasta-dish.png'],
+    images: [
+      '/italian-pasta-dish.png',
+      '/pasta-carbonara.png',
+      '/italian-restaurant-dining.jpg',
+    ],
+    isExpanded: false,
   },
   {
     id: 4,
     author: '최**',
     company: '토스',
+    visitCount: 5,
     rating: 5,
-    date: '2024.01.03',
+    date: '2024.01.18',
     content: '팀 회식으로 다녀왔는데 모두 만족했어요. 특히 C코스 추천합니다!',
     tags: ['단체석이 넓어요', '음식이 빨리 나와요', '호불호 없는 맛이에요'],
-    images: ['/elegant-dining-room-setup.jpg'],
+    images: [
+      '/elegant-dining-room-setup.jpg',
+      '/korean-course-meal-plating.jpg',
+    ],
+    isExpanded: false,
   },
   {
     id: 5,
     author: '정**',
     company: null,
+    visitCount: 1,
     rating: 4,
-    date: '2023.12.28',
+    date: '2024.01.17',
     content: '음식이 정갈하고 맛있습니다. 예약 필수인 이유를 알겠어요.',
     tags: ['예약 시간 맞춰 세팅돼요', '특별한 메뉴가 있어요'],
     images: [],
+    isExpanded: false,
   },
   {
     id: 6,
     author: '강**',
     company: '쿠팡',
+    visitCount: 4,
     rating: 5,
-    date: '2023.12.20',
+    date: '2024.01.16',
     content: '회사 송년회로 다녀왔는데 분위기도 좋고 서비스도 훌륭했습니다.',
     tags: ['대화하기 좋아요', '룸이 있어 프라이빗해요', '옷 보관하기 편해요'],
     images: [
       '/modern-korean-restaurant-interior.jpg',
       '/restaurant-private-room-atmosphere.jpg',
     ],
+    isExpanded: false,
   },
   {
     id: 7,
     author: '조**',
     company: '배달의민족',
+    visitCount: 2,
     rating: 5,
-    date: '2023.12.15',
+    date: '2024.01.15',
     content: '음식 하나하나 정성이 느껴져요. 재방문 의사 100%입니다!',
     tags: ['양이 푸짐해요', '특별한 메뉴가 있어요'],
     images: ['/korean-course-meal-plating.jpg'],
+    isExpanded: false,
   },
   {
     id: 8,
     author: '윤**',
     company: null,
+    visitCount: 1,
     rating: 4,
-    date: '2023.12.10',
+    date: '2024.01.14',
     content: '가격대가 있지만 그만큼 가치가 있는 곳입니다. 특별한 날 추천해요.',
     tags: ['대화하기 좋아요', '특별한 메뉴가 있어요'],
     images: [],
+    isExpanded: false,
   },
   {
     id: 9,
     author: '[블라인드]',
     company: null,
     rating: 0,
-    date: '2023.12.08',
+    date: '2024.01.13',
     content: '관리자에 의해 블라인드 처리된 리뷰입니다.',
     tags: [],
     images: [],
@@ -113,21 +149,25 @@ const reviews = ref([
     id: 10,
     author: '장**',
     company: '라인',
+    visitCount: 3,
     rating: 5,
-    date: '2023.12.05',
+    date: '2024.01.12',
     content: '파스타가 정말 맛있었고, 와인 추천도 완벽했습니다!',
     tags: ['호불호 없는 맛이에요', '특별한 메뉴가 있어요'],
     images: ['/italian-pasta-dish.png'],
+    isExpanded: false,
   },
   {
     id: 11,
     author: '임**',
     company: null,
+    visitCount: 1,
     rating: 5,
-    date: '2023.12.01',
+    date: '2024.01.11',
     content: '직원분들 응대가 정말 좋고, 음식도 너무 맛있어요. 강력 추천!',
     tags: ['사장님이 친절해요', '회전율이 빨라요'],
     images: [],
+    isExpanded: false,
   },
 ]);
 
@@ -157,6 +197,171 @@ const setSortOrder = (option) => {
   sortOrder.value = option;
   isDropdownOpen.value = false;
 };
+
+// 정렬된 리뷰 목록
+const sortedReviews = computed(() => {
+  const reviewsCopy = [...reviews.value];
+
+  switch (sortOrder.value) {
+    case '최신순':
+      return reviewsCopy.sort((a, b) => new Date(b.date) - new Date(a.date));
+    case '별점 높은순':
+      return reviewsCopy.sort((a, b) => b.rating - a.rating);
+    case '별점 낮은순':
+      return reviewsCopy.sort((a, b) => a.rating - b.rating);
+    case '추천순':
+    default:
+      // 추천순: 날짜 스코어, 방문 횟수 스코어, 별점 스코어의 가중 평균
+      return reviewsCopy.sort((a, b) => {
+        // 블라인드 리뷰는 맨 뒤로
+        if (a.isBlinded && !b.isBlinded) return 1;
+        if (!a.isBlinded && b.isBlinded) return -1;
+
+        // 가중치 설정
+        const WEIGHT_DATE = 0.3; // 날짜 가중치 30%
+        const WEIGHT_VISIT = 0.4; // 방문 횟수 가중치 40%
+        const WEIGHT_RATING = 0.3; // 별점 가중치 30%
+
+        // 1. 날짜 스코어 계산 (0-100점, 최신일수록 높음)
+        const today = new Date();
+        const dateA = new Date(a.date.replace(/\./g, '-'));
+        const dateB = new Date(b.date.replace(/\./g, '-'));
+        const maxDaysDiff = 365; // 1년 기준
+
+        const daysAgoA = Math.max(0, (today - dateA) / (1000 * 60 * 60 * 24));
+        const daysAgoB = Math.max(0, (today - dateB) / (1000 * 60 * 60 * 24));
+
+        const dateScoreA = Math.max(0, 100 - (daysAgoA / maxDaysDiff) * 100);
+        const dateScoreB = Math.max(0, 100 - (daysAgoB / maxDaysDiff) * 100);
+
+        // 2. 방문 횟수 스코어 계산 (0-100점, 방문 횟수 많을수록 높음)
+        const maxVisits = 10; // 최대 방문 횟수 기준
+        const visitScoreA = Math.min(
+          100,
+          ((a.visitCount || 0) / maxVisits) * 100
+        );
+        const visitScoreB = Math.min(
+          100,
+          ((b.visitCount || 0) / maxVisits) * 100
+        );
+
+        // 3. 별점 스코어 계산 (0-100점)
+        const maxRating = 5;
+        const ratingScoreA = (a.rating / maxRating) * 100;
+        const ratingScoreB = (b.rating / maxRating) * 100;
+
+        // 가중 평균 계산
+        const totalScoreA =
+          dateScoreA * WEIGHT_DATE +
+          visitScoreA * WEIGHT_VISIT +
+          ratingScoreA * WEIGHT_RATING;
+
+        const totalScoreB =
+          dateScoreB * WEIGHT_DATE +
+          visitScoreB * WEIGHT_VISIT +
+          ratingScoreB * WEIGHT_RATING;
+
+        // 높은 점수가 먼저 오도록 정렬
+        return totalScoreB - totalScoreA;
+      });
+  }
+});
+
+// 이미지 확대 모달 상태
+const isImageModalOpen = ref(false);
+const modalImageUrl = ref('');
+const modalImageIndex = ref(0);
+const modalImages = ref([]);
+
+// 이미지 클릭 시 모달 열기
+const openImageModal = (images, index) => {
+  modalImages.value = images;
+  modalImageIndex.value = index;
+  modalImageUrl.value = images[index];
+  isImageModalOpen.value = true;
+};
+
+// 모달 닫기
+const closeImageModal = () => {
+  isImageModalOpen.value = false;
+};
+
+// 모달에서 이전/다음 이미지
+const handleModalPrevImage = () => {
+  modalImageIndex.value =
+    modalImageIndex.value === 0
+      ? modalImages.value.length - 1
+      : modalImageIndex.value - 1;
+  modalImageUrl.value = modalImages.value[modalImageIndex.value];
+};
+
+const handleModalNextImage = () => {
+  modalImageIndex.value =
+    modalImageIndex.value === modalImages.value.length - 1
+      ? 0
+      : modalImageIndex.value + 1;
+  modalImageUrl.value = modalImages.value[modalImageIndex.value];
+};
+
+// 리뷰 텍스트 더보기/접기 토글 함수
+const toggleReviewExpand = (review) => {
+  review.isExpanded = !review.isExpanded;
+};
+
+// 리뷰 텍스트 길이 체크 (70자 이상이면 더보기 버튼 표시)
+const shouldShowExpandButton = (content) => {
+  return content.length > 70;
+};
+
+// 리뷰 텍스트 자르기 (접혀있을 때)
+const truncateText = (content, isExpanded) => {
+  if (isExpanded || content.length <= 70) {
+    return content;
+  }
+  return content.substring(0, 70) + '...';
+};
+
+// 마우스 드래그 스크롤 기능
+const setupDragScroll = (element) => {
+  if (!element) return;
+
+  let isDown = false;
+  let startX;
+  let scrollLeft;
+
+  element.addEventListener('mousedown', (e) => {
+    isDown = true;
+    element.style.cursor = 'grabbing';
+    startX = e.pageX - element.offsetLeft;
+    scrollLeft = element.scrollLeft;
+  });
+
+  element.addEventListener('mouseleave', () => {
+    isDown = false;
+    element.style.cursor = 'grab';
+  });
+
+  element.addEventListener('mouseup', () => {
+    isDown = false;
+    element.style.cursor = 'grab';
+  });
+
+  element.addEventListener('mousemove', (e) => {
+    if (!isDown) return;
+    e.preventDefault();
+    const x = e.pageX - element.offsetLeft;
+    const walk = (x - startX) * 2;
+    element.scrollLeft = scrollLeft - walk;
+  });
+};
+
+// 컴포넌트 마운트 후 드래그 스크롤 설정
+onMounted(() => {
+  const scrollContainers = document.querySelectorAll('.review-image-scroll');
+  scrollContainers.forEach((container) => {
+    setupDragScroll(container);
+  });
+});
 </script>
 
 <template>
@@ -258,68 +463,225 @@ const setSortOrder = (option) => {
         </div>
 
         <!-- Reviews List -->
-        <div class="px-4 py-3 space-y-3">
-          <RouterLink
-            v-for="review in reviews"
-            :key="review.id"
-            :to="`/restaurant/${restaurantId}/reviews/${review.id}`"
-          >
+        <div class="py-3 space-y-3">
+          <div v-for="review in sortedReviews" :key="review.id">
             <Card
-              :class="`p-4 border-[#e9ecef] rounded-xl bg-white shadow-card hover:shadow-md transition-shadow cursor-pointer ${
+              :class="`p-4 border-[#e9ecef] rounded-xl bg-white shadow-card hover:shadow-md transition-shadow ${
                 review.isBlinded ? 'opacity-60' : ''
               }`"
             >
-              <div class="flex items-center justify-between mb-2">
+              <div class="flex items-center justify-between mb-3">
                 <div class="flex items-center gap-2">
-                  <span class="font-semibold text-[#1e3a5f] text-sm">
-                    {{ review.author }}
+                  <div class="flex flex-col">
+                    <div class="flex items-center gap-2">
+                      <span class="font-semibold text-[#1e3a5f] text-sm">
+                        {{ review.author }}
+                        <span
+                          v-if="review.company"
+                          class="text-[#6c757d] font-normal"
+                        >
+                          ({{ review.company }})</span
+                        >
+                      </span>
+                      <div
+                        v-if="!review.isBlinded"
+                        class="flex items-center gap-1"
+                      >
+                        <Star
+                          v-for="(_, i) in Array.from({
+                            length: review.rating,
+                          })"
+                          :key="i"
+                          class="w-3.5 h-3.5 fill-[#ffc107] text-[#ffc107]"
+                        />
+                      </div>
+                    </div>
                     <span
-                      v-if="review.company"
-                      class="text-[#6c757d] font-normal"
+                      v-if="!review.isBlinded && review.visitCount"
+                      class="text-xs text-[#6c757d] mt-0.5"
                     >
-                      ({{ review.company }})</span
-                    >
-                  </span>
-                  <div v-if="!review.isBlinded" class="flex items-center gap-1">
-                    <Star
-                      v-for="(_, i) in Array.from({ length: review.rating })"
-                      :key="i"
-                      class="w-3.5 h-3.5 fill-[#ffc107] text-[#ffc107]"
-                    />
+                      {{ review.visitCount }}번째 방문
+                    </span>
                   </div>
                 </div>
                 <span class="text-xs text-[#6c757d]">{{ review.date }}</span>
               </div>
-              <p class="text-sm text-[#495057] leading-relaxed mb-2">
-                {{ review.content }}
-              </p>
-              <div v-if="review.isBlinded" class="mt-2">
+
+              <!-- 리뷰 이미지 갤러리 (스크롤 방식) -->
+              <div
+                v-if="
+                  !review.isBlinded && review.images && review.images.length > 0
+                "
+                class="mb-3 -mx-4"
+              >
+                <div
+                  class="flex gap-2 overflow-x-auto px-4 snap-x snap-mandatory scrollbar-hide review-image-scroll cursor-grab active:cursor-grabbing"
+                >
+                  <div
+                    v-for="(image, idx) in review.images"
+                    :key="idx"
+                    class="flex-shrink-0 snap-start"
+                    :class="
+                      idx === 0 ? 'w-[calc(100%-3rem)]' : 'w-[calc(100%-6rem)]'
+                    "
+                  >
+                    <div
+                      class="relative rounded-lg overflow-hidden bg-[#f8f9fa] h-48 cursor-pointer hover:opacity-95 transition-opacity"
+                      @click="openImageModal(review.images, idx)"
+                    >
+                      <img
+                        :src="image || '/placeholder.svg'"
+                        :alt="`리뷰 이미지 ${idx + 1}`"
+                        class="w-full h-full object-cover pointer-events-none"
+                      />
+                      <!-- 이미지 카운터 -->
+                      <div
+                        class="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full"
+                      >
+                        {{ idx + 1 }} / {{ review.images.length }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 리뷰 내용 -->
+              <div v-if="!review.isBlinded">
+                <p class="text-sm text-[#495057] leading-relaxed mb-2">
+                  {{ truncateText(review.content, review.isExpanded) }}
+                </p>
+
+                <!-- 더보기/접기 버튼 -->
+                <button
+                  v-if="shouldShowExpandButton(review.content)"
+                  @click.prevent="toggleReviewExpand(review)"
+                  class="text-xs text-[#6c757d] hover:text-[#ff6b4a] font-medium mb-3 transition-colors"
+                >
+                  {{ review.isExpanded ? '접기' : '더보기' }}
+                </button>
+
+                <!-- 태그 -->
+                <RouterLink
+                  :to="`/restaurant/${restaurantId}/reviews/${review.id}`"
+                  class="block"
+                >
+                  <div
+                    v-if="review.tags && review.tags.length > 0"
+                    class="flex flex-wrap gap-1.5"
+                  >
+                    <span
+                      v-for="(tag, idx) in review.tags"
+                      :key="idx"
+                      class="inline-block px-2.5 py-1 text-xs rounded-full bg-gradient-to-r from-[#ff6b4a] to-[#ffc4b8] text-white"
+                    >
+                      {{ tag }}
+                    </span>
+                  </div>
+                </RouterLink>
+              </div>
+
+              <!-- 블라인드 리뷰 -->
+              <div v-else>
+                <p class="text-sm text-[#495057] leading-relaxed mb-2">
+                  {{ review.content }}
+                </p>
                 <span
                   class="inline-block px-2.5 py-1 text-xs rounded-full bg-[#6c757d] text-white"
                 >
                   사유: {{ review.blindReason }}
                 </span>
               </div>
-              <div
-                v-else-if="review.tags && review.tags.length > 0"
-                class="flex flex-wrap gap-1.5"
-              >
-                <span
-                  v-for="(tag, idx) in review.tags"
-                  :key="idx"
-                  class="inline-block px-2.5 py-1 text-xs rounded-full bg-gradient-to-r from-[#ff6b4a] to-[#ffc4b8] text-white"
-                >
-                  {{ tag }}
-                </span>
-              </div>
             </Card>
-          </RouterLink>
+          </div>
         </div>
       </div>
     </main>
+
+    <!-- 이미지 확대 모달 -->
+    <div
+      v-if="isImageModalOpen"
+      class="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center"
+      @click="closeImageModal"
+    >
+      <div class="relative w-full h-full flex items-center justify-center">
+        <!-- 닫기 버튼 -->
+        <button
+          @click.stop="closeImageModal"
+          class="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors z-10"
+          aria-label="닫기"
+        >
+          <X class="w-6 h-6 text-white" />
+        </button>
+
+        <!-- 이미지 -->
+        <div class="relative max-w-[90vw] max-h-[90vh]" @click.stop>
+          <img
+            :src="modalImageUrl || '/placeholder.svg'"
+            :alt="`확대 이미지 ${modalImageIndex + 1}`"
+            class="max-w-full max-h-[90vh] object-contain rounded-lg"
+          />
+
+          <!-- 이미지가 2개 이상일 때만 화살표 표시 -->
+          <template v-if="modalImages.length > 1">
+            <!-- 왼쪽 화살표 -->
+            <button
+              @click.stop="handleModalPrevImage"
+              class="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center transition-colors"
+              aria-label="이전 이미지"
+            >
+              <ChevronLeft class="w-6 h-6 text-white" />
+            </button>
+
+            <!-- 오른쪽 화살표 -->
+            <button
+              @click.stop="handleModalNextImage"
+              class="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/30 hover:bg-white/50 flex items-center justify-center transition-colors"
+              aria-label="다음 이미지"
+            >
+              <ChevronRight class="w-6 h-6 text-white" />
+            </button>
+
+            <!-- 이미지 카운터 -->
+            <div
+              class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 text-white text-sm px-4 py-2 rounded-full"
+            >
+              {{ modalImageIndex + 1 }} / {{ modalImages.length }}
+            </div>
+          </template>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
-/* No specific styles needed here as Tailwind handles most of it. */
+/* 스크롤바 숨기기 */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* 스크롤 스냅 부드럽게 */
+.snap-x {
+  scroll-behavior: smooth;
+}
+
+/* 마우스 드래그 시 텍스트 선택 방지 */
+.review-image-scroll {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* 이미지 드래그 방지 */
+.review-image-scroll img {
+  pointer-events: none;
+  -webkit-user-drag: none;
+  user-select: none;
+}
 </style>
