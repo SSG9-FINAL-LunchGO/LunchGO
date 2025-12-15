@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue';
-import { User, Bell } from 'lucide-vue-next'; // Import Lucide icons for Vue (Bell added)
-import { RouterLink } from 'vue-router'; // Import Vue RouterLink
+import BusinessSidebar from '@/views/layout/BusinessSideBar.vue';
+import BusinessHeader from '@/views/layout/BusinessHeader.vue';
 
 const emailInput = ref('');
 const showSuccessMessage = ref(false);
@@ -36,111 +36,11 @@ const handleDeleteStaff = (id) => {
 
 <template>
   <div class="flex h-screen bg-[#f8f9fa]">
-    <!-- Sidebar -->
-    <aside class="w-64 bg-white border-r border-[#e9ecef] flex flex-col">
-      <div class="p-6 border-b border-[#e9ecef]">
-        <RouterLink to="/business/dashboard">
-          <img
-            src="/images/lunch-go-whitebg.png"
-            alt="LunchGo"
-            width="150"
-            height="60"
-            class="w-auto h-12"
-          />
-        </RouterLink>
-      </div>
-
-      <nav class="flex-1 p-4">
-        <ul class="space-y-2">
-          <li>
-            <RouterLink
-              to="/business/dashboard"
-              class="block px-4 py-3 text-[#1e3a5f] hover:bg-[#f8f9fa] rounded-lg transition-colors"
-            >
-              오늘의 예약 현황
-            </RouterLink>
-          </li>
-          <li>
-            <RouterLink
-              to="/business/reservations"
-              class="block px-4 py-3 text-[#1e3a5f] hover:bg-[#f8f9fa] rounded-lg transition-colors"
-            >
-              전체 예약 관리
-            </RouterLink>
-          </li>
-          <li>
-            <RouterLink
-              to="/business/restaurant-info"
-              class="block px-4 py-3 text-[#1e3a5f] hover:bg-[#f8f9fa] rounded-lg transition-colors"
-            >
-              식당 정보
-            </RouterLink>
-          </li>
-          <li>
-            <RouterLink
-              to="/business/staff"
-              class="block px-4 py-3 text-white bg-gradient-to-r from-[#FF6B4A] to-[#FFC4B8] rounded-lg font-semibold"
-            >
-              임직원 현황
-            </RouterLink>
-          </li>
-          <li>
-            <RouterLink
-              to="/business/analytics"
-              class="block px-4 py-3 text-[#1e3a5f] hover:bg-[#f8f9fa] rounded-lg transition-colors"
-            >
-              대시보드
-            </RouterLink>
-          </li>
-        </ul>
-      </nav>
-    </aside>
+    <BusinessSidebar activeMenu="staff" />
 
     <!-- Main Content -->
     <div class="flex-1 flex flex-col overflow-hidden">
-      <!-- Header -->
-      <header
-        class="bg-white border-b border-[#e9ecef] px-8 py-4 flex items-center justify-between"
-      >
-        <h1 class="text-2xl font-bold text-[#1E3A5F]">LunchGo</h1>
-        <div class="flex items-center gap-4">
-          <button class="text-[#1e3a5f] hover:text-[#FF6B4A] transition-colors">
-            <Bell class="w-6 h-6" />
-          </button>
-          <div class="flex items-center gap-4">
-            <div
-              class="flex items-center gap-3 px-4 py-2 bg-[#f8f9fa] rounded-lg"
-            >
-              <User class="w-5 h-5 text-[#6c757d]" />
-              <span class="text-sm font-medium text-[#1e3a5f]"
-                >OOO님 안녕하세요!</span
-              >
-            </div>
-            <div class="relative">
-              <button
-                class="px-4 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                로그아웃
-              </button>
-              <!-- This dropdown logic needs to be implemented in Vue if it's functional -->
-              <div
-                class="absolute top-full right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg p-2 min-w-[120px] hidden group-hover:block"
-              >
-                <button
-                  class="block w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded"
-                >
-                  마이페이지
-                </button>
-                <button
-                  class="block w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded"
-                >
-                  식당 정보
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+      <BusinessHeader />
 
       <!-- Content -->
       <main class="flex-1 overflow-auto p-8">
