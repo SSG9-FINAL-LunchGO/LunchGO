@@ -1,130 +1,288 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed, onUnmounted } from 'vue';
+import { v } from 'vue-router/dist/router-CWoNjPRp.mjs';
 
 const props = defineProps<{
   isVisible: boolean;
   userType: string;
-}>()
+}>();
 
-const emit = defineEmits(['close'])
+const emit = defineEmits(['close', 'login']); // 로그인 버튼 클릭 이벤트 추가
 
-const name = ref('')
-const business_num = ref('')
-const phone = ref('')
+// 단계 관리 (1: 정보 입력, 2: 아이디 확인 결과)
+const step = ref(1);
 
-// 인증번호 관련 상태
-const isCodeSent = ref(false)
-const verifyCode = ref('')
+// 입력 상태
+const name = ref('');
+const business_num = ref('');
+const phone = ref('');
 
-// props.isVisible을 감시하다가 false(닫힘)가 되면 실행
-watch(() => props.isVisible, (newVal) => {
-  if (!newVal) {
-    name.value = ''
-    phone.value = ''
-    business_num.value = ''
-    verifyCode.value = ''
-    isCodeSent.value = false 
+// 인증번호 및 결과 상태
+const isCodeSent = ref(false);
+const verifyCode = ref('');
+const isTimeout = ref(false);
+const foundId = ref(''); // 찾은 아이디를 저장할 변수
+
+// 타이머 상태
+const timer = ref(180);
+const timerInterval = ref<ReturnType<typeof setInterval> | null>(null);
+
+// 모달 초기화 (닫힐 때)
+watch(
+  () => props.isVisible,
+  (newVal) => {
+    if (!newVal) {
+      if (timerInterval.value) clearInterval(timerInterval.value);
+      setTimeout(() => {
+        step.value = 1; // 1단계로 복귀
+        name.value = '';
+        phone.value = '';
+        business_num.value = '';
+        verifyCode.value = '';
+        isCodeSent.value = false;
+        isTimeout.value = false;
+        foundId.value = '';
+        timer.value = 180;
+      }, 300);
+    }
   }
-})
+);
 
-// 이메일 찾기 (최종 제출)
-const handleFindId = () => {
-  if (!isCodeSent.value) {
-    alert('인증번호를 먼저 발송해주세요.');
-    return;
+//사업자등록번호 자동 포맷팅
+watch(business_num, (newVal) => {
+  // 숫자만 남기고 제거
+  const cleaned = newVal.replace(/[^0-9]/g, '');
+  let formatted = cleaned;
+
+  // 10자리까지만 입력 가능하도록 제한
+  if (cleaned.length > 10) {
+    formatted = cleaned.slice(0, 10);
   }
-  
-  alert(`${props.userType} 유형의 아이디 찾기를 시도합니다.\n이름: ${name.value}\n전화번호: ${phone.value}\n인증번호: ${verifyCode.value}`)
-  // 성공 후 로직 (모달 닫기 등)
-  // emit('close')
-}
 
-// 인증번호 발송/재전송 처리
+  // 포맷팅 로직 apply
+  if (cleaned.length > 3 && cleaned.length <= 5) {
+    formatted = `${cleaned.slice(0, 3)}-${cleaned.slice(3)}`;
+  } else if (cleaned.length > 5) {
+    formatted = `${cleaned.slice(0, 3)}-${cleaned.slice(3, 5)}-${cleaned.slice(
+      5
+    )}`;
+  }
+
+  // 값이 변경되었을 때만 업데이트 (무한 루프 방지)
+  if (newVal !== formatted) {
+    business_num.value = formatted;
+  }
+});
+
+//휴대폰 번호 자동 포맷팅
+watch(phone, (newVal) => {
+  // 숫자만 남기고 제거
+  const cleaned = newVal.replace(/[^0-9]/g, '');
+  let formatted = cleaned;
+
+  // 11자리까지만 입력 가능하도록 제한
+  if (cleaned.length > 11) {
+    formatted = cleaned.slice(0, 11);
+  }
+
+  // 포맷팅 로직 apply
+  if (cleaned.length > 3 && cleaned.length <= 7) {
+    formatted = `${cleaned.slice(0, 3)}-${cleaned.slice(3)}`;
+  } else if (cleaned.length > 7) {
+    formatted = `${cleaned.slice(0, 3)}-${cleaned.slice(3, 7)}-${cleaned.slice(
+      7
+    )}`;
+  }
+
+  // 값이 변경되었을 때만 업데이트
+  if (newVal !== formatted) {
+    phone.value = formatted;
+  }
+});
+
+// 타이머 포맷 (MM:SS)
+const formattedTimer = computed(() => {
+  const m = Math.floor(timer.value / 60)
+    .toString()
+    .padStart(2, '0');
+  const s = (timer.value % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+});
+
+// 타이머 시작
+const startTimer = () => {
+  if (timerInterval.value) clearInterval(timerInterval.value);
+  timer.value = 180;
+  isTimeout.value = false;
+
+  timerInterval.value = setInterval(() => {
+    if (timer.value > 0) {
+      timer.value--;
+    } else {
+      if (timerInterval.value) clearInterval(timerInterval.value);
+      isTimeout.value = true;
+      //시간 초과 난 경우
+      alert('인증번호 입력 시간이 초과되었습니다. 재발송이 필요합니다.');
+    }
+  }, 1000);
+};
+
+onUnmounted(() => {
+  if (timerInterval.value) clearInterval(timerInterval.value);
+});
+
+// 인증번호 발송
 const handleSendVerifyCode = () => {
-  if (!phone.value) {
-    alert('휴대폰 번호를 입력해주세요.');
-    return;
-  }
-  
+  if (!name.value) return alert('이름을 입력해주세요.');
+  if (!business_num.value) return alert('사업자등록번호를 입력해주세요.');
+  if (!phone.value) return alert('휴대폰 번호를 입력해주세요.');
+
+  // API 호출 시뮬레이션
+  // await api.sendCode(...)
   alert(`인증번호를 발송했습니다: ${phone.value}`);
-  isCodeSent.value = true; // 이 값이 true가 되면 입력창이 나타나고 버튼 텍스트가 바뀜
-}
+
+  isCodeSent.value = true;
+  verifyCode.value = '';
+  startTimer();
+};
+
+// 아이디 찾기 (폼 제출)
+const handleFindId = async () => {
+  if (!name.value) return alert('이름을 입력해주세요.');
+  if (!business_num.value) return alert('사업자등록번호를 입력해주세요.');
+  if (!phone.value) return alert('휴대폰 번호를 입력해주세요.');
+  if (!isCodeSent.value) return alert('인증번호를 먼저 발송해주세요.');
+  if (!verifyCode.value) return alert('인증번호를 입력해주세요.');
+
+  // 실제 백엔드 API 호출로 아이디 조회
+  // const response = await api.findId({ name: name.value, phone: phone.value ... });
+
+  //사용자 정보가 맞지 않는 경우
+  //인증번호가 틀린 경우
+
+  // 백엔드 응답 시뮬레이션 (0.5초 딜레이)
+  setTimeout(() => {
+    // 백엔드에서 받아온 마스킹된 아이디 예시
+    const realId = 'popsicle0404';
+    const totalLen = realId.length;
+
+    const visibleLen = Math.ceil(totalLen / 2);
+    const maskedId =
+      realId.slice(0, visibleLen) + '*'.repeat(totalLen - visibleLen);
+
+    foundId.value = maskedId;
+
+    // 성공 시 단계 변경 (결과 화면으로 이동)
+    step.value = 2;
+    // 타이머 정지
+    if (timerInterval.value) clearInterval(timerInterval.value);
+  }, 500);
+};
+
+// 로그인하러 가기 버튼
+const handleGoToLogin = () => {
+  emit('close'); // 모달 닫기
+  // 필요한 경우 부모에게 로그인 화면으로 이동하라는 이벤트를 보낼 수 있음
+  // emit('login');
+};
 </script>
 
 <template>
   <Teleport to="body">
     <div v-if="isVisible" class="modal-overlay" @click.self="$emit('close')">
       <div class="modal-content">
-        
         <div class="modal-header">
           <h3>아이디 찾기</h3>
           <button class="close-btn" @click="$emit('close')">&times;</button>
         </div>
 
         <div class="modal-body">
-          <p class="guide-text">가입 시 등록한 정보를 입력해주세요.</p>
-          
-          <form @submit.prevent="handleFindId">
-            <div class="input-group">
-              <label for="find-name">이름</label>
-              <input 
-                id="find-name"
-                v-model="name" 
-                type="text" 
-                placeholder="이름을 입력하세요" 
-                required 
-              />
-            </div>
-
-            <div class="input-group">
-              <label for="find-businessNum">사업자 등록번호</label>
-              <input 
-                id="find-businessNum"
-                v-model="business_num" 
-                type="text" 
-                placeholder="000-00-00000" 
-                required 
-              />
-            </div>
-
-            <div class="input-group">
-              <label for="find-phone">휴대폰 번호</label>
-              <div class="input-with-button">
-                <input 
-                  id="find-phone"
-                  v-model="phone" 
-                  type="tel" 
-                  placeholder="010-0000-0000" 
-                  required 
-                  class="flex-grow-input"
-                  :disabled="isCodeSent" 
+          <template v-if="step === 1">
+            <p class="guide-text">가입 시 등록한 정보를 입력해주세요.</p>
+            <form @submit.prevent="handleFindId">
+              <div class="input-group">
+                <label for="find-name">이름</label>
+                <input
+                  id="find-name"
+                  v-model="name"
+                  type="text"
+                  placeholder="이름을 입력하세요"
+                  maxlength="10"
+                  required
                 />
-                <button type="button" class="btn-secondary" @click="handleSendVerifyCode">
-                   {{ isCodeSent ? '재전송' : '인증번호 발송' }}
+              </div>
+
+              <div class="input-group">
+                <label for="find-businessNum">사업자 등록번호</label>
+                <input
+                  id="find-businessNum"
+                  v-model="business_num"
+                  type="text"
+                  placeholder="000-00-00000"
+                  maxlength="12"
+                  required
+                />
+              </div>
+
+              <div class="input-group">
+                <label for="find-phone">휴대폰 번호</label>
+                <div class="input-with-button">
+                  <input
+                    id="find-phone"
+                    v-model="phone"
+                    type="tel"
+                    placeholder="010-0000-0000"
+                    maxlength="13"
+                    required
+                    class="flex-grow-input"
+                    :disabled="isCodeSent"
+                  />
+                  <button
+                    type="button"
+                    class="btn-secondary"
+                    @click="handleSendVerifyCode"
+                  >
+                    {{ isCodeSent ? '재전송' : '인증번호 발송' }}
+                  </button>
+                </div>
+              </div>
+
+              <div v-if="isCodeSent" class="input-group slide-in">
+                <input
+                  v-model="verifyCode"
+                  type="text"
+                  placeholder="인증번호 6자리를 입력하세요"
+                  class="input-field"
+                  maxlength="6"
+                />
+                <p class="timer-text">{{ formattedTimer }}</p>
+              </div>
+
+              <button type="submit" class="btn-confirm">아이디 찾기</button>
+
+              <div v-if="isCodeSent" class="resend-link-container">
+                <button
+                  type="button"
+                  class="btn-text-link"
+                  @click="handleSendVerifyCode"
+                >
+                  인증번호가 오지 않나요? <span>재전송</span>
                 </button>
               </div>
-            </div>
+            </form>
+          </template>
 
-            <div v-if="isCodeSent" class="input-group slide-in">
-              <input 
-                v-model="verifyCode" 
-                type="text" 
-                placeholder="인증번호 6자리를 입력하세요" 
-                class="input-field"
-                maxlength="6"
-              />
-              <p class="timer-text">02:59</p>
-            </div>
+          <template v-else>
+            <div class="result-container slide-in">
+              <p class="result-text-top">현재 가입하신 아이디는</p>
+              <h2 class="result-id">{{ foundId }}</h2>
+              <p class="result-text-bottom">입니다.</p>
 
-            <button type="submit" class="btn-confirm">이메일 찾기</button>
-
-            <div v-if="isCodeSent" class="resend-link-container">
-              <button type="button" class="btn-text-link" @click="handleSendVerifyCode">
-                인증번호가 오지 않나요? <span>재전송</span>
+              <button class="btn-confirm btn-login" @click="handleGoToLogin">
+                로그인하기
               </button>
             </div>
-
-          </form>
+          </template>
         </div>
       </div>
     </div>
@@ -146,7 +304,6 @@ const handleSendVerifyCode = () => {
   z-index: 9999;
   backdrop-filter: blur(2px);
 }
-
 .modal-content {
   background: white;
   width: 90%;
@@ -156,93 +313,86 @@ const handleSendVerifyCode = () => {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
   animation: slideUp 0.3s ease-out;
 }
-
 @keyframes slideUp {
-  from { transform: translateY(20px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
-
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
 }
-
 .modal-header h3 {
   margin: 0;
   font-size: 18px;
-  color: #1E3A5F;
+  color: #1e3a5f;
   font-weight: 700;
 }
-
 .close-btn {
   background: none;
   border: none;
   font-size: 24px;
   cursor: pointer;
-  color: #ADB5BD;
+  color: #adb5bd;
   padding: 0;
   line-height: 1;
 }
-
 .guide-text {
   font-size: 14px;
-  color: #6C757D;
+  color: #6c757d;
   margin-bottom: 24px;
   line-height: 1.5;
 }
-
 .input-group {
   margin-bottom: 16px;
   position: relative;
 }
-
 .input-group label {
   display: block;
   font-size: 12px;
   font-weight: 600;
-  color: #1E3A5F;
+  color: #1e3a5f;
   margin-bottom: 6px;
 }
-
 .input-group input {
   width: 100%;
   height: 48px;
   padding: 0 16px;
-  border: 1.5px solid #E9ECEF;
+  border: 1.5px solid #e9ecef;
   border-radius: 8px;
   box-sizing: border-box;
   font-size: 14px;
-  color: #1E3A5F;
+  color: #1e3a5f;
   transition: border-color 0.2s;
 }
-
 .input-group input:focus {
   outline: none;
-  border-color: #FF6B4A;
+  border-color: #ff6b4a;
 }
-
 .input-group input:disabled {
-  background-color: #F8F9FA;
-  color: #ADB5BD;
+  background-color: #f8f9fa;
+  color: #adb5bd;
 }
-
 .input-with-button {
   display: flex;
   gap: 8px;
   width: 100%;
 }
-
 .input-with-button input.flex-grow-input {
   flex: 1;
 }
-
 .btn-secondary {
   height: 48px;
   padding: 0 16px;
-  background-color: #F8F9FA;
-  border: 1.5px solid #E9ECEF;
+  background-color: #f8f9fa;
+  border: 1.5px solid #e9ecef;
   border-radius: 8px;
   color: #495057;
   font-size: 13px;
@@ -251,36 +401,43 @@ const handleSendVerifyCode = () => {
   white-space: nowrap;
   transition: all 0.2s;
 }
-
 .btn-secondary:hover {
-  background-color: #E9ECEF;
-  border-color: #DEE2E6;
-  color: #1E3A5F;
+  background-color: #e9ecef;
+  border-color: #dee2e6;
+  color: #1e3a5f;
 }
-
 .slide-in {
-    animation: fadeIn 0.3s ease-out;
+  animation: fadeIn 0.3s ease-out;
 }
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(-5px); }
-    to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
-
 .timer-text {
-    position: absolute;
-    right: 16px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 13px;
-    color: #FF6B4A;
-    margin: 0;
-    pointer-events: none;
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 13px;
+  color: #ff6b4a;
+  margin: 0;
+  pointer-events: none;
 }
-
+.input-group:has(label) .timer-text {
+  top: auto;
+  bottom: 16px;
+  transform: none;
+}
 .btn-confirm {
   width: 100%;
   height: 48px;
-  background-color: #FF6B4A;
+  background-color: #ff6b4a;
   color: white;
   border: none;
   border-radius: 8px;
@@ -290,36 +447,65 @@ const handleSendVerifyCode = () => {
   margin-top: 8px;
   transition: background-color 0.2s;
 }
-
 .btn-confirm:hover {
-  background-color: #E5553A;
+  background-color: #e5553a;
 }
-
 .resend-link-container {
   margin-top: 12px;
   text-align: center;
   animation: fadeIn 0.5s ease-out;
 }
-
 .btn-text-link {
   background: none;
   border: none;
-  color: #ADB5BD; /* 기본 문구 색상 (연한 회색) */
+  color: #adb5bd;
   font-size: 13px;
   cursor: pointer;
   padding: 0;
-  font-family: inherit; /* 폰트 상속 */
+  font-family: inherit;
 }
-
 .btn-text-link span {
-  color: #6C757D; /* '재전송' 강조 색상 (진한 회색) */
-  text-decoration: underline; /* 밑줄 */
+  color: #6c757d;
+  text-decoration: underline;
   margin-left: 4px;
   font-weight: 600;
   transition: color 0.2s;
 }
-
 .btn-text-link:hover span {
-  color: #1E3A5F; /* 호버 시 색상 변경 */
+  color: #1e3a5f;
+}
+
+/* --- Step 2 결과 화면 전용 스타일 --- */
+.result-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 0;
+  text-align: center;
+}
+
+.result-text-top,
+.result-text-bottom {
+  font-size: 16px;
+  color: #495057; /* 다크 모드 사진과 달리 흰 배경이므로 짙은 회색 사용 */
+  margin: 0;
+}
+
+.result-id {
+  font-size: 24px;
+  color: #3b82f6; /* 아이디 강조 색상 (파란색 계열) */
+  /* 만약 테마의 포인트 컬러를 쓰고 싶다면 color: #ff6b4a; */
+  font-weight: 800;
+  margin: 16px 0;
+  letter-spacing: 0.5px;
+}
+
+.btn-login {
+  margin-top: 32px; /* 버튼과 텍스트 사이 간격 */
+  background-color: #1e3a5f; /* 로그인 버튼은 짙은 남색 계열로 차별화 (선택사항) */
+}
+.btn-login:hover {
+  background-color: #162c46;
 }
 </style>
