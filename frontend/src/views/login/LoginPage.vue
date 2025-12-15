@@ -107,7 +107,7 @@ const handleLogin = async () => {
               v-model="email"
               type="email"
               class="input-field"
-              placeholder="example@email.com"
+              placeholder="이메일을 입력하세요."
               required
             />
             <input
