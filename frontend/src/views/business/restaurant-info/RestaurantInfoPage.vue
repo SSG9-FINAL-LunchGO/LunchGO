@@ -1,20 +1,25 @@
 <script setup>
-import { ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import BusinessSidebar from '@/components/ui/BusinessSideBar.vue';
 import BusinessHeader from '@/components/ui/BusinessHeader.vue';
 
-const isHolidayOpen = ref(false);
-const isPreOrderSupported = ref(true);
-const closedDays = ref([]);
-
-const toggleClosedDay = (day) => {
-  const index = closedDays.value.indexOf(day);
-  if (index > -1) {
-    closedDays.value.splice(index, 1);
-  } else {
-    closedDays.value.push(day);
-  }
+const restaurant = {
+  id: 1, // Add a mock ID for routing
+  name: '런치고 한정식',
+  phone: '02-1234-5678',
+  openingDate: '2020-01-01',
+  startTime: '10:00', // Re-add startTime
+  endTime: '22:00',
+  capacity: 50,
+  roadAddress: '서울특별시 강남구 테헤란로 123',
+  detailAddress: '4층',
+  holidayOpen: true,
+  preOrderSupported: true,
+  closedDays: ['토', '일'],
+  description:
+    '전통 한정식의 맛을 현대적으로 재해석한 런치고 한정식입니다. 신선한 제철 재료로 만든 다채로운 한정식 코스를 즐겨보세요.',
+  image: '/modern-korean-restaurant-interior.jpg', // Placeholder for image
+  tags: ['한식', '조용한', '깔끔한', '룸', '주차장 제공', '와이파이'], // Updated example tags
 };
 </script>
 
@@ -44,8 +49,8 @@ const toggleClosedDay = (day) => {
             >
               <div class="aspect-[2/1] flex items-center justify-center">
                 <img
-                  src="/modern-korean-restaurant-interior.jpg"
-                  alt="식당이미지"
+                  :src="restaurant.image"
+                  :alt="restaurant.name"
                   class="w-full h-full object-cover"
                 />
               </div>
@@ -61,7 +66,7 @@ const toggleClosedDay = (day) => {
                   >
                   <input
                     type="text"
-                    value="식당 이름(읽기전용)"
+                    :value="restaurant.name"
                     readonly
                     class="w-full px-4 py-3 border border-[#dee2e6] rounded-lg bg-[#f8f9fa] text-[#6c757d]"
                   />
@@ -72,7 +77,7 @@ const toggleClosedDay = (day) => {
                   >
                   <input
                     type="text"
-                    value="전화번호(읽기전용)"
+                    :value="restaurant.phone"
                     readonly
                     class="w-full px-4 py-3 border border-[#dee2e6] rounded-lg bg-[#f8f9fa] text-[#6c757d]"
                   />
@@ -86,7 +91,7 @@ const toggleClosedDay = (day) => {
                 >
                 <input
                   type="text"
-                  value="개업일(날짜, 읽기전용)"
+                  :value="restaurant.openingDate"
                   readonly
                   class="w-full px-4 py-3 border border-[#dee2e6] rounded-lg bg-[#f8f9fa] text-[#6c757d]"
                 />
@@ -100,7 +105,7 @@ const toggleClosedDay = (day) => {
                   >
                   <input
                     type="text"
-                    value="(시간, 읽기전용)"
+                    :value="restaurant.startTime"
                     readonly
                     class="w-full px-4 py-3 border border-[#dee2e6] rounded-lg bg-[#f8f9fa] text-[#6c757d]"
                   />
@@ -111,7 +116,7 @@ const toggleClosedDay = (day) => {
                   >
                   <input
                     type="text"
-                    value="(시간, 읽기전용)"
+                    :value="restaurant.endTime"
                     readonly
                     class="w-full px-4 py-3 border border-[#dee2e6] rounded-lg bg-[#f8f9fa] text-[#6c757d]"
                   />
@@ -124,8 +129,8 @@ const toggleClosedDay = (day) => {
                   >예약인원 상한</label
                 >
                 <input
-                  type="text"
-                  value="(number 타입, 읽기전용)"
+                  type="number"
+                  :value="restaurant.capacity"
                   readonly
                   class="w-full px-4 py-3 border border-[#dee2e6] rounded-lg bg-[#f8f9fa] text-[#6c757d]"
                 />
@@ -138,7 +143,7 @@ const toggleClosedDay = (day) => {
                 >
                 <input
                   type="text"
-                  value="도로명주소(읽기전용)"
+                  :value="restaurant.roadAddress"
                   readonly
                   class="w-full px-4 py-3 border border-[#dee2e6] rounded-lg bg-[#f8f9fa] text-[#6c757d]"
                 />
@@ -150,7 +155,7 @@ const toggleClosedDay = (day) => {
                 >
                 <input
                   type="text"
-                  value="상세주소(읽기전용)"
+                  :value="restaurant.detailAddress"
                   readonly
                   class="w-full px-4 py-3 border border-[#dee2e6] rounded-lg bg-[#f8f9fa] text-[#6c757d]"
                 />
@@ -162,26 +167,24 @@ const toggleClosedDay = (day) => {
                   <input
                     type="checkbox"
                     id="holiday"
-                    v-model="isHolidayOpen"
+                    v-model="restaurant.holidayOpen"
+                    disabled
                     class="w-5 h-5 rounded border-[#dee2e6]"
                   />
                   <label for="holiday" class="text-sm text-[#1e3a5f]">
-                    공휴일 운영 여부
-                    <br />
-                    <span class="text-xs text-[#6c757d]">(체크박스, 고정)</span>
+                    공휴일 운영
                   </label>
                 </div>
                 <div class="flex items-center gap-3">
                   <input
                     type="checkbox"
                     id="preorder"
-                    v-model="isPreOrderSupported"
+                    v-model="restaurant.preOrderSupported"
+                    disabled
                     class="w-5 h-5 rounded border-[#dee2e6]"
                   />
                   <label for="preorder" class="text-sm text-[#1e3a5f]">
-                    선주문/선결제 지원 여부
-                    <br />
-                    <span class="text-xs text-[#6c757d]">(체크박스, 고정)</span>
+                    선주문/선결제 가능
                   </label>
                 </div>
               </div>
@@ -189,19 +192,18 @@ const toggleClosedDay = (day) => {
               <!-- Regular Closing Days -->
               <div>
                 <label class="block text-sm font-semibold text-[#1e3a5f] mb-2">
-                  정기휴무일(해당하는 요일만 조회하고 없으면 미출력, 아래는
-                  출력예시)
+                  정기휴무일
                 </label>
                 <div class="flex gap-3">
                   <button
-                    v-for="day in ['토', '일']"
+                    v-for="day in ['월', '화', '수', '목', '금', '토', '일']"
                     :key="day"
-                    @click="toggleClosedDay(day)"
-                    :class="`px-6 py-2 rounded-lg border transition-colors ${
-                      closedDays.includes(day)
+                    :class="`px-4 py-2 rounded-lg border transition-colors ${
+                      restaurant.closedDays.includes(day)
                         ? 'gradient-primary text-white border-transparent'
-                        : 'border-[#dee2e6] text-[#1e3a5f] hover:bg-[#f8f9fa]'
+                        : 'border-[#dee2e6] text-[#1e3a5f] bg-[#f8f9fa]'
                     }`"
+                    disabled
                   >
                     {{ day }}
                   </button>
@@ -216,33 +218,20 @@ const toggleClosedDay = (day) => {
             <div
               class="border-2 border-[#e9ecef] rounded-xl p-6 bg-[#f8f9fa] min-h-[120px]"
             >
-              <p class="text-sm text-[#6c757d]">작성된 식당 소개문</p>
+              <p class="text-sm text-[#6c757d]">{{ restaurant.description }}</p>
             </div>
           </div>
 
           <!-- Restaurant Tags -->
           <div class="bg-white rounded-xl border border-[#e9ecef] p-8">
-            <h3 class="text-xl font-bold text-[#1e3a5f] mb-4">
-              식당 태그(현재 조회하는 식당에 관한 검색태그만 표시)
-            </h3>
+            <h3 class="text-xl font-bold text-[#1e3a5f] mb-4">식당 태그</h3>
             <div class="flex flex-wrap gap-3">
               <div
-                v-for="tag in [
-                  '조용한',
-                  '깔끔한',
-                  '노키즈존',
-                  '주차장 제공',
-                  '룸',
-                ]"
+                v-for="tag in restaurant.tags"
                 :key="tag"
-                class="px-6 py-3 border-2 border-[#dee2e6] rounded-lg bg-white"
+                class="px-4 py-2 border-2 border-[#dee2e6] rounded-lg bg-white"
               >
                 <span class="text-sm text-[#1e3a5f]">{{ tag }}</span>
-              </div>
-              <div
-                class="px-6 py-3 border-2 border-[#dee2e6] rounded-lg bg-white"
-              >
-                <span class="text-sm text-[#6c757d]">...</span>
               </div>
             </div>
           </div>
@@ -256,7 +245,7 @@ const toggleClosedDay = (day) => {
 
           <!-- Edit Button -->
           <div class="flex justify-end">
-            <RouterLink to="/business/restaurant-info/edit">
+            <RouterLink :to="`/business/restaurant-info/edit/${restaurant.id}`">
               <button
                 class="px-8 py-3 border-2 border-[#FF6B4A] text-[#FF6B4A] rounded-xl font-semibold hover:bg-[#fff5f2] transition-colors"
               >
