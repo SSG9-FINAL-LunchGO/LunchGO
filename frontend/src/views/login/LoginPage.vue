@@ -1,22 +1,29 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { RouterLink } from 'vue-router';
-import { ArrowLeft } from 'lucide-vue-next';
+import { ArrowLeft, TruckElectric } from 'lucide-vue-next';
 import FindIdModal from '@/components/ui/FindIdModal.vue';
 import FindEmailModal from '@/components/ui/FindEmailModal.vue';
 import FindPwdModal from '@/components/ui/FindPwdModal.vue';
+import UserDormantModal from '@/components/ui/UserDormantModal.vue';
+
 // --- 로직 통합 시작 ---
 type UserType = 'user' | 'staff' | 'owner' | 'admin';
+
 // 모달 상태 관리 (아이디/이메일/비밀번호)
 const showFindIdModal = ref(false);
 const showFindEmailModal = ref(false);
-const showFindPwdModal = ref(false); // [추가] 비밀번호 찾기 모달 상태
+const showFindPwdModal = ref(false);
+const showDormantModal = ref(true);
+
 const currentTab = ref<UserType>('user');
 const email = ref('');
 const username = ref('');
 const password = ref('');
+const status = ref('');
 const isLoading = ref(false);
 const errorMessage = ref('');
+
 // 탭 데이터
 const tabs = [
   { id: 'user', label: '사용자' },
@@ -49,12 +56,30 @@ const handleLogin = async () => {
     console.log('Login attempt:', payload);
     // API 호출 시뮬레이션
     await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    //status가 Dormant 인 경우
+    if (status.value === 'dormant') {
+      showDormantModal.value = true;
+      isLoading.value = false;
+
+      return;
+    }
+    //정상 로그인
     alert(`${tabs.find((t) => t.id === currentTab.value)?.label} 로그인 성공!`);
   } catch (error) {
     errorMessage.value = '로그인 정보를 확인해주세요.';
   } finally {
     isLoading.value = false;
   }
+};
+
+// 휴면 해지 완료 후 처리
+const handleDormantUnlocked = () => {
+  // 휴면 해지가 완료되면 바로 로그인을 시도하거나, 메시지를 띄웁니다.
+  // 여기서는 패스워드를 초기화하여 다시 입력하게 유도하거나,
+  // 혹은 바로 로그인 API를 호출할 수도 있습니다.
+  password.value = '';
+  errorMessage.value = '';
 };
 </script>
 <template>
@@ -177,6 +202,13 @@ const handleLogin = async () => {
       :is-visible="showFindPwdModal"
       :user-type="currentTab"
       @close="showFindPwdModal = false"
+    />
+
+    <UserDormantModal
+      :is-visible="showDormantModal"
+      @close="showDormantModal = false"
+      :user-email="email"
+      @unlocked="handleDormantUnlocked"
     />
   </div>
 </template>
