@@ -82,6 +82,7 @@ const isCalendarOpen = ref(false);
 const calendarMonth = ref(new Date());
 const weekdayLabels = ['일', '월', '화', '수', '목', '금', '토'];
 const selectedMapRestaurant = ref(null);
+const favoriteRestaurantIds = ref([]);
 
 const perPersonBudget = computed(() => {
   if (budget.value <= 0 || !searchPartySize.value) {
@@ -340,7 +341,6 @@ const sortOptions = ['추천순', '거리순', '평점순', '가격순'];
 const restaurantTags = [
   '조용한',
   '깔끔한',
-  '노키즈존',
   '셀프바',
   '주차장 제공',
   '이국적/이색적',
@@ -373,6 +373,19 @@ const togglePriceRange = (range) => {
   }
 
   selectedPriceRanges.value = [range];
+};
+
+const isRestaurantFavorite = (restaurantId) => {
+  return favoriteRestaurantIds.value.includes(restaurantId);
+};
+
+const toggleRestaurantFavorite = (restaurantId) => {
+  const index = favoriteRestaurantIds.value.indexOf(restaurantId);
+  if (index > -1) {
+    favoriteRestaurantIds.value.splice(index, 1);
+  } else {
+    favoriteRestaurantIds.value.push(restaurantId);
+  }
 };
 
 const resetFilters = () => {
@@ -557,8 +570,22 @@ const closeMapRestaurantModal = () => {
             :to="`/restaurant/${restaurant.id}`"
           >
             <Card
-              class="overflow-hidden border-[#e9ecef] rounded-xl bg-white shadow-card hover:shadow-lg transition-shadow cursor-pointer"
+              class="relative overflow-hidden border-[#e9ecef] rounded-xl bg-white shadow-card hover:shadow-lg transition-shadow cursor-pointer"
             >
+              <button
+                type="button"
+                class="absolute top-3 right-3 z-10 p-2 rounded-full bg-white/90 shadow-card text-[#c4c4c4] hover:text-[#ff6b4a] transition-colors"
+                :aria-pressed="isRestaurantFavorite(restaurant.id)"
+                @click.stop.prevent="toggleRestaurantFavorite(restaurant.id)"
+              >
+                <Star
+                  class="w-4 h-4"
+                  :class="isRestaurantFavorite(restaurant.id) ? 'fill-current text-[#ff6b4a]' : 'text-[#adb5bd] fill-white'"
+                />
+                <span class="sr-only">
+                  {{ isRestaurantFavorite(restaurant.id) ? '즐겨찾기 해제' : '즐겨찾기에 추가' }}
+                </span>
+              </button>
               <div class="flex gap-3 p-2">
                 <div
                   class="relative w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden"
