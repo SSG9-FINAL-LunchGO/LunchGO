@@ -10,22 +10,24 @@ const goDetail = (id) => {
   router.push({ name: 'reservation-detail', params: { id } });
 };
 
-// 필터 상태 (너 코드에 없어서 추가)
+// 필터 상태
 const filterOpen = ref(false);
 const statusFilter = ref('all'); // all | confirmed | pending | cancelled | refunded
 
-//확정 취소 (임시 목데이터 나중에 백엔드 연동 예정)
-const confirmReservation = (id) => {
-  const target = reservations.value.find((r) => r.id === id);
-  if (!target) return;
-  target.status = 'confirmed';
-};
+//확정 기능 삭제
+// //확정 취소 (임시 목데이터 나중에 백엔드 연동 예정)
+// const confirmReservation = (id) => {
+//   const target = reservations.value.find((r) => r.id === id);
+//   if (!target) return;
+//   target.status = 'confirmed';
+// };
 
 // 취소 모달 상태
 const cancelModalOpen = ref(false);
 const cancelTargetId = ref(null);
 const cancelReason = ref('');
 const cancelError = ref('');
+const MAX_CANCEL_REASON = 50;
 
 const openCancelModal = (id) => {
   cancelTargetId.value = id;
@@ -42,18 +44,26 @@ const closeCancelModal = () => {
 };
 
 const submitCancel = () => {
-  if (!cancelReason.value.trim()) {
+  const reason = cancelReason.value.trim();
+  if (!reason) {
     cancelError.value = '취소 사유를 입력해주세요.';
     return;
   }
+
+  if (reason.length > MAX_CANCEL_REASON) {
+    cancelError.value = `취소 사유는 ${MAX_CANCEL_REASON}자 이내로 입력해주세요.`;
+    return;
+  }
+
   const target = reservations.value.find((r) => r.id === cancelTargetId.value);
   if (!target) return;
 
   target.status = 'cancelled';
-  target.cancelReason = cancelReason.value.trim(); // 나중에 백엔드 필드로 그대로 쓰면 됨
+  target.cancelReason = reason; // 나중에 백엔드 필드로 그대로 사용
   target.cancelledAt = new Date().toISOString();   // (선택)
 
   closeCancelModal();
+  window.alert('취소 되었습니다.');
 };
 
 const selectedDate = ref(new Date().toISOString().split('T')[0]);
@@ -146,13 +156,13 @@ const reservations = ref([
   },
 ]);
 
-//필터 적용된 예약 리스트 (너 코드 유지)
+//필터 적용된 예약 리스트
 const filteredReservations = computed(() => {
   if (statusFilter.value === 'all') return reservations.value;
   return reservations.value.filter((r) => r.status === statusFilter.value);
 });
 
-// 예약 상태가 바뀌면 자동 갱신 (너 코드 유지)
+// 예약 상태가 바뀌면 자동 갱신 
 const stats = computed(() => ({
   total: reservations.value.length,
   confirmed: reservations.value.filter((r) => r.status === 'confirmed').length,
@@ -295,14 +305,14 @@ const salesStats = computed(() => {
                             상세보기
                           </button>
 
-                          <!-- 대기면 확정 버튼 노출 -->
+                          <!-- 대기면 확정 버튼 노출
                           <button
                             v-if="reservation.status === 'pending'"
                             @click="confirmReservation(reservation.id)"
                             class="bg-[#28a745] text-white px-3 py-2 rounded-lg text-xs hover:opacity-90 transition-opacity"
                           >
                             확정
-                          </button>
+                          </button> -->
 
                           <!-- 확정/대기 둘 다 취소 가능 -->
                           <button
@@ -366,9 +376,13 @@ const salesStats = computed(() => {
         <textarea
           v-model="cancelReason"
           rows="4"
+          maxlength="50"
           class="w-full border border-[#dee2e6] rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-[#ff6b4a]/30"
-          placeholder="예: 고객 요청 / 매장 사정 / 노쇼 등"
+          placeholder="취소 사유를 50자 이내로 입력해주세요. (예: 고객 요청 / 매장 사정 / 노쇼 등)"
         />
+        <p class="mt-2 text-xs text-[#6c757d] text-right">
+          {{ cancelReason.trim().length }}/50
+        </p>
         <p v-if="cancelError" class="mt-2 text-sm text-[#dc3545]">{{ cancelError }}</p>
       </div>
 
@@ -379,10 +393,7 @@ const salesStats = computed(() => {
         >
           닫기
         </button>
-        <button
-          @click="submitCancel"
-          class="px-4 py-2 rounded-lg text-sm text-white bg-[#dc3545] hover:opacity-90"
-        >
+        <button @click="submitCancel" :disabled="!cancelReason.trim() || cancelReason.trim().length > 50" class="px-4 py-2 rounded-lg text-sm text-white bg-[#dc3545] hover:opacity-90">
           취소 확정
         </button>
       </div>

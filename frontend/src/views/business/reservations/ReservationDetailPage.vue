@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import BusinessSidebar from '@/components/ui/BusinessSideBar.vue';
 import BusinessHeader from '@/components/ui/BusinessHeader.vue';
@@ -9,8 +9,71 @@ const router = useRouter();
 
 const reservationId = computed(() => Number(route.params.id));
 
+//확정 버튼 삭제
+// // ---- 확정 (pending만) ----
+// const confirmReservation = () => {
+//   const target = reservation.value;
+//   if (!target) return;
+//   if (target.status !== 'pending') return;
+//   target.status = 'confirmed';
+//   target.confirmedAt = new Date().toISOString();
+// };
+
+// ---- 취소 모달 상태 ----
+const cancelModalOpen = ref(false);
+const cancelReason = ref('');
+const cancelError = ref('');
+
+const MAX_CANCEL_REASON = 50;
+
+// confirmed/pending만 취소 가능
+const openCancelModal = () => {
+  const target = reservation.value;
+  if (!target) return;
+  if (target.status === 'cancelled') return;
+  cancelReason.value = '';
+  cancelError.value = '';
+  cancelModalOpen.value = true;
+};
+
+const closeCancelModal = () => {
+  cancelModalOpen.value = false;
+  cancelReason.value = '';
+  cancelError.value = '';
+};
+
+const submitCancel = () => {
+  const target = reservation.value;
+  if (!target) return;
+  if (target.status === 'cancelled') return;
+
+  const reason = cancelReason.value.trim();
+  if (!reason) {
+    cancelError.value = '취소 사유를 입력해주세요.';
+    return;
+  }
+
+  if (reason.length > MAX_CANCEL_REASON) {
+    cancelError.value = '취소 사유는 ${MAX_CANCEL_REASON}자 이내로 입력해주세요.';
+    return;
+  }
+
+  target.status = 'cancelled';
+  target.cancelReason = reason;
+  target.cancelledAt = new Date().toISOString();
+  closeCancelModal();
+  window.alert('취소 되었습니다.');
+};
+
+// // 버튼 노출 조건
+// const canConfirm = computed(() => reservation.value?.status === 'pending');
+const canCancel = computed(() => {
+  const s = reservation.value?.status;
+  return s === 'pending' || s === 'confirmed';
+});
+
 //임시 mock (나중에 이 부분만 API 호출로 교체)
-const reservations = [
+const reservations = ref ([
   {
     id: 1,
     name: '홍길동',
@@ -59,7 +122,8 @@ const reservations = [
     phone: '010-4567-8901',
     date: '2025-12-25',
     time: '14:00',
-    guests: 5,
+   paymentType: 'onsite',
+     guests: 5,
     amount: 90000,
     status: 'confirmed',
     requestNote: '',
@@ -102,13 +166,12 @@ const reservations = [
     amount: 72000,
     status: 'cancelled',
     requestNote: '',
-    paymentType: 'onsite',
     preorderItems: [],
   },
-];
+]);
 
 const reservation = computed(() =>
-  reservations.find((r) => r.id === reservationId.value)
+  reservations.value.find((r) => r.id === reservationId.value)
 );
 </script>
 
@@ -119,14 +182,18 @@ const reservation = computed(() =>
       <BusinessHeader />
       <main class="flex-1 overflow-y-auto p-8">
         <div class="max-w-5xl mx-auto space-y-6">
-          <div class="flex items-center gap-3">
-            <button @click="router.back()" class="px-4 py-2 border rounded-lg">뒤로</button>
-            <h2 class="text-3xl font-bold text-[#1e3a5f]">예약 상세</h2>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <button @click="router.back()" class="px-4 py-2 border rounded-lg">뒤로</button>
+              <h2 class="text-3xl font-bold text-[#1e3a5f]">예약 상세</h2>
+            </div>
+            <!-- 액션 버튼: pending=취소 / confirmed=취소 / cancelled=없음 -->
+            <div v-if="reservation" class="flex items-center gap-2">
+            <!-- <button v-if="canConfirm" @click="confirmReservation" class="bg-[#28a745] text-white px-4 py-2 rounded-lg text-sm hover:opacity-90 transition-opacity">확정</button> -->
+            <button v-if="canCancel" @click="openCancelModal" class="bg-[#dc3545] text-white px-4 py-2 rounded-lg text-sm hover:opacity-90 transition-opacity">취소</button></div>
           </div>
-
-          <div v-if="!reservation" class="bg-white rounded-xl border p-10 text-center text-[#6c757d]">
-            해당 예약을 찾을 수 없습니다.
-          </div>
+            <div v-if="!reservation" class="bg-white rounded-xl border p-10 text-center text-[#6c757d]">해당 예약을 찾을 수 없습니다.
+            </div>
 
           <div v-else class="bg-white rounded-xl border p-6">
             <p class="text-sm text-[#6c757d] mb-2">예약자</p>
@@ -168,7 +235,11 @@ const reservation = computed(() =>
                     : '환불'
                 }}
             </span>
+            <div v-if="reservation.status === 'cancelled'" class="mt-3 bg-[#f8f9fa] border border-[#e9ecef] rounded-lg p-4 text-sm">
+              <p class="text-[#6c757d] mb-1">취소 사유</p>
+              <p class="text-[#1e3a5f]">{{ reservation.cancelReason || '사유 없음' }}</p>
             </div>
+          </div>
 
             <!-- 요청사항 -->
             <div class="mt-6">
@@ -220,6 +291,41 @@ const reservation = computed(() =>
             <div v-else class="bg-[#f8f9fa] border border-[#e9ecef] rounded-lg p-4 text-sm text-[#6c757d]">
                 선주문 내역 없음
             </div>
+            </div>
+          </div>
+        </div>
+        <!-- 취소 사유 모달 -->
+        <div v-if="cancelModalOpen" class="fixed inset-0 z-50 flex items-center justify-center">
+          <div class="absolute inset-0 bg-black/30" @click="closeCancelModal"></div>
+
+          <div class="relative w-full max-w-lg bg-white rounded-xl border border-[#e9ecef] shadow-lg p-6">
+            <h3 class="text-lg font-bold text-[#1e3a5f]">예약 취소</h3>
+            <p class="text-sm text-[#6c757d] mt-1">취소 사유를 입력해주세요.</p>
+
+            <div class="mt-4">
+              <textarea
+                v-model="cancelReason"
+                rows="4"
+                maxlength="50"
+                class="w-full border border-[#dee2e6] rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-[#ff6b4a]/30"
+                placeholder="취소 사유를 50자 이내로 입력해주세요. (예: 고객 요청 / 매장 사정 / 노쇼 등)"
+              />
+              <p class="mt-2 text-xs text-[#6c757d] text-right">
+                {{ cancelReason.trim().length }}/50
+              </p>
+              <p v-if="cancelError" class="mt-2 text-sm text-[#dc3545]">{{ cancelError }}</p>
+            </div>
+
+            <div class="mt-5 flex justify-end gap-2">
+              <button
+                @click="closeCancelModal"
+                class="px-4 py-2 border border-[#dee2e6] rounded-lg text-sm text-[#1e3a5f] hover:bg-[#f8f9fa]"
+              >
+                닫기
+              </button>
+              <button @click="submitCancel" :disabled="cancelReason.trim().length > 50" class="px-4 py-2 rounded-lg text-sm text-white bg-[#dc3545] hover:opacity-90">
+                취소 확정
+              </button>
             </div>
           </div>
         </div>
