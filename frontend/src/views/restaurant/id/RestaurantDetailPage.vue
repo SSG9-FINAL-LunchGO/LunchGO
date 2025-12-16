@@ -79,6 +79,7 @@ const defaultMenus = [
 const representativeMenus = ref(
   restaurantInfo.value?.menus?.length ? restaurantInfo.value.menus : defaultMenus,
 );
+const isRestaurantFavorite = ref(false);
 
 const highlightTags = computed(() => {
   if (!restaurantInfo.value?.topTags?.length) return '';
@@ -182,6 +183,10 @@ const openImageModal = (images, index) => {
   modalImageIndex.value = index;
   modalImageUrl.value = images[index];
   isImageModalOpen.value = true;
+};
+
+const toggleRestaurantFavorite = () => {
+  isRestaurantFavorite.value = !isRestaurantFavorite.value;
 };
 
 // 모달 닫기
@@ -407,6 +412,20 @@ watch(detailMapDistanceKm, () => {
               대표 태그: {{ highlightTags }}
             </p>
           </div>
+          <button
+            type="button"
+            class="p-2 rounded-full bg-[#f8f9fa] text-[#adb5bd] hover:text-[#ff6b4a] transition-colors"
+            :aria-pressed="isRestaurantFavorite"
+            @click="toggleRestaurantFavorite"
+          >
+            <Star
+              class="w-5 h-5"
+              :class="isRestaurantFavorite ? 'fill-current text-[#ff6b4a]' : 'fill-white'"
+            />
+            <span class="sr-only">
+              {{ isRestaurantFavorite ? '즐겨찾기 해제' : '즐겨찾기에 추가' }}
+            </span>
+          </button>
         </div>
 
         <div class="space-y-2.5">
