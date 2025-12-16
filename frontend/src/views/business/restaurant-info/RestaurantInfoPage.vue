@@ -19,7 +19,7 @@ const restaurant = {
   description:
     '전통 한정식의 맛을 현대적으로 재해석한 런치고 한정식입니다. 신선한 제철 재료로 만든 다채로운 한정식 코스를 즐겨보세요.',
   image: '/modern-korean-restaurant-interior.jpg', // Placeholder for image
-  tags: ['조용한', '깔끔한', '주차장 제공', '룸', '한식', '점심', '저녁'], // Example tags
+  tags: ['한식', '조용한', '깔끔한', '룸', '주차장 제공', '와이파이'], // Updated example tags
 };
 </script>
 
