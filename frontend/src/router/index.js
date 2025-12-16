@@ -204,6 +204,12 @@ const router = createRouter({
       component: () =>
         import('@/views/business/reservations/ReservationDetailPage.vue'),
     },
+    //사업자 - 전체 예약 관리 (상세보기)
+    {
+      path: '/reservations/:id',
+      name: 'reservation-detail',
+      component: () => import('@/views/business/reservations/ReservationDetailPage.vue'),
+    },
     // Wildcard route for 404 - make sure this is the last route
     {
       path: '/:pathMatch(.*)*',
