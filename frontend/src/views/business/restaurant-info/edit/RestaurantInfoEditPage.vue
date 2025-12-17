@@ -50,53 +50,12 @@ const dayOfWeekInverseMap = {
   토: 7,
 };
 
+// 유효한 전화번호 접두사 목록 (지역번호 및 휴대폰)
 const tagCategoryDisplayNames = {
   MENUTYPE: '식당 종류',
   TABLETYPE: '테이블 옵션',
   ATMOSPHERE: '식당 분위기',
   FACILITY: '편의시설',
-};
-
-// --- Menu Management State (from Pinia Store) ---
-const allMenus = computed(() => store.menus);
-const currentPage = ref(1);
-const itemsPerPage = ref(5);
-
-const totalPages = computed(() =>
-  Math.ceil(allMenus.value.length / itemsPerPage.value)
-);
-
-const paginatedMenus = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage.value;
-  const end = start + itemsPerPage.value;
-  return allMenus.value.slice(start, end);
-});
-
-const changePage = (page) => {
-  if (page < 1 || page > totalPages.value) return;
-  currentPage.value = page;
-};
-
-// --- End of Menu Management State ---
-
-const handleRestaurantFileChange = (e) => {
-  const file = e.target.files[0];
-  if (file) {
-    restaurantImageFile.value = file;
-    restaurantImageUrl.value = URL.createObjectURL(file);
-  }
-};
-
-const triggerRestaurantFileInput = () => {
-  restaurantFileInput.value.click();
-};
-
-const clearRestaurantImage = () => {
-  restaurantImageFile.value = null;
-  restaurantImageUrl.value = null;
-  if (restaurantFileInput.value) {
-    restaurantFileInput.value.value = '';
-  }
 };
 
 const openPostcodeSearch = () => {
@@ -269,6 +228,15 @@ const saveRestaurant = async () => {
   if (!formData.phone.trim()) {
     validationErrors.phone = '식당 전화번호를 입력해주세요.';
     isValid = false;
+  } else {
+    // 유효한 접두사와 전화번호 형식을 모두 검사하는 정규식
+    const phoneRegex =
+      /^(02|010|011|01[6-9]|03[1-3]|04[1-4]|05[1-5]|06[1-4]|070|080|050)-\d{3,4}-\d{4}$/;
+    if (!phoneRegex.test(formData.phone)) {
+      validationErrors.phone =
+        '유효하지 않은 전화번호 형식 또는 지역번호입니다.';
+      isValid = false;
+    }
   }
   if (!formData.openDate) {
     validationErrors.openDate = '개업일을 입력해주세요.';
@@ -283,7 +251,7 @@ const saveRestaurant = async () => {
     isValid = false;
   }
   if (!formData.reservationLimit || formData.reservationLimit < 4) {
-    validationErrors.reservationLimit = '예약가능인원을 4 이상 입력해주세요.';
+    validationErrors.reservationLimit = '예약가능인원을 4인 이상 입력해주세요.';
     isValid = false;
   }
   if (!formData.roadAddress.trim()) {
@@ -447,8 +415,9 @@ watch(restaurantImageFile, (newFile) => {
                   >
                   <input
                     type="tel"
-                    placeholder="식당 전화번호를 입력하세요(하이픈('-') 사용 필수)"
+                    placeholder="하이픈(-)을 포함하여 입력하세요"
                     v-model="formData.phone"
+                    maxlength="13"
                     class="w-full px-4 py-3 border border-[#dee2e6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B4A]"
                   />
                   <p
