@@ -39,18 +39,28 @@ const submitButtonText = computed(() =>
   isEditMode.value ? '수정하기' : '등록하기'
 );
 
+const avgMainPrice = computed(() => {
+  const mainMenus = store.menus.filter((menu) => menu.type === '주메뉴');
+  if (mainMenus.length === 0) {
+    return 0;
+  }
+  const totalPrice = mainMenus.reduce((sum, menu) => sum + menu.price, 0);
+  return Math.round(totalPrice / mainMenus.length);
+});
+
 const formData = reactive({
   name: '',
   phone: '',
-  openDate: '',
-  openTime: '',
-  closeTime: '',
-  reservationLimit: '',
   roadAddress: '',
   detailAddress: '',
+  description: '',
+  avgMainPrice: 0,
+  reservationLimit: '',
   holidayAvailable: false,
   preorderAvailable: false,
-  description: '',
+  openTime: '',
+  closeTime: '',
+  openDate: '',
 });
 
 const restaurantImageFile = ref(null);
@@ -332,6 +342,7 @@ const saveRestaurant = async () => {
     menus: store.menus, // Include menus from the store
   };
 
+  // 추후 API를 통해 등록/수정 요청을 보낼 부분
   try {
     if (isEditMode.value) {
       console.log('Updating restaurant:', route.params.id, dataToSubmit);
@@ -385,6 +396,11 @@ watch(
   },
   { deep: true }
 );
+
+// avgMainPrice computed 속성의 변화를 감지하여 formData.avgMainPrice 업데이트
+watch(avgMainPrice, (newAvg) => {
+  formData.avgMainPrice = newAvg;
+});
 </script>
 
 <template>
@@ -723,7 +739,12 @@ watch(
 
           <!-- Menu Management Section -->
           <div class="bg-white rounded-xl border border-[#e9ecef] p-8">
-            <h3 class="text-xl font-bold text-[#1e3a5f] mb-6">식당메뉴</h3>
+            <div class="flex items-center justify-between mb-6">
+              <h3 class="text-xl font-bold text-[#1e3a5f]">식당메뉴</h3>
+              <span class="text-lg font-semibold text-[#FF6B4A]">
+                주메뉴 평균가: {{ avgMainPrice.toLocaleString() }}원
+              </span>
+            </div>
             <p
               v-if="validationErrors.menus"
               class="text-red-500 text-sm mb-4 text-center"
