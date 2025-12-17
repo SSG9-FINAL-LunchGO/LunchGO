@@ -39,11 +39,9 @@ const mainImageUrl = computed(() => {
 });
 
 // 5. 라이프사이클 훅
+// 추후 API로부터 데이터를 받아오는 로직을 처리할 함수
 onMounted(() => {
-  // --- Mock API Fetch (DTO는 camelCase 사용) ---
-  // 실제로는 여기서 route.params.id 또는 인증된 사용자 정보를 기반으로 API를 호출합니다.
-  // GET /api/my-restaurant
-  
+  // API: GET /api/my-restaurant
   const mockRestaurantDataFromApi = {
     restaurantId: 1,
     name: '런치고 한정식',

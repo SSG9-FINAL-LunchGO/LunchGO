@@ -151,6 +151,7 @@ const isTagSelected = (tag) => {
   return selectedTags.value.some((st) => st.tagId === tag.tagId);
 };
 
+// API: GET /api/tags
 const fetchTags = async () => {
   return new Promise((resolve) => {
     setTimeout(() => {
@@ -173,6 +174,7 @@ const fetchTags = async () => {
   });
 };
 
+// API: GET /api/restaurants/{id}
 const fetchRestaurantData = async (restaurantId) => {
   console.log(`Fetching data for restaurant ID: ${restaurantId}`);
   return new Promise((resolve) => {

@@ -62,7 +62,7 @@ const clearImage = () => {
 };
 
 const toggleIngredientTag = (tag) => {
-  const index = menuData.tags.findIndex(t => t.tagId === tag.tagId);
+  const index = menuData.tags.findIndex((t) => t.tagId === tag.tagId);
   if (index > -1) {
     menuData.tags.splice(index, 1);
   } else {
@@ -71,12 +71,14 @@ const toggleIngredientTag = (tag) => {
 };
 
 const isTagSelected = (tag) => {
-  return menuData.tags.some(t => t.tagId === tag.tagId);
+  return menuData.tags.some((t) => t.tagId === tag.tagId);
 };
 
 // 6. 라이프사이클 훅
+// 추후 API로부터 데이터를 받아오는 로직을 처리할 함수
 onMounted(() => {
-  // 재료 태그 목록은 항상 가져옴 (실제로는 API 호출)
+  // 1. (모든 메뉴 공통) 재료 태그 목록 가져오기
+  // API: GET /api/tags?category=INGREDIENT
   const mockAllIngredientTags = [
     { tagId: 1, content: '견과류' }, { tagId: 2, content: '우유' },
     { tagId: 3, content: '계란' }, { tagId: 4, content: '밀' },
@@ -89,6 +91,8 @@ onMounted(() => {
   allIngredientTags.value = mockAllIngredientTags;
 
   if (isEditMode.value) {
+    // 2. (수정 모드일 경우) 기존 메뉴 정보 가져오기
+    // API: GET /api/menus/{menuId}
     const menuId = route.params.id;
     const existingMenu = store.getMenuById(menuId);
     if (existingMenu) {
@@ -133,7 +137,11 @@ const saveMenu = () => {
     validationErrors.category = '메뉴 타입을 선택해주세요.';
     isValid = false;
   }
-  if (menuData.price === null || menuData.price === undefined || menuData.price <= 0) {
+  if (
+    menuData.price === null ||
+    menuData.price === undefined ||
+    menuData.price <= 0
+  ) {
     validationErrors.price = '가격을 1 이상 입력해주세요.';
     isValid = false;
   }
@@ -143,15 +151,16 @@ const saveMenu = () => {
     return;
   }
 
-  const menuTypeKor = menuTypes.value.find(mt => mt.value === menuData.category)?.text || '';
+  const menuTypeKor =
+    menuTypes.value.find((mt) => mt.value === menuData.category)?.text || '';
   const menuToSave = {
-      id: menuData.id,
-      name: menuData.name,
-      category: menuData.category, // DB enum 값
-      type: menuTypeKor, // RestaurantInfoEditPage에서 보여주기 위한 한글 타입
-      price: menuData.price,
-      tags: menuData.tags,
-      imageUrl: menuData.imageUrl,
+    id: menuData.id,
+    name: menuData.name,
+    category: menuData.category, // DB enum 값
+    type: menuTypeKor, // RestaurantInfoEditPage에서 보여주기 위한 한글 타입
+    price: menuData.price,
+    tags: menuData.tags,
+    imageUrl: menuData.imageUrl,
   };
 
   if (isEditMode.value) {
@@ -166,21 +175,33 @@ const saveMenu = () => {
 };
 
 // Watchers for clearing errors
-watch(() => menuData.name, (newValue) => {
-  if (newValue.trim()) validationErrors.name = '';
-});
-watch(() => menuData.category, (newValue) => {
-  if (newValue) validationErrors.category = '';
-});
-watch(() => menuData.price, (newValue) => {
-  if (newValue > 0) validationErrors.price = '';
-});
+watch(
+  () => menuData.name,
+  (newValue) => {
+    if (newValue.trim()) validationErrors.name = '';
+  }
+);
+watch(
+  () => menuData.category,
+  (newValue) => {
+    if (newValue) validationErrors.category = '';
+  }
+);
+watch(
+  () => menuData.price,
+  (newValue) => {
+    if (newValue > 0) validationErrors.price = '';
+  }
+);
 watch(imageFile, (newFile) => {
   if (newFile) validationErrors.image = '';
 });
-watch(() => menuData.imageUrl, (newUrl) => {
-  if (newUrl) validationErrors.image = '';
-});
+watch(
+  () => menuData.imageUrl,
+  (newUrl) => {
+    if (newUrl) validationErrors.image = '';
+  }
+);
 </script>
 
 <template>
@@ -235,7 +256,9 @@ watch(() => menuData.imageUrl, (newUrl) => {
                     </div>
                     <div v-else class="text-center">
                       <Upload class="w-12 h-12 text-[#6c757d] mx-auto mb-3" />
-                      <p class="text-sm text-[#6c757d]">이미지를 업로드하세요</p>
+                      <p class="text-sm text-[#6c757d]">
+                        이미지를 업로드하세요
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -246,7 +269,12 @@ watch(() => menuData.imageUrl, (newUrl) => {
                   class="hidden"
                   accept="image/*"
                 />
-                <p v-if="validationErrors.image" class="text-red-500 text-sm mt-1">{{ validationErrors.image }}</p>
+                <p
+                  v-if="validationErrors.image"
+                  class="text-red-500 text-sm mt-1"
+                >
+                  {{ validationErrors.image }}
+                </p>
               </div>
 
               <!-- Menu Name -->
@@ -260,7 +288,12 @@ watch(() => menuData.imageUrl, (newUrl) => {
                   v-model="menuData.name"
                   class="w-full px-4 py-3 border border-[#dee2e6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B4A]"
                 />
-                <p v-if="validationErrors.name" class="text-red-500 text-sm mt-1">{{ validationErrors.name }}</p>
+                <p
+                  v-if="validationErrors.name"
+                  class="text-red-500 text-sm mt-1"
+                >
+                  {{ validationErrors.name }}
+                </p>
               </div>
 
               <!-- Menu Type -->
@@ -281,7 +314,12 @@ watch(() => menuData.imageUrl, (newUrl) => {
                     {{ typeOption.text }}
                   </option>
                 </select>
-                <p v-if="validationErrors.category" class="text-red-500 text-sm mt-1">{{ validationErrors.category }}</p>
+                <p
+                  v-if="validationErrors.category"
+                  class="text-red-500 text-sm mt-1"
+                >
+                  {{ validationErrors.category }}
+                </p>
               </div>
 
               <!-- Menu Price -->
@@ -295,7 +333,12 @@ watch(() => menuData.imageUrl, (newUrl) => {
                   v-model="menuData.price"
                   class="w-full px-4 py-3 border border-[#dee2e6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B4A]"
                 />
-                <p v-if="validationErrors.price" class="text-red-500 text-sm mt-1">{{ validationErrors.price }}</p>
+                <p
+                  v-if="validationErrors.price"
+                  class="text-red-500 text-sm mt-1"
+                >
+                  {{ validationErrors.price }}
+                </p>
               </div>
 
               <!-- Ingredient Tags -->
