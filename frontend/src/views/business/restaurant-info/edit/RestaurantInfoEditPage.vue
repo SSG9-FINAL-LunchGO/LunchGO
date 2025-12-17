@@ -11,6 +11,26 @@ const router = useRouter();
 const route = useRoute();
 const store = useRestaurantStore();
 
+// 페이지네이션
+const currentPage = ref(1);
+const itemsPerPage = 5; // 한 페이지에 5개씩 보여주기
+
+const totalPages = computed(() => {
+  return Math.ceil(store.menus.length / itemsPerPage);
+});
+
+const paginatedMenus = computed(() => {
+  const startIndex = (currentPage.value - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  return store.menus.slice(startIndex, endIndex);
+});
+
+const changePage = (page) => {
+  if (page >= 1 && page <= totalPages.value) {
+    currentPage.value = page;
+  }
+};
+
 const isEditMode = computed(() => !!route.params.id);
 const pageTitle = computed(() =>
   isEditMode.value ? '식당 정보 수정' : '식당 정보 등록'
@@ -293,6 +313,12 @@ const saveRestaurant = async () => {
     isValid = false;
   }
 
+  const hasMainMenu = store.menus.some((menu) => menu.type === '주메뉴');
+  if (!hasMainMenu) {
+    validationErrors.menus = '주메뉴를 1개 이상 등록해주세요.';
+    isValid = false;
+  }
+
   if (!isValid) {
     alert('필수 입력 항목을 모두 채워주세요.');
     return;
@@ -331,6 +357,7 @@ const validationErrors = reactive({
   roadAddress: '',
   detailAddress: '',
   description: '',
+  menus: '',
 });
 
 watch(formData, (newState) => {
@@ -348,6 +375,16 @@ watch(formData, (newState) => {
 watch(restaurantImageFile, (newFile) => {
   if (newFile) validationErrors.image = '';
 });
+
+watch(
+  () => store.menus,
+  (newMenus) => {
+    if (newMenus.some((menu) => menu.type === '주메뉴')) {
+      validationErrors.menus = '';
+    }
+  },
+  { deep: true }
+);
 </script>
 
 <template>
@@ -687,6 +724,12 @@ watch(restaurantImageFile, (newFile) => {
           <!-- Menu Management Section -->
           <div class="bg-white rounded-xl border border-[#e9ecef] p-8">
             <h3 class="text-xl font-bold text-[#1e3a5f] mb-6">식당메뉴</h3>
+            <p
+              v-if="validationErrors.menus"
+              class="text-red-500 text-sm mb-4 text-center"
+            >
+              {{ validationErrors.menus }}
+            </p>
 
             <div class="overflow-x-auto">
               <table class="w-full">

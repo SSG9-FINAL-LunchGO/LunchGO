@@ -7,35 +7,34 @@ export const useRestaurantStore = defineStore('restaurant', () => {
   const menus = ref([]);
 
   // Actions
-  /**
-   * 수정 모드에서 식당 데이터를 로드합니다.
-   * 스토어에 이미 같은 식당 데이터가 로드되어 있다면 메뉴를 덮어쓰지 않습니다.
-   * @param {object} data - API로부터 받은 식당 데이터
-   */
   function loadRestaurant(data) {
+    console.log('[Store] loadRestaurant called. Current restaurantId:', restaurantId.value, 'New ID:', data.restaurantId);
     if (restaurantId.value === data.restaurantId) {
-      // 이미 로드된 식당이므로 메뉴는 그대로 둡니다.
+      console.log('[Store] Same restaurant, not overwriting menus.');
       return;
     }
-    // 새로운 식당 데이터를 로드합니다.
+    console.log('[Store] Loading new restaurant data.');
     restaurantId.value = data.restaurantId;
     menus.value = [...(data.menus || [])];
+    console.log('[Store] Menus after load:', menus.value);
   }
 
-  /**
-   * 스토어를 초기 상태로 리셋합니다.
-   */
   function clearRestaurant() {
+    console.log('[Store] clearRestaurant called.');
     restaurantId.value = null;
     menus.value = [];
   }
 
   function setMenus(newMenus) {
+    console.log('[Store] setMenus called.');
     menus.value = [...newMenus];
   }
 
   function addMenu(menu) {
+    console.log('[Store] addMenu called with:', menu);
+    console.log('[Store] Menus before add:', menus.value);
     menus.value.push(menu);
+    console.log('[Store] Menus after add:', menus.value);
   }
 
   function updateMenu(updatedMenu) {
@@ -54,10 +53,6 @@ export const useRestaurantStore = defineStore('restaurant', () => {
     return menus.value.find(menu => menu.id === id);
   }
   
-  /**
-   * 임시 클라이언트 측 ID를 생성합니다.
-   * @returns {number} 새로운 메뉴 ID
-   */
   function getNextId() {
     return Date.now();
   }
