@@ -215,12 +215,12 @@ const fetchRestaurantData = async (restaurantId) => {
           { tagId: 12, content: '주차장 제공', category: 'FACILITY' },
         ],
         menus: [
-          { id: 101, name: '한정식 A코스', type: '주메뉴', price: 50000 },
-          { id: 102, name: '한정식 B코스', type: '주메뉴', price: 75000 },
-          { id: 103, name: '떡갈비', type: '서브메뉴', price: 25000 },
-          { id: 104, name: '해물파전', type: '서브메뉴', price: 20000 },
-          { id: 105, name: '수정과', type: '기타(디저트, 음료)', price: 5000 },
-          { id: 106, name: '식혜', type: '기타(디저트, 음료)', price: 5000 },
+          { id: 101, name: '한정식 A코스', type: '주메뉴', price: 50000, imageUrl: '/korean-course-meal-plating.jpg' },
+          { id: 102, name: '한정식 B코스', type: '주메뉴', price: 75000, imageUrl: '/korean-fine-dining.jpg' },
+          { id: 103, name: '떡갈비', type: '서브메뉴', price: 25000, imageUrl: '/placeholder.svg' },
+          { id: 104, name: '해물파전', type: '서브메뉴', price: 20000, imageUrl: '/placeholder.svg' },
+          { id: 105, name: '수정과', type: '기타(디저트, 음료)', price: 5000, imageUrl: '/placeholder.svg' },
+          { id: 106, name: '식혜', type: '기타(디저트, 음료)', price: 5000, imageUrl: '/placeholder.svg' },
         ],
       });
     }, 500);
@@ -241,25 +241,27 @@ onMounted(async () => {
 
   if (isEditMode.value) {
     const restaurantId = Number(route.params.id);
-    // 스토어에 이미 로드된 식당과 다른 식당을 수정하려 할 때만 데이터 로드
-    if (store.restaurantId !== restaurantId) {
+    // 스토어에 정보가 없거나 다른 식당 정보가 들어있으면 새로 API 호출
+    if (!store.restaurantInfo || store.restaurantInfo.restaurantId !== restaurantId) {
       const restaurantData = await fetchRestaurantData(restaurantId);
-      Object.assign(formData, restaurantData);
-
-      if (restaurantData.images && restaurantData.images.length > 0) {
-        restaurantImageUrl.value = restaurantData.images[0].imageUrl;
+      store.loadRestaurant(restaurantData); // API 응답으로 스토어 전체를 설정
+    }
+    
+    // 항상 스토어의 데이터로 폼과 UI 상태를 채움
+    if (store.restaurantInfo) {
+      Object.assign(formData, store.restaurantInfo);
+      if (store.restaurantInfo.images && store.restaurantInfo.images.length > 0) {
+        restaurantImageUrl.value = store.restaurantInfo.images[0].imageUrl;
         restaurantImageFile.value = new File([], 'mock-restaurant-image.png');
       }
-
-      selectedClosedDays.value = restaurantData.regularHolidays.map(
+      selectedClosedDays.value = store.restaurantInfo.regularHolidays.map(
         (h) => h.dayOfWeek
       );
-      selectedTags.value = restaurantData.tags;
-      store.loadRestaurant(restaurantData); // 스토어 상태 설정
+      selectedTags.value = store.restaurantInfo.tags;
     }
   } else {
     // 새로 등록하는 경우, 이전에 수정하던 정보가 스토어에 남아있으면 초기화
-    if (store.restaurantId !== null) {
+    if (store.restaurantInfo !== null) {
       store.clearRestaurant();
     }
   }

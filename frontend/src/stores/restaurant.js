@@ -3,38 +3,34 @@ import { ref } from 'vue';
 
 export const useRestaurantStore = defineStore('restaurant', () => {
   // State
-  const restaurantId = ref(null); // 현재 편집 중인 식당 ID
+  const restaurantInfo = ref(null); // 현재 편집 중인 식당 정보 전체
   const menus = ref([]);
 
   // Actions
+  /**
+   * 수정 모드에서 식당 데이터를 로드합니다.
+   * 스토어에 이미 같은 식당 데이터가 로드되어 있다면 아무것도 하지 않습니다.
+   * @param {object} data - API로부터 받은 식당 데이터
+   */
   function loadRestaurant(data) {
-    console.log('[Store] loadRestaurant called. Current restaurantId:', restaurantId.value, 'New ID:', data.restaurantId);
-    if (restaurantId.value === data.restaurantId) {
-      console.log('[Store] Same restaurant, not overwriting menus.');
+    if (restaurantInfo.value && restaurantInfo.value.restaurantId === data.restaurantId) {
       return;
     }
-    console.log('[Store] Loading new restaurant data.');
-    restaurantId.value = data.restaurantId;
+    // 새로운 식당 데이터를 로드합니다.
+    restaurantInfo.value = data;
     menus.value = [...(data.menus || [])];
-    console.log('[Store] Menus after load:', menus.value);
   }
 
+  /**
+   * 스토어를 초기 상태로 리셋합니다.
+   */
   function clearRestaurant() {
-    console.log('[Store] clearRestaurant called.');
-    restaurantId.value = null;
+    restaurantInfo.value = null;
     menus.value = [];
   }
 
-  function setMenus(newMenus) {
-    console.log('[Store] setMenus called.');
-    menus.value = [...newMenus];
-  }
-
   function addMenu(menu) {
-    console.log('[Store] addMenu called with:', menu);
-    console.log('[Store] Menus before add:', menus.value);
     menus.value.push(menu);
-    console.log('[Store] Menus after add:', menus.value);
   }
 
   function updateMenu(updatedMenu) {
@@ -53,16 +49,19 @@ export const useRestaurantStore = defineStore('restaurant', () => {
     return menus.value.find(menu => menu.id === id);
   }
   
+  /**
+   * 임시 클라이언트 측 ID를 생성합니다.
+   * @returns {number} 새로운 메뉴 ID
+   */
   function getNextId() {
     return Date.now();
   }
 
   return { 
-    restaurantId,
+    restaurantInfo,
     menus, 
     loadRestaurant,
     clearRestaurant,
-    setMenus,
     addMenu, 
     updateMenu, 
     deleteMenu,
