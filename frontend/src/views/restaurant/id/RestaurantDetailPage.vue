@@ -688,7 +688,7 @@ watch(detailMapDistanceStepIndex, () => {
       <div class="relative max-w-[500px] mx-auto px-4 py-3">
         <RouterLink
           to="/"
-          class="absolute -top-4 right-4 w-12 h-12 rounded-full bg-white border border-[#ffe0d6] flex items-center justify-center text-[#ff6b4a] shadow-card hover:bg-[#fff7f4] transition-colors"
+          class="absolute -top-14 right-4 w-12 h-12 rounded-full bg-white border border-[#ffe0d6] flex items-center justify-center text-[#ff6b4a] shadow-card hover:bg-[#fff7f4] transition-colors"
           aria-label="홈으로 이동"
         >
           <HomeIcon class="w-5 h-5" />

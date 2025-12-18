@@ -1,5 +1,12 @@
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount, reactive } from 'vue';
+import {
+  ref,
+  computed,
+  watch,
+  onMounted,
+  onBeforeUnmount,
+  reactive,
+} from 'vue';
 import {
   MapPin,
   Calendar,
@@ -60,7 +67,8 @@ const processedRestaurants = computed(() => {
   }
 
   const center = defaultMapCenter;
-  const getDistance = (restaurant) => haversineDistance(restaurant.coords, center);
+  const getDistance = (restaurant) =>
+    haversineDistance(restaurant.coords, center);
 
   const sorters = {
     추천순: (a, b) => {
@@ -70,7 +78,7 @@ const processedRestaurants = computed(() => {
     },
     거리순: (a, b) => getDistance(a) - getDistance(b),
     평점순: (a, b) => (b.rating ?? 0) - (a.rating ?? 0),
-    가격순: (a, b) => {
+    '낮은 가격순': (a, b) => {
       const priceA = extractPriceValue(a.price) ?? Number.POSITIVE_INFINITY;
       const priceB = extractPriceValue(b.price) ?? Number.POSITIVE_INFINITY;
       return priceA - priceB;
@@ -83,14 +91,14 @@ const processedRestaurants = computed(() => {
   return result;
 });
 const totalPages = computed(() =>
-  Math.max(1, Math.ceil(processedRestaurants.value.length / restaurantsPerPage)),
+  Math.max(1, Math.ceil(processedRestaurants.value.length / restaurantsPerPage))
 );
 const paginatedRestaurants = computed(() => {
   const start = (currentPage.value - 1) * restaurantsPerPage;
   return processedRestaurants.value.slice(start, start + restaurantsPerPage);
 });
 const pageNumbers = computed(() =>
-  Array.from({ length: totalPages.value }, (_, index) => index + 1),
+  Array.from({ length: totalPages.value }, (_, index) => index + 1)
 );
 const canGoPrevious = computed(() => currentPage.value > 1);
 const canGoNext = computed(() => currentPage.value < totalPages.value);
@@ -99,11 +107,10 @@ const restaurantGeocodeCache = new Map();
 const mapContainer = ref(null);
 const mapInstance = ref(null);
 const mapMarkers = [];
-const defaultMapCenter =
-  restaurants[0]?.coords || {
-    lat: 37.394374,
-    lng: 127.110636,
-  };
+const defaultMapCenter = restaurants[0]?.coords || {
+  lat: 37.394374,
+  lng: 127.110636,
+};
 const currentLocation = ref('경기도 성남시 분당구 판교동');
 const mapDistanceSteps = Object.freeze([
   { label: '100m', level: 2 },
@@ -113,9 +120,15 @@ const mapDistanceSteps = Object.freeze([
   { label: '2km', level: 6 },
   { label: '3km', level: 7 },
 ]);
-const defaultMapDistanceIndex = mapDistanceSteps.findIndex((step) => step.label === '500m');
-const mapDistanceStepIndex = ref(defaultMapDistanceIndex === -1 ? 0 : defaultMapDistanceIndex);
-const currentDistanceLabel = computed(() => mapDistanceSteps[mapDistanceStepIndex.value].label);
+const defaultMapDistanceIndex = mapDistanceSteps.findIndex(
+  (step) => step.label === '500m'
+);
+const mapDistanceStepIndex = ref(
+  defaultMapDistanceIndex === -1 ? 0 : defaultMapDistanceIndex
+);
+const currentDistanceLabel = computed(
+  () => mapDistanceSteps[mapDistanceStepIndex.value].label
+);
 const distanceSliderFill = computed(() => {
   if (mapDistanceSteps.length <= 1) return 0;
   return (
@@ -199,7 +212,9 @@ const formatDateValue = (date) => {
 
 const toggleCalendar = () => {
   if (!isCalendarOpen.value) {
-    calendarMonth.value = searchDate.value ? new Date(searchDate.value) : new Date();
+    calendarMonth.value = searchDate.value
+      ? new Date(searchDate.value)
+      : new Date();
   }
   isCalendarOpen.value = !isCalendarOpen.value;
 };
@@ -207,17 +222,29 @@ const toggleCalendar = () => {
 const selectCalendarDay = (day) => {
   if (!day) return;
 
-  const selected = new Date(calendarMonth.value.getFullYear(), calendarMonth.value.getMonth(), day);
+  const selected = new Date(
+    calendarMonth.value.getFullYear(),
+    calendarMonth.value.getMonth(),
+    day
+  );
   searchDate.value = formatDateValue(selected);
   isCalendarOpen.value = false;
 };
 
 const previousCalendarMonth = () => {
-  calendarMonth.value = new Date(calendarMonth.value.getFullYear(), calendarMonth.value.getMonth() - 1, 1);
+  calendarMonth.value = new Date(
+    calendarMonth.value.getFullYear(),
+    calendarMonth.value.getMonth() - 1,
+    1
+  );
 };
 
 const nextCalendarMonth = () => {
-  calendarMonth.value = new Date(calendarMonth.value.getFullYear(), calendarMonth.value.getMonth() + 1, 1);
+  calendarMonth.value = new Date(
+    calendarMonth.value.getFullYear(),
+    calendarMonth.value.getMonth() + 1,
+    1
+  );
 };
 
 const isCalendarSelectedDay = (day) => {
@@ -333,7 +360,7 @@ const applyHomeMapZoom = () => {
 const changeMapDistance = (delta) => {
   const next = Math.min(
     mapDistanceSteps.length - 1,
-    Math.max(0, mapDistanceStepIndex.value + delta),
+    Math.max(0, mapDistanceStepIndex.value + delta)
   );
   mapDistanceStepIndex.value = next;
 };
@@ -343,9 +370,13 @@ const resetMapToHome = () => {
   const kakaoMaps = window?.kakao?.maps;
   if (!kakaoMaps?.LatLng) return;
 
-  const targetCenter = new kakaoMaps.LatLng(defaultMapCenter.lat, defaultMapCenter.lng);
+  const targetCenter = new kakaoMaps.LatLng(
+    defaultMapCenter.lat,
+    defaultMapCenter.lng
+  );
   mapInstance.value.panTo(targetCenter);
-  mapDistanceStepIndex.value = defaultMapDistanceIndex === -1 ? 0 : defaultMapDistanceIndex;
+  mapDistanceStepIndex.value =
+    defaultMapDistanceIndex === -1 ? 0 : defaultMapDistanceIndex;
   applyHomeMapZoom();
 };
 
@@ -353,7 +384,10 @@ const initializeMap = async () => {
   if (!mapContainer.value) return;
   try {
     const kakaoMaps = await loadKakaoMaps();
-    const center = new kakaoMaps.LatLng(defaultMapCenter.lat, defaultMapCenter.lng);
+    const center = new kakaoMaps.LatLng(
+      defaultMapCenter.lat,
+      defaultMapCenter.lng
+    );
     mapInstance.value = new kakaoMaps.Map(mapContainer.value, {
       center,
       level: levelForDistance(mapDistanceStepIndex.value),
@@ -400,7 +434,7 @@ const priceRangeMap = Object.freeze({
   '3만원 이상': { min: 30000, max: Number.POSITIVE_INFINITY },
 });
 const distances = ['1km 이내', '2km 이내', '3km 이내'];
-const sortOptions = ['추천순', '거리순', '평점순', '가격순'];
+const sortOptions = ['추천순', '거리순', '평점순', '낮은 가격순'];
 const restaurantTags = [
   '조용한',
   '깔끔한',
@@ -681,10 +715,18 @@ const closeMapRestaurantModal = () => {
               >
                 <Star
                   class="w-4 h-4"
-                  :class="isRestaurantFavorite(restaurant.id) ? 'fill-current text-[#ff6b4a]' : 'text-[#adb5bd] fill-white'"
+                  :class="
+                    isRestaurantFavorite(restaurant.id)
+                      ? 'fill-current text-[#ff6b4a]'
+                      : 'text-[#adb5bd] fill-white'
+                  "
                 />
                 <span class="sr-only">
-                  {{ isRestaurantFavorite(restaurant.id) ? '즐겨찾기 해제' : '즐겨찾기에 추가' }}
+                  {{
+                    isRestaurantFavorite(restaurant.id)
+                      ? '즐겨찾기 해제'
+                      : '즐겨찾기에 추가'
+                  }}
                 </span>
               </button>
               <div class="flex gap-3 p-2">
@@ -875,7 +917,9 @@ const closeMapRestaurantModal = () => {
 
           <!-- Price Range Filter -->
           <div>
-            <h4 class="text-sm font-semibold text-[#1e3a5f] mb-3">가격대</h4>
+            <h4 class="text-sm font-semibold text-[#1e3a5f] mb-3">
+              1인당 가격대
+            </h4>
             <div class="flex flex-wrap gap-2">
               <button
                 v-for="range in priceRanges"
