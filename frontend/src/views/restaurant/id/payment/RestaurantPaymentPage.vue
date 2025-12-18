@@ -10,7 +10,13 @@ const route = useRoute();
 const restaurantId = route.params.id || '1'; // Default to '1' if id is not available
 const paymentType = route.query.type || 'full'; // 'deposit' or 'full'
 
+<<<<<<< Updated upstream
 const isDepositOnly = computed(() => paymentType === 'deposit');
+=======
+//예약금 / 선주문선결제 분기
+const paymentType = computed(() => String(route.query.type || 'deposit'));
+const isDepositOnly = computed(() => paymentType.value === 'deposit');
+>>>>>>> Stashed changes
 
 const selectedPayment = ref(null);
 const agreedToTerms = ref(false);
@@ -19,8 +25,34 @@ const isTermsModalOpen = ref(false);
 const modalTitle = ref('');
 const modalContent = ref('');
 
+<<<<<<< Updated upstream
 const depositAmount = 10000; // 예약금 1만원
 const totalAmount = computed(() => (isDepositOnly.value ? depositAmount : 176000));
+=======
+//인원수 : query에서 partySize로 받는다고 가정 (없으면 1명)
+const headcount = computed(() => {
+  const q = Number(route.query.partySize);
+  return Number.isFinite(q) && q > 0 ? q : 1;
+});
+
+//예약금만 결제 시 예약금 1~6인 5,000원 / 7인 이상 : 10,000원
+const depositPerPerson = computed(() => (headcount.value >= 7 ? 10000 : 5000));
+
+//총 예약금
+// query로 넘어온 선주문 합계(메뉴 페이지에서 전달)
+const preorderTotal = computed(() => {
+  const v = Number(route.query.totalAmount);
+  return Number.isFinite(v) && v >= 0 ? v : 0;
+});
+
+const totalAmount = computed(() => {
+  // 예약하기 플로우: 예약금 = 인원수 * 인당금액
+  if (isDepositOnly.value) return headcount.value * depositPerPerson.value;
+
+  // 선주문/선결제 플로우: 메뉴 합계
+  return preorderTotal.value;
+});
+>>>>>>> Stashed changes
 
 const bookingId = computed(() => route.query.bookingId || null);
 const bookingSummary = ref({
@@ -80,11 +112,48 @@ const paymentMethods = [
 
 const canProceed = computed(() => selectedPayment.value && agreedToTerms.value && agreedToRefund.value);
 
+//선주문 메뉴 합계 전달
 const handlePayment = () => {
-  if (canProceed.value) {
-    router.push(`/restaurant/${restaurantId}/confirmation`);
-  }
+  router.push({
+    path: `/restaurant/${restaurantId}/confirmation`,
+    query: {
+      type: paymentType.value,              // 'deposit' or 'full'
+      totalAmount: String(totalAmount.value), // 숫자를 값으로 넘겨
+      partySize: String(route.query.partySize ?? ''),
+      requestNote: String(route.query.requestNote ?? ''),
+      dateIndex: String(route.query.dateIndex ?? ''),
+      time: String(route.query.time ?? ''),
+    },
+  });
 };
+
+const backTarget = computed(() => {
+  // 예약금 결제(booking -> payment)
+  if (isDepositOnly.value) {
+    return {
+      path: `/restaurant/${restaurantId}/booking`,
+      query: {
+        type: 'reservation',
+        partySize: route.query.partySize,
+        requestNote: route.query.requestNote,
+        dateIndex: route.query.dateIndex,
+        time: route.query.time,
+      },
+    };
+  }
+
+  // 선주문 결제(menu -> payment)
+  return {
+    path: `/restaurant/${restaurantId}/menu`,
+    query: {
+      type: 'preorder',
+      partySize: route.query.partySize,
+      requestNote: route.query.requestNote,
+      dateIndex: route.query.dateIndex,
+      time: route.query.time,
+    },
+  };
+});
 </script>
 
 <template>
@@ -92,12 +161,10 @@ const handlePayment = () => {
     <!-- Header -->
     <header class="sticky top-0 z-50 bg-white border-b border-[#e9ecef]">
       <div class="max-w-[500px] mx-auto px-4 h-14 flex items-center">
-        <RouterLink
-          :to="isDepositOnly ? `/restaurant/${restaurantId}/booking?type=reservation` : `/restaurant/${restaurantId}/summary`"
-          class="mr-3"
-        >
+        <button type="button" class="mr-3" @click="router.back()">
           <ArrowLeft class="w-6 h-6 text-[#1e3a5f]" />
-        </RouterLink>
+        </button>
+
         <h1 class="font-semibold text-[#1e3a5f] text-base">
           {{ isDepositOnly ? '예약금 결제' : '결제하기' }}
         </h1>
