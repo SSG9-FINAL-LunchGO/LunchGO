@@ -24,14 +24,12 @@ const filteredMenus = computed(() => {
 
   // 메뉴 타입으로 필터링
   if (selectedMenuType.value !== '전체') {
-    menus = menus.filter(menu => menu.type === selectedMenuType.value);
+    menus = menus.filter((menu) => menu.type === selectedMenuType.value);
   }
 
   // 메뉴 이름 키워드로 필터링
   if (menuSearchKeyword.value) {
-    menus = menus.filter(menu =>
-      menu.name.includes(menuSearchKeyword.value)
-    );
+    menus = menus.filter((menu) => menu.name.includes(menuSearchKeyword.value));
   }
 
   // 정렬
@@ -112,7 +110,9 @@ const restaurantImageFile = ref(null);
 const restaurantFileInput = ref(null);
 
 // restaurantImageUrl을 store와 연동된 computed 속성으로 변경
-const restaurantImageUrl = computed(() => store.restaurantInfo?.images?.[0]?.imageUrl || null);
+const restaurantImageUrl = computed(
+  () => store.restaurantInfo?.images?.[0]?.imageUrl || null
+);
 
 const selectedClosedDays = ref([]);
 const selectedTags = ref([]);
@@ -265,12 +265,48 @@ const fetchRestaurantData = async (restaurantId) => {
           { tagId: 12, content: '주차장 제공', category: 'FACILITY' },
         ],
         menus: [
-          { id: 101, name: '한정식 A코스', type: '주메뉴', price: 50000, imageUrl: '/korean-course-meal-plating.jpg' },
-          { id: 102, name: '한정식 B코스', type: '주메뉴', price: 75000, imageUrl: '/korean-fine-dining.jpg' },
-          { id: 103, name: '떡갈비', type: '서브메뉴', price: 25000, imageUrl: '/placeholder.svg' },
-          { id: 104, name: '해물파전', type: '서브메뉴', price: 20000, imageUrl: '/placeholder.svg' },
-          { id: 105, name: '수정과', type: '기타(디저트, 음료)', price: 5000, imageUrl: '/placeholder.svg' },
-          { id: 106, name: '식혜', type: '기타(디저트, 음료)', price: 5000, imageUrl: '/placeholder.svg' },
+          {
+            id: 101,
+            name: '한정식 A코스',
+            type: '주메뉴',
+            price: 50000,
+            imageUrl: '/korean-course-meal-plating.jpg',
+          },
+          {
+            id: 102,
+            name: '한정식 B코스',
+            type: '주메뉴',
+            price: 75000,
+            imageUrl: '/korean-fine-dining.jpg',
+          },
+          {
+            id: 103,
+            name: '떡갈비',
+            type: '서브메뉴',
+            price: 25000,
+            imageUrl: '/placeholder.svg',
+          },
+          {
+            id: 104,
+            name: '해물파전',
+            type: '서브메뉴',
+            price: 20000,
+            imageUrl: '/placeholder.svg',
+          },
+          {
+            id: 105,
+            name: '수정과',
+            type: '기타(디저트, 음료)',
+            price: 5000,
+            imageUrl: '/placeholder.svg',
+          },
+          {
+            id: 106,
+            name: '식혜',
+            type: '기타(디저트, 음료)',
+            price: 5000,
+            imageUrl: '/placeholder.svg',
+          },
         ],
       });
     }, 500);
@@ -292,17 +328,23 @@ onMounted(async () => {
   if (isEditMode.value) {
     const restaurantId = Number(route.params.id);
     // 스토어에 정보가 없거나 다른 식당 정보가 들어있으면 새로 API 호출
-    if (!store.restaurantInfo || store.restaurantInfo.restaurantId !== restaurantId) {
+    if (
+      !store.restaurantInfo ||
+      store.restaurantInfo.restaurantId !== restaurantId
+    ) {
       const restaurantData = await fetchRestaurantData(restaurantId);
       store.loadRestaurant(restaurantData); // API 응답으로 스토어 전체를 설정
     }
-    
+
     // 항상 스토어의 데이터로 폼과 UI 상태를 채움
     if (store.restaurantInfo) {
       Object.assign(formData, store.restaurantInfo);
-      if (store.restaurantInfo.images && store.restaurantInfo.images.length > 0) {
+      if (
+        store.restaurantInfo.images &&
+        store.restaurantInfo.images.length > 0
+      ) {
         // This line is now redundant because of the computed property, but safe to keep
-        // restaurantImageUrl.value = store.restaurantInfo.images[0].imageUrl; 
+        // restaurantImageUrl.value = store.restaurantInfo.images[0].imageUrl;
         restaurantImageFile.value = new File([], 'mock-restaurant-image.png');
       }
       selectedClosedDays.value = store.restaurantInfo.regularHolidays.map(
@@ -316,7 +358,10 @@ onMounted(async () => {
     // 또한, 폼 데이터가 store에 이미 있을 수 있으므로 onMounted에서 다시 채워줍니다.
     if (store.restaurantInfo) {
       Object.assign(formData, store.restaurantInfo);
-       if (store.restaurantInfo.images && store.restaurantInfo.images.length > 0) {
+      if (
+        store.restaurantInfo.images &&
+        store.restaurantInfo.images.length > 0
+      ) {
         restaurantImageFile.value = new File([], 'mock-restaurant-image.png');
       }
       selectedClosedDays.value = store.restaurantInfo.regularHolidays || [];
@@ -414,6 +459,22 @@ const saveRestaurant = async () => {
   } catch (error) {
     console.error('저장 실패:', error);
     alert('저장에 실패했습니다.');
+  }
+};
+
+const handleBulkDelete = () => {
+  if (filteredMenus.value.length === 0) {
+    alert('삭제할 메뉴가 없습니다. 먼저 메뉴를 필터링해주세요.');
+    return;
+  }
+
+  const confirmDelete = confirm(
+    `필터링된 ${filteredMenus.value.length}개의 식당메뉴를 정말로 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`
+  );
+
+  if (confirmDelete) {
+    const idsToDelete = filteredMenus.value.map((menu) => menu.id);
+    store.deleteMenus(idsToDelete); // 스토어 액션 호출
   }
 };
 
@@ -837,7 +898,9 @@ watch(paginatedMenus, (newPaginatedMenus) => {
                   </option>
                 </select>
               </div>
-              <span class="text-base font-semibold text-[#FF6B4A] whitespace-nowrap">
+              <span
+                class="text-base font-semibold text-[#FF6B4A] whitespace-nowrap"
+              >
                 주메뉴 평균가: {{ avgMainPrice.toLocaleString() }}원
               </span>
             </div>
@@ -910,19 +973,27 @@ watch(paginatedMenus, (newPaginatedMenus) => {
               </table>
             </div>
 
-            <!-- 페이지네이션 적용 위치 -->
+            <!-- 페이지네이션 및 버튼 그룹 -->
             <div class="flex items-center justify-between mt-6">
               <Pagination
                 :current-page="currentPage"
                 :total-pages="totalPages"
                 @change-page="changePage"
               />
-              <RouterLink
-                to="/business/restaurant-info/menu/add"
-                class="px-6 py-3 gradient-primary text-white rounded-lg font-semibold hover:opacity-90 transition-opacity"
-              >
-                메뉴 추가
-              </RouterLink>
+              <div class="flex items-center gap-3">
+                <button
+                  @click="handleBulkDelete"
+                  class="px-6 py-3 border border-[#dc3545] text-[#dc3545] rounded-lg font-semibold hover:bg-[#fff5f5] transition-colors"
+                >
+                  일괄 삭제
+                </button>
+                <RouterLink
+                  to="/business/restaurant-info/menu/add"
+                  class="px-6 py-3 gradient-primary text-white rounded-lg font-semibold hover:opacity-90 transition-opacity"
+                >
+                  메뉴 추가
+                </RouterLink>
+              </div>
             </div>
           </div>
 
