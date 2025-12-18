@@ -33,11 +33,6 @@ const timeSlots = ref(['11:00', '12:00', '13:00', '14:00']);
 
 const canProceed = computed(() => selectedDateIndex.value !== null && selectedTime.value !== null);
 
-<<<<<<< Updated upstream
-const nextPage = computed(() =>
-  isPreorder.value ? `/restaurant/${restaurantId}/menu` : `/restaurant/${restaurantId}/payment?type=deposit`,
-);
-=======
 //예약금 * 인원수 계산식 + 선주문/선결제 플로우 포함
 const nextPage = computed(() => {
   if (isPreorder.value) {
@@ -67,7 +62,6 @@ const nextPage = computed(() => {
     },
   };
 });
->>>>>>> Stashed changes
 
 const selectDate = (idx) => {
   selectedDateIndex.value = idx;

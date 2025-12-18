@@ -8,15 +8,10 @@ import Card from '@/components/ui/Card.vue';
 const router = useRouter();
 const route = useRoute();
 const restaurantId = route.params.id || '1'; // Default to '1' if id is not available
-const paymentType = route.query.type || 'full'; // 'deposit' or 'full'
 
-<<<<<<< Updated upstream
-const isDepositOnly = computed(() => paymentType === 'deposit');
-=======
 //예약금 / 선주문선결제 분기
 const paymentType = computed(() => String(route.query.type || 'deposit'));
 const isDepositOnly = computed(() => paymentType.value === 'deposit');
->>>>>>> Stashed changes
 
 const selectedPayment = ref(null);
 const agreedToTerms = ref(false);
@@ -25,10 +20,6 @@ const isTermsModalOpen = ref(false);
 const modalTitle = ref('');
 const modalContent = ref('');
 
-<<<<<<< Updated upstream
-const depositAmount = 10000; // 예약금 1만원
-const totalAmount = computed(() => (isDepositOnly.value ? depositAmount : 176000));
-=======
 //인원수 : query에서 partySize로 받는다고 가정 (없으면 1명)
 const headcount = computed(() => {
   const q = Number(route.query.partySize);
@@ -52,7 +43,6 @@ const totalAmount = computed(() => {
   // 선주문/선결제 플로우: 메뉴 합계
   return preorderTotal.value;
 });
->>>>>>> Stashed changes
 
 const bookingId = computed(() => route.query.bookingId || null);
 const bookingSummary = ref({
