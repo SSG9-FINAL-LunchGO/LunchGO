@@ -11,18 +11,63 @@ const router = useRouter();
 const route = useRoute();
 const store = useRestaurantStore();
 
+// 메뉴 검색 및 필터링
+const menuSearchKeyword = ref('');
+const menuTypes = ['전체', '주메뉴', '서브메뉴', '기타(디저트, 음료)'];
+const selectedMenuType = ref('전체');
+const sortOptions = ['기본', '이름순', '가격 높은순', '가격 낮은순'];
+const selectedSort = ref('기본');
+
+// 필터링 및 정렬된 메뉴
+const filteredMenus = computed(() => {
+  let menus = store.menus;
+
+  // 메뉴 타입으로 필터링
+  if (selectedMenuType.value !== '전체') {
+    menus = menus.filter(menu => menu.type === selectedMenuType.value);
+  }
+
+  // 메뉴 이름 키워드로 필터링
+  if (menuSearchKeyword.value) {
+    menus = menus.filter(menu =>
+      menu.name.includes(menuSearchKeyword.value)
+    );
+  }
+
+  // 정렬
+  const sortedMenus = [...menus]; // 원본 배열 수정을 피하기 위해 복사
+  switch (selectedSort.value) {
+    case '이름순':
+      sortedMenus.sort((a, b) => a.name.localeCompare(b.name));
+      break;
+    case '가격 높은순':
+      sortedMenus.sort((a, b) => b.price - a.price);
+      break;
+    case '가격 낮은순':
+      sortedMenus.sort((a, b) => a.price - b.price);
+      break;
+  }
+
+  return sortedMenus;
+});
+
 // 페이지네이션
 const currentPage = ref(1);
 const itemsPerPage = 5; // 한 페이지에 5개씩 보여주기
 
 const totalPages = computed(() => {
-  return Math.ceil(store.menus.length / itemsPerPage);
+  return Math.ceil(filteredMenus.value.length / itemsPerPage);
 });
 
 const paginatedMenus = computed(() => {
   const startIndex = (currentPage.value - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  return store.menus.slice(startIndex, endIndex);
+  return filteredMenus.value.slice(startIndex, endIndex);
+});
+
+// 검색어, 메뉴 타입 또는 정렬 변경 시 첫 페이지로 이동
+watch([menuSearchKeyword, selectedMenuType, selectedSort], () => {
+  currentPage.value = 1;
 });
 
 const changePage = (page) => {
@@ -763,7 +808,36 @@ watch(paginatedMenus, (newPaginatedMenus) => {
           <div class="bg-white rounded-xl border border-[#e9ecef] p-8">
             <div class="flex items-center justify-between mb-6">
               <h3 class="text-xl font-bold text-[#1e3a5f]">식당메뉴</h3>
-              <span class="text-lg font-semibold text-[#FF6B4A]">
+              <div class="flex items-center gap-4">
+                <!-- 메뉴 타입 필터 드롭다운 -->
+                <select
+                  v-model="selectedMenuType"
+                  class="px-3 py-2 border border-[#dee2e6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B4A] text-sm"
+                >
+                  <option v-for="type in menuTypes" :key="type" :value="type">
+                    {{ type }}
+                  </option>
+                </select>
+
+                <!-- 메뉴 이름 검색창 -->
+                <input
+                  type="text"
+                  v-model="menuSearchKeyword"
+                  placeholder="메뉴 이름으로 검색"
+                  class="w-48 px-4 py-2 border border-[#dee2e6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B4A] text-sm"
+                />
+
+                <!-- 정렬 드롭다운 -->
+                <select
+                  v-model="selectedSort"
+                  class="px-3 py-2 border border-[#dee2e6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B4A] text-sm"
+                >
+                  <option v-for="opt in sortOptions" :key="opt" :value="opt">
+                    {{ opt }}
+                  </option>
+                </select>
+              </div>
+              <span class="text-base font-semibold text-[#FF6B4A] whitespace-nowrap">
                 주메뉴 평균가: {{ avgMainPrice.toLocaleString() }}원
               </span>
             </div>
