@@ -61,7 +61,7 @@ const restaurantId = computed(
         </li>
         <li>
           <RouterLink
-            to="/business/restaurant-info"
+            :to="`/business/restaurant-info/${restaurantId}`"
             :class="[
               'block px-4 py-3 rounded-lg transition-colors',
               activeMenu === 'restaurant-info'
