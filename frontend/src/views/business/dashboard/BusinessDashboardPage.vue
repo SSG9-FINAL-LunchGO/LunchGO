@@ -4,10 +4,10 @@ import { Filter } from 'lucide-vue-next'; // Bell, User는 Header로 이동
 import BusinessSidebar from '@/components/ui/BusinessSideBar.vue';
 import BusinessHeader from '@/components/ui/BusinessHeader.vue';
 import { useRouter } from 'vue-router';
-
 const router = useRouter();
+
 const goDetail = (id) => {
-  router.push({ name: 'reservation-detail', params: { id } });
+  router.push({ name: 'reservation-detail', params: { id: String(id) } });
 };
 
 // 필터 상태

@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
-import { Filter } from 'lucide-vue-next';
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
+import { Filter, ChevronLeft, ChevronRight } from 'lucide-vue-next';
 import BusinessSidebar from '@/components/ui/BusinessSideBar.vue';
 import BusinessHeader from '@/components/ui/BusinessHeader.vue';
 import { useRouter } from 'vue-router';
@@ -8,7 +8,7 @@ import { useRouter } from 'vue-router';
 const router = useRouter();
 
 const goDetail = (id) => {
-  router.push({ name: 'reservation-detail', params: { id } });
+  router.push({ name: 'reservation-detail', params: { id: String(id) } });
 };
 
 const selectedDate = ref(new Date(2024, 9, 24));
@@ -57,6 +57,20 @@ reservations.value.push({
   status: '확정',
 });
 
+for (let i = 0; i < 25; i++) {
+  reservations.value.push({
+    id: 200 + i,
+    name: `테스트${i + 1}`,
+    phone: '010-0000-0000',
+    datetime: `${selectedDateStr.value} ${String(10 + (i % 10)).padStart(2, '0')}:00`,
+    guests: 2 + (i % 4),
+    amount: 50000 + i * 1000,
+    status: i % 3 === 0 ? '확정' : i % 3 === 1 ? '대기' : '취소',
+  });
+}
+
+
+
 // 통계
 const stats = computed(() => ({
   total: reservations.value.length,
@@ -70,11 +84,69 @@ const filterOpen = ref(false);
 const statusFilter = ref('전체'); // 전체 | 확정 | 대기 | 취소 | 환불
 
 // 2차: 상태 필터까지 적용
+
+// 날짜별 예약 건수 (YYYY-MM-DD -> count)
+const reservationCountByDate = computed(() => {
+  const map = new Map();
+  for (const r of reservations.value) {
+    const dateKey = getReservationDateStr(r.datetime); // 'YYYY-MM-DD'
+    map.set(dateKey, (map.get(dateKey) || 0) + 1);
+  }
+  return map;
+});
+
+// 현재 캘린더(월)에서 특정 day의 YYYY-MM-DD 키 만들기
+const getDateKeyForDay = (day) => {
+  if (!day) return null;
+  const y = currentMonth.value.getFullYear();
+  const m = String(currentMonth.value.getMonth() + 1).padStart(2, '0');
+  const d = String(day).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+// 해당 day의 예약 건수
+const getReservationCountForDay = (day) => {
+  const key = getDateKeyForDay(day);
+  if (!key) return 0;
+  return reservationCountByDate.value.get(key) || 0;
+};
+
 const filteredReservations = computed(() => {
   const base = dateFilteredReservations.value;
   if (statusFilter.value === '전체') return base;
   return base.filter((r) => r.status === statusFilter.value);
 });
+
+// --- Pagination ---
+const PAGE_SIZE = 10;
+const currentPage = ref(1);
+
+// 필터/날짜 바뀌면 1페이지로 리셋
+watch([selectedDateStr, onlySelectedDate, statusFilter], () => {
+  currentPage.value = 1;
+});
+
+const totalPages = computed(() => {
+  const total = filteredReservations.value.length;
+  return Math.max(1, Math.ceil(total / PAGE_SIZE));
+});
+
+const pagedReservations = computed(() => {
+  const start = (currentPage.value - 1) * PAGE_SIZE;
+  return filteredReservations.value.slice(start, start + PAGE_SIZE);
+});
+
+const pages = computed(() => {
+  return Array.from({ length: totalPages.value }, (_, i) => i + 1);
+});
+
+const goPage = (p) => {
+  if (p < 1 || p > totalPages.value) return;
+  currentPage.value = p;
+};
+
+const prevPage = () => goPage(currentPage.value - 1);
+const nextPage = () => goPage(currentPage.value + 1);
 
 // 필터 드롭다운 바깥 클릭 시 닫기
 const filterWrap = ref(null);
@@ -207,21 +279,36 @@ const selectDay = (day) => {
               >
                 {{ dayName }}
               </div>
-
               <button
                 v-for="(day, index) in generateCalendarDays"
                 :key="index"
                 @click="selectDay(day)"
                 :disabled="!day"
                 :class="[
-                  'aspect-square flex items-center justify-center rounded-lg text-sm',
+                  'relative aspect-square rounded-xl p-3 flex flex-col justify-between items-stretch border transition-all',
                   { invisible: !day },
                   isSelectedDate(day)
-                    ? 'bg-gradient-to-r from-[#FF6B4A] to-[#FFC4B8] text-white font-semibold'
-                    : 'hover:bg-[#f8f9fa] text-[#1e3a5f]'
+                    ? 'bg-gradient-to-r from-[#FF6B4A] to-[#FFC4B8] text-white border-transparent shadow-md'
+                    : 'bg-white text-[#1e3a5f] border-[#e9ecef] hover:bg-[#f8f9fa]'
                 ]"
               >
-                {{ day }}
+                <div class="flex items-start justify-between">
+                  <span class="text-lg font-bold">{{ day }}</span>
+                  <span v-if="isSelectedDate(day)" class="w-2.5 h-2.5 rounded-full bg-white/80 mt-1" />
+                </div>
+
+                <!-- 예약 있는 날만 배너 -->
+                <div
+                  v-if="day && getReservationCountForDay(day) > 0"
+                  :class="[
+                    'mt-2 rounded-lg px-3 py-2 text-center font-semibold',
+                    isSelectedDate(day)
+                      ? 'bg-white/20 text-white'
+                      : 'bg-[#1e3a5f] text-white'
+                  ]"
+                >
+                  예약 <span class="text-xl font-extrabold">{{ getReservationCountForDay(day) }}</span>건
+                </div>
               </button>
             </div>
           </div>
@@ -297,7 +384,7 @@ const selectDay = (day) => {
 
                 <tbody class="divide-y divide-[#e9ecef]">
                   <tr
-                    v-for="reservation in filteredReservations"
+                    v-for="reservation in pagedReservations"
                     :key="reservation.id"
                     class="hover:bg-[#f8f9fa] transition-colors"
                   >
@@ -344,14 +431,45 @@ const selectDay = (day) => {
                       </div>
                     </td>
                   </tr>
-
-                  <tr v-if="!filteredReservations.length">
-                    <td colspan="7" class="px-6 py-10 text-center text-sm text-[#6c757d]">
-                      해당 상태의 예약이 없습니다.
-                    </td>
-                  </tr>
                 </tbody>
               </table>
+              <div
+                v-if="filteredReservations.length > 0"
+                class="flex items-center justify-center gap-3 py-5"
+              >
+                <button
+                  type="button"
+                  @click="prevPage"
+                  :disabled="currentPage === 1"
+                  class="p-2 rounded-full hover:bg-[#f8f9fa] disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft class="w-5 h-5 text-[#6c757d]" />
+                </button>
+
+                <button
+                  v-for="p in pages"
+                  :key="p"
+                  type="button"
+                  @click="goPage(p)"
+                  :class="[
+                    'w-8 h-8 rounded-full text-sm font-semibold transition-all',
+                    p === currentPage
+                      ? 'bg-gradient-to-r from-[#FF6B4A] to-[#FFC4B8] text-white shadow-sm'
+                      : 'text-[#1e3a5f] hover:bg-[#f8f9fa]'
+                  ]"
+                >
+                  {{ p }}
+                </button>
+
+                <button
+                  type="button"
+                  @click="nextPage"
+                  :disabled="currentPage === totalPages"
+                  class="p-2 rounded-full hover:bg-[#f8f9fa] disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight class="w-5 h-5 text-[#6c757d]" />
+                </button>
+              </div>
             </div>
           </div>
         </div>

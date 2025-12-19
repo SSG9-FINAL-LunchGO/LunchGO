@@ -256,19 +256,13 @@ const router = createRouter({
       name: 'signup-owner',
       component: () => import('../views/signup/OwnerSignupPage.vue'),
     },
-    //사업자 - 오늘의 예약 현황 (상세보기)
+    //예약 상세보기
     {
       path: '/business/reservations/:id',
       name: 'reservation-detail',
-      component: () =>
-        import('@/views/business/reservations/ReservationDetailPage.vue'),
-    },
-    //사업자 - 전체 예약 관리 (상세보기)
-    {
-      path: '/reservations/:id',
-      name: 'reservation-detail',
-      component: () =>
-        import('@/views/business/reservations/ReservationDetailPage.vue'),
+      component: () => import('@/views/business/reservations/ReservationDetailPage.vue'),
+      props: true,
+      alias: '/reservations/:id',
     },
     // Wildcard route for 404 - make sure this is the last route
     {
