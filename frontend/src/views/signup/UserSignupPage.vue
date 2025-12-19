@@ -171,7 +171,10 @@ onUnmounted(() => {
 });
 
 const checkInputElement = () => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!email.value) return alert('이메일을 입력해주세요.');
+  if (!emailRegex.test(email.value))
+    return alert('이메일 양식에 맞지 않습니다.');
   if (!isEmailUnique.value) return alert('이메일 중복확인이 필요합니다.');
   if (!password.value) return alert('비밀번호를 입력해주세요.');
   if (!passwordConfirm.value) return alert('비밀번호 재입력이 필요합니다.');

@@ -1,13 +1,13 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { RouterLink } from 'vue-router';
+import { ref, computed, watch } from 'vue'; // watch 추가
+import { RouterLink, useRouter } from 'vue-router';
 import { ArrowLeft, TruckElectric } from 'lucide-vue-next';
 import FindIdModal from '@/components/ui/FindIdModal.vue';
 import FindEmailModal from '@/components/ui/FindEmailModal.vue';
 import FindPwdModal from '@/components/ui/FindPwdModal.vue';
 import UserDormantModal from '@/components/ui/UserDormantModal.vue';
 
-// --- 로직 통합 시작 ---
+const router = useRouter();
 type UserType = 'user' | 'staff' | 'owner' | 'admin';
 
 // 모달 상태 관리 (아이디/이메일/비밀번호)
@@ -31,10 +31,34 @@ const tabs = [
   { id: 'owner', label: '사업자' },
   { id: 'admin', label: '관리자' },
 ] as const;
-// 탭에 따른 입력 방식 결정 (사용자, 임직원 = 이메일 / 사업자, 관리자 = 아이디)
+
 const isEmailLogin = computed(() => {
   return currentTab.value === 'user' || currentTab.value === 'staff';
 });
+
+watch([email, username, password, currentTab], () => {
+  if (errorMessage.value) errorMessage.value = '';
+});
+
+const checkLoginElement = () => {
+  if (isEmailLogin.value) {
+    //사용자와 임직원일 때
+    if (!email.value) return (errorMessage.value = '이메일은 필수 입력입니다.');
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.value))
+      return (errorMessage.value = '이메일 양식에 맞지 않습니다.');
+  } else {
+    if (!username.value)
+      return (errorMessage.value = '아이디는 필수 입력입니다.');
+  }
+
+  if (!password.value)
+    return (errorMessage.value = '비밀번호는 필수 입력입니다.');
+
+  return null;
+};
+
 // 아이디/이메일 찾기 버튼 클릭 핸들러
 const openFindModal = () => {
   if (isEmailLogin.value) {
@@ -43,10 +67,17 @@ const openFindModal = () => {
     showFindIdModal.value = true;
   }
 };
+
 // 로그인 핸들러
 const handleLogin = async () => {
   isLoading.value = true;
   errorMessage.value = '';
+
+  if (checkLoginElement() !== null) {
+    isLoading.value = false; // 유효성 검사 실패 시 로딩 끄기
+    return;
+  }
+
   try {
     const payload = {
       type: currentTab.value,
@@ -61,13 +92,31 @@ const handleLogin = async () => {
     if (status.value === 'dormant') {
       showDormantModal.value = true;
       isLoading.value = false;
-
       return;
     }
-    //정상 로그인
+
+    // [수정됨] 탭별 이동 경로 설정
+    const targetPath = (() => {
+      switch (currentTab.value) {
+        case 'owner':
+          return '/business/dashboard';
+        case 'admin':
+          return '/admin/dashboard';
+        case 'user':
+        case 'staff':
+        default:
+          return '/';
+      }
+    })();
+
     alert(`${tabs.find((t) => t.id === currentTab.value)?.label} 로그인 성공!`);
+
+    // 설정된 경로로 이동
+    router.push(targetPath);
   } catch (error) {
     errorMessage.value = '로그인 정보를 확인해주세요.';
+    // 실패 시 입력창 초기화는 UX에 따라 선택사항 (보통 비밀번호만 지움)
+    password.value = '';
   } finally {
     isLoading.value = false;
   }
@@ -75,13 +124,11 @@ const handleLogin = async () => {
 
 // 휴면 해지 완료 후 처리
 const handleDormantUnlocked = () => {
-  // 휴면 해지가 완료되면 바로 로그인을 시도하거나, 메시지를 띄웁니다.
-  // 여기서는 패스워드를 초기화하여 다시 입력하게 유도하거나,
-  // 혹은 바로 로그인 API를 호출할 수도 있습니다.
   password.value = '';
   errorMessage.value = '';
 };
 </script>
+
 <template>
   <div class="min-h-screen bg-[#F8F9FA] flex flex-col font-pretendard">
     <header class="bg-white border-b border-[#E9ECEF]">
@@ -213,8 +260,9 @@ const handleDormantUnlocked = () => {
     />
   </div>
 </template>
+
 <style scoped>
-/* 폰트 임포트 */
+/* 스타일은 기존과 동일하므로 생략하지 않고 그대로 둡니다 */
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
 .font-pretendard {
   font-family: 'Pretendard', sans-serif;
