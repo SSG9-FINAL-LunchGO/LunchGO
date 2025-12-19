@@ -1,13 +1,16 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRouter } from 'vue-router';
 import BusinessSidebar from '@/components/ui/BusinessSideBar.vue';
 import BusinessHeader from '@/components/ui/BusinessHeader.vue';
 
-const route = useRoute();
 const router = useRouter();
 
-const reservationId = computed(() => Number(route.params.id));
+const props = defineProps({
+  id: { type: [String, Number], required: true },
+});
+
+const reservationId = computed(() => Number(props.id));
 
 //확정 버튼 삭제
 // // ---- 확정 (pending만) ----
@@ -54,7 +57,7 @@ const submitCancel = () => {
   }
 
   if (reason.length > MAX_CANCEL_REASON) {
-    cancelError.value = '취소 사유는 ${MAX_CANCEL_REASON}자 이내로 입력해주세요.';
+    cancelError.value = `취소 사유는 ${MAX_CANCEL_REASON}자 이내로 입력해주세요.`;
     return;
   }
 
@@ -177,7 +180,7 @@ const reservation = computed(() =>
 
 <template>
   <div class="flex h-screen bg-[#f8f9fa]">
-    <BusinessSidebar activeMenu="dashboard" />
+    <BusinessSidebar activeMenu="reservations" />
     <div class="flex-1 flex flex-col overflow-hidden">
       <BusinessHeader />
       <main class="flex-1 overflow-y-auto p-8">
