@@ -1,10 +1,10 @@
 <script setup>
-import { ref, computed } from 'vue';
-import AdminSidebar from '@/components/ui/AdminSideBar.vue';
-import AdminHeader from '@/components/ui/AdminHeader.vue';
-import Pagination from '@/components/ui/Pagination.vue';
-import AdminSearchFilter from '@/components/ui/AdminSearchFilter.vue';
-import Button from '@/components/ui/Button.vue';
+import { ref, computed } from "vue";
+import AdminSidebar from "@/components/ui/AdminSideBar.vue";
+import AdminHeader from "@/components/ui/AdminHeader.vue";
+import Pagination from "@/components/ui/Pagination.vue";
+import AdminSearchFilter from "@/components/ui/AdminSearchFilter.vue";
+import Button from "@/components/ui/Button.vue";
 import {
   MessageSquare,
   Star,
@@ -13,13 +13,13 @@ import {
   ThumbsUp,
   ArrowUpRight,
   ArrowDownRight,
-} from 'lucide-vue-next';
+} from "lucide-vue-next";
 
 // 검색 및 필터
-const searchQuery = ref('');
-const selectedStatus = ref('all');
-const startDate = ref('');
-const endDate = ref('');
+const searchQuery = ref("");
+const selectedStatus = ref("all");
+const startDate = ref("");
+const endDate = ref("");
 
 // 페이지네이션
 const currentPage = ref(1);
@@ -27,151 +27,151 @@ const itemsPerPage = 10;
 
 // 리뷰 상태 옵션
 const statusOptions = [
-  { value: 'all', label: '전체' },
-  { value: 'pending', label: '답변 대기' },
-  { value: 'answered', label: '답변 완료' },
-  { value: 'reported', label: '신고 접수' },
-  { value: 'hidden', label: '블라인드' },
+  { value: "all", label: "전체" },
+  { value: "pending", label: "답변 대기" },
+  { value: "answered", label: "답변 완료" },
+  { value: "reported", label: "신고 접수" },
+  { value: "hidden", label: "블라인드" },
 ];
 
 // 리뷰 상태별 배지 색상
 const getStatusBadgeColor = (status) => {
   const colors = {
-    pending: 'bg-yellow-100 text-yellow-800',
-    answered: 'bg-green-100 text-green-800',
-    reported: 'bg-red-100 text-red-800',
-    hidden: 'bg-gray-100 text-gray-800',
+    pending: "bg-yellow-100 text-yellow-800",
+    answered: "bg-green-100 text-green-800",
+    reported: "bg-red-100 text-red-800",
+    hidden: "bg-gray-100 text-gray-800",
   };
-  return colors[status] || 'bg-gray-100 text-gray-800';
+  return colors[status] || "bg-gray-100 text-gray-800";
 };
 
 // 리뷰 상태 라벨
 const getStatusLabel = (status) => {
   const labels = {
-    pending: '답변 대기',
-    answered: '답변 완료',
-    reported: '신고 접수',
-    hidden: '블라인드',
+    pending: "답변 대기",
+    answered: "답변 완료",
+    reported: "신고 접수",
+    hidden: "블라인드",
   };
   return labels[status] || status;
 };
 
 // 작성자명 마스킹 함수
 const maskName = (name) => {
-  if (!name || name.length === 0) return '';
+  if (!name || name.length === 0) return "";
   if (name.length === 1) return name;
-  if (name.length === 2) return name[0] + '*';
-  return name[0] + '*'.repeat(name.length - 2) + name[name.length - 1];
+  if (name.length === 2) return name[0] + "*";
+  return name[0] + "*".repeat(name.length - 2) + name[name.length - 1];
 };
 
 // 리뷰 내용 미리보기 (30자 제한)
 const getContentPreview = (content) => {
-  if (!content) return '';
-  return content.length > 30 ? content.substring(0, 30) + '...' : content;
+  if (!content) return "";
+  return content.length > 30 ? content.substring(0, 30) + "..." : content;
 };
 
 // Mock 데이터 (총 65개)
 const allReviews = ref([
   {
-    id: 'RV001',
-    reviewerName: '김민수',
-    restaurantName: '한신포차 강남점',
+    id: "RV001",
+    reviewerName: "김민수",
+    restaurantName: "한신포차 강남점",
     rating: 4.5,
     content:
-      '음식이 맛있고 분위기도 좋았습니다. 직원분들도 친절하셔서 다시 방문하고 싶네요.',
+      "음식이 맛있고 분위기도 좋았습니다. 직원분들도 친절하셔서 다시 방문하고 싶네요.",
     totalAmount: 85000,
-    createdAt: '2024-12-15',
-    status: 'answered',
+    createdAt: "2024-12-15",
+    status: "answered",
   },
   {
-    id: 'RV002',
-    reviewerName: '이영희',
-    restaurantName: '본죽&비빔밥 서초점',
+    id: "RV002",
+    reviewerName: "이영희",
+    restaurantName: "본죽&비빔밥 서초점",
     rating: 5.0,
-    content: '건강한 한 끼 식사로 딱 좋았어요. 깔끔하고 맛있습니다.',
+    content: "건강한 한 끼 식사로 딱 좋았어요. 깔끔하고 맛있습니다.",
     totalAmount: 12000,
-    createdAt: '2024-12-14',
-    status: 'answered',
+    createdAt: "2024-12-14",
+    status: "answered",
   },
   {
-    id: 'RV003',
-    reviewerName: '박철수',
-    restaurantName: '스시로 판교점',
+    id: "RV003",
+    reviewerName: "박철수",
+    restaurantName: "스시로 판교점",
     rating: 1.0,
-    content: '음식에서 이물질이 나왔어요. 너무 실망입니다.',
+    content: "음식에서 이물질이 나왔어요. 너무 실망입니다.",
     totalAmount: 45000,
-    createdAt: '2024-12-13',
-    status: 'reported',
+    createdAt: "2024-12-13",
+    status: "reported",
   },
   {
-    id: 'RV004',
-    reviewerName: '정다은',
-    restaurantName: '아웃백 스테이크하우스 홍대점',
+    id: "RV004",
+    reviewerName: "정다은",
+    restaurantName: "아웃백 스테이크하우스 홍대점",
     rating: 4.0,
-    content: '스테이크가 적당히 익어서 좋았고, 샐러드바도 신선했습니다.',
+    content: "스테이크가 적당히 익어서 좋았고, 샐러드바도 신선했습니다.",
     totalAmount: 68000,
-    createdAt: '2024-12-12',
-    status: 'pending',
+    createdAt: "2024-12-12",
+    status: "pending",
   },
   {
-    id: 'RV005',
-    reviewerName: '최지훈',
-    restaurantName: '청년다방 신논현점',
+    id: "RV005",
+    reviewerName: "최지훈",
+    restaurantName: "청년다방 신논현점",
     rating: 3.5,
-    content: '평범한 맛이었어요. 가격 대비 괜찮은 편입니다.',
+    content: "평범한 맛이었어요. 가격 대비 괜찮은 편입니다.",
     totalAmount: 18000,
-    createdAt: '2024-12-11',
-    status: 'answered',
+    createdAt: "2024-12-11",
+    status: "answered",
   },
   {
-    id: 'RV006',
-    reviewerName: '강서연',
-    restaurantName: '곱창이야기 강남점',
+    id: "RV006",
+    reviewerName: "강서연",
+    restaurantName: "곱창이야기 강남점",
     rating: 5.0,
-    content: '곱창이 정말 신선하고 맛있었어요! 소스도 환상적이었습니다.',
+    content: "곱창이 정말 신선하고 맛있었어요! 소스도 환상적이었습니다.",
     totalAmount: 52000,
-    createdAt: '2024-12-10',
-    status: 'answered',
+    createdAt: "2024-12-10",
+    status: "answered",
   },
   {
-    id: 'RV007',
-    reviewerName: '윤준호',
-    restaurantName: '교촌치킨 역삼점',
+    id: "RV007",
+    reviewerName: "윤준호",
+    restaurantName: "교촌치킨 역삼점",
     rating: 4.0,
-    content: '치킨이 바삭하고 맛있었습니다. 배달도 빨랐어요.',
+    content: "치킨이 바삭하고 맛있었습니다. 배달도 빨랐어요.",
     totalAmount: 24000,
-    createdAt: '2024-12-09',
-    status: 'pending',
+    createdAt: "2024-12-09",
+    status: "pending",
   },
   {
-    id: 'RV008',
-    reviewerName: '임수진',
-    restaurantName: '도쿄스테이크 압구정점',
+    id: "RV008",
+    reviewerName: "임수진",
+    restaurantName: "도쿄스테이크 압구정점",
     rating: 2.0,
-    content: '주문한 음식이 너무 늦게 나왔고, 온도도 미지근했습니다.',
+    content: "주문한 음식이 너무 늦게 나왔고, 온도도 미지근했습니다.",
     totalAmount: 75000,
-    createdAt: '2024-12-08',
-    status: 'reported',
+    createdAt: "2024-12-08",
+    status: "reported",
   },
   {
-    id: 'RV009',
-    reviewerName: '송민재',
-    restaurantName: '한신포차 신촌점',
+    id: "RV009",
+    reviewerName: "송민재",
+    restaurantName: "한신포차 신촌점",
     rating: 4.5,
-    content: '분위기 좋고 안주도 푸짐해요. 회식 장소로 추천합니다.',
+    content: "분위기 좋고 안주도 푸짐해요. 회식 장소로 추천합니다.",
     totalAmount: 120000,
-    createdAt: '2024-12-07',
-    status: 'answered',
+    createdAt: "2024-12-07",
+    status: "answered",
   },
   {
-    id: 'RV010',
-    reviewerName: '한지우',
-    restaurantName: '본죽&비빔밥 잠실점',
+    id: "RV010",
+    reviewerName: "한지우",
+    restaurantName: "본죽&비빔밥 잠실점",
     rating: 3.0,
-    content: '무난했어요. 특별히 나쁘지도 좋지도 않았습니다.',
+    content: "무난했어요. 특별히 나쁘지도 좋지도 않았습니다.",
     totalAmount: 14000,
-    createdAt: '2024-12-06',
-    status: 'pending',
+    createdAt: "2024-12-06",
+    status: "pending",
   },
   // 추가 데이터 생성 (RV011 ~ RV065)
   ...Array.from({ length: 55 }, (_, i) => {
@@ -179,12 +179,12 @@ const allReviews = ref([
     const ratings = [1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0];
     const rating = ratings[i % ratings.length];
     const statusList = [
-      'pending',
-      'answered',
-      'answered',
-      'answered',
-      'reported',
-      'hidden',
+      "pending",
+      "answered",
+      "answered",
+      "answered",
+      "reported",
+      "hidden",
     ];
     const status = statusList[i % statusList.length];
 
@@ -196,32 +196,32 @@ const allReviews = ref([
     const day = 1 + (i % 28);
 
     return {
-      id: `RV${String(idx).padStart(3, '0')}`,
+      id: `RV${String(idx).padStart(3, "0")}`,
       reviewerName:
-        ['김', '이', '박', '정', '최', '강', '윤', '임', '송'][i % 9] +
-        ['민수', '영희', '철수', '다은', '지훈'][i % 5],
+        ["김", "이", "박", "정", "최", "강", "윤", "임", "송"][i % 9] +
+        ["민수", "영희", "철수", "다은", "지훈"][i % 5],
       restaurantName:
         [
-          '한신포차',
-          '본죽&비빔밥',
-          '스시로',
-          '아웃백 스테이크하우스',
-          '청년다방',
-          '곱창이야기',
+          "한신포차",
+          "본죽&비빔밥",
+          "스시로",
+          "아웃백 스테이크하우스",
+          "청년다방",
+          "곱창이야기",
         ][i % 6] +
-        ' ' +
-        ['강남점', '서초점', '판교점', '홍대점'][i % 4],
+        " " +
+        ["강남점", "서초점", "판교점", "홍대점"][i % 4],
       rating: rating,
       content:
         rating >= 4
-          ? '음식이 맛있고 서비스도 좋았습니다. 재방문 의사 있습니다.'
+          ? "음식이 맛있고 서비스도 좋았습니다. 재방문 의사 있습니다."
           : rating >= 2.5
-          ? '보통 수준이었어요. 가격 대비 괜찮은 편입니다.'
-          : '기대에 못 미쳤습니다. 개선이 필요해 보입니다.',
+          ? "보통 수준이었어요. 가격 대비 괜찮은 편입니다."
+          : "기대에 못 미쳤습니다. 개선이 필요해 보입니다.",
       totalAmount: 10000 + i * 3000,
-      createdAt: `${targetYear}-${String(finalMonth).padStart(2, '0')}-${String(
+      createdAt: `${targetYear}-${String(finalMonth).padStart(2, "0")}-${String(
         day
-      ).padStart(2, '0')}`,
+      ).padStart(2, "0")}`,
       status: status,
     };
   }),
@@ -243,7 +243,7 @@ const filteredReviews = computed(() => {
   }
 
   // 상태 필터
-  if (selectedStatus.value !== 'all') {
+  if (selectedStatus.value !== "all") {
     filtered = filtered.filter((r) => r.status === selectedStatus.value);
   }
 
@@ -292,12 +292,12 @@ const stats = computed(() => {
 
   // 신고 리뷰
   const reportedReviews = allReviewsList.filter(
-    (r) => r.status === 'reported'
+    (r) => r.status === "reported"
   ).length;
 
   // 답변 대기 리뷰
   const pendingReviews = allReviewsList.filter(
-    (r) => r.status === 'pending'
+    (r) => r.status === "pending"
   ).length;
 
   // 높은 평점 리뷰 (4점 이상)
@@ -361,7 +361,7 @@ const handlePageChange = (page) => {
 
 // 필터 값 업데이트 핸들러
 const handleFilterUpdate = ({ model, value }) => {
-  if (model === 'selectedStatus') {
+  if (model === "selectedStatus") {
     selectedStatus.value = value;
   }
   currentPage.value = 1;
@@ -369,18 +369,18 @@ const handleFilterUpdate = ({ model, value }) => {
 
 // 필터 초기화
 const resetFilters = () => {
-  searchQuery.value = '';
-  selectedStatus.value = 'all';
-  startDate.value = '';
-  endDate.value = '';
+  searchQuery.value = "";
+  selectedStatus.value = "all";
+  startDate.value = "";
+  endDate.value = "";
   currentPage.value = 1;
 };
 
 // 필터 설정
 const filters = computed(() => [
   {
-    model: 'selectedStatus',
-    label: '상태',
+    model: "selectedStatus",
+    label: "상태",
     value: selectedStatus.value,
     options: statusOptions,
   },
@@ -431,15 +431,15 @@ const handleHideReview = (review) => {
                 </div>
               </div>
               <p class="text-sm text-[#6c757d] mb-1">전체 리뷰</p>
-              <p class="text-2xl font-bold text-purple-600 mb-2">
+              <p class="text-2xl font-bold mb-2">
                 {{ stats.total.toLocaleString() }}
               </p>
               <div class="flex items-center text-sm">
                 <component
                   :is="stats.totalDiff >= 0 ? ArrowUpRight : ArrowDownRight"
-                  class="w-4 h-4 mr-1 text-purple-600"
+                  class="w-4 h-4 mr-1"
                 />
-                <span class="text-purple-600">
+                <span class="">
                   {{ Math.abs(stats.totalDiff) }}
                 </span>
                 <span class="text-[#6c757d] ml-1">전월 대비</span>
@@ -454,7 +454,7 @@ const handleHideReview = (review) => {
                 </div>
               </div>
               <p class="text-sm text-[#6c757d] mb-1">평균 평점</p>
-              <p class="text-2xl font-bold text-yellow-600">
+              <p class="text-2xl font-bold">
                 {{ stats.averageRating }}
               </p>
               <p class="text-xs text-[#6c757d] mt-2">5.0 만점</p>
@@ -468,15 +468,15 @@ const handleHideReview = (review) => {
                 </div>
               </div>
               <p class="text-sm text-[#6c757d] mb-1">신고 리뷰</p>
-              <p class="text-2xl font-bold text-red-600 mb-2">
+              <p class="text-2xl font-bold mb-2">
                 {{ stats.reported.toLocaleString() }}
               </p>
               <div class="flex items-center text-sm">
                 <component
                   :is="stats.reportedDiff >= 0 ? ArrowUpRight : ArrowDownRight"
-                  class="w-4 h-4 mr-1 text-red-600"
+                  class="w-4 h-4 mr-1"
                 />
-                <span class="text-red-600">
+                <span class="">
                   {{ Math.abs(stats.reportedDiff) }}
                 </span>
                 <span class="text-[#6c757d] ml-1">전월 대비</span>
@@ -491,15 +491,15 @@ const handleHideReview = (review) => {
                 </div>
               </div>
               <p class="text-sm text-[#6c757d] mb-1">답변 대기</p>
-              <p class="text-2xl font-bold text-orange-600 mb-2">
+              <p class="text-2xl font-bold mb-2">
                 {{ stats.pending.toLocaleString() }}
               </p>
               <div class="flex items-center text-sm">
                 <component
                   :is="stats.pendingDiff >= 0 ? ArrowUpRight : ArrowDownRight"
-                  class="w-4 h-4 mr-1 text-orange-600"
+                  class="w-4 h-4 mr-1"
                 />
-                <span class="text-orange-600">
+                <span class="">
                   {{ Math.abs(stats.pendingDiff) }}
                 </span>
                 <span class="text-[#6c757d] ml-1">전월 대비</span>
@@ -514,7 +514,7 @@ const handleHideReview = (review) => {
                 </div>
               </div>
               <p class="text-sm text-[#6c757d] mb-1">높은 평점 (4점↑)</p>
-              <p class="text-2xl font-bold text-green-600 mb-2">
+              <p class="text-2xl font-bold mb-2">
                 {{ stats.highRating.toLocaleString() }}
               </p>
               <div class="flex items-center text-sm">
@@ -522,9 +522,9 @@ const handleHideReview = (review) => {
                   :is="
                     stats.highRatingDiff >= 0 ? ArrowUpRight : ArrowDownRight
                   "
-                  class="w-4 h-4 mr-1 text-green-600"
+                  class="w-4 h-4 mr-1"
                 />
-                <span class="text-green-600">
+                <span class="">
                   {{ Math.abs(stats.highRatingDiff) }}
                 </span>
                 <span class="text-[#6c757d] ml-1">전월 대비</span>

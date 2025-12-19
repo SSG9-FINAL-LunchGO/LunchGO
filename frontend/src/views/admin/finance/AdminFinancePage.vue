@@ -1,9 +1,9 @@
 <script setup>
-import { ref, computed } from 'vue';
-import AdminSidebar from '@/components/ui/AdminSideBar.vue';
-import AdminHeader from '@/components/ui/AdminHeader.vue';
-import Pagination from '@/components/ui/Pagination.vue';
-import AdminSearchFilter from '@/components/ui/AdminSearchFilter.vue';
+import { ref, computed } from "vue";
+import AdminSidebar from "@/components/ui/AdminSideBar.vue";
+import AdminHeader from "@/components/ui/AdminHeader.vue";
+import Pagination from "@/components/ui/Pagination.vue";
+import AdminSearchFilter from "@/components/ui/AdminSearchFilter.vue";
 import {
   DollarSign,
   TrendingUp,
@@ -11,8 +11,8 @@ import {
   Percent,
   ArrowUpRight,
   ArrowDownRight,
-} from 'lucide-vue-next';
-import { Line, Pie } from 'vue-chartjs';
+} from "lucide-vue-next";
+import { Line, Pie } from "vue-chartjs";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -24,7 +24,7 @@ import {
   Tooltip,
   Legend,
   Filler,
-} from 'chart.js';
+} from "chart.js";
 
 ChartJS.register(
   CategoryScale,
@@ -39,48 +39,48 @@ ChartJS.register(
 );
 
 // 검색 및 필터
-const searchQuery = ref('');
-const selectedStatus = ref('all');
-const startDate = ref('');
-const endDate = ref('');
+const searchQuery = ref("");
+const selectedStatus = ref("all");
+const startDate = ref("");
+const endDate = ref("");
 
 // 페이지네이션
 const currentPage = ref(1);
 const itemsPerPage = 10;
 
 // 매출 추이 기간 선택
-const selectedPeriod = ref('6months'); // '8weeks', '6months', '2years'
+const selectedPeriod = ref("6months"); // '8weeks', '6months', '2years'
 
 // 정산 상태 옵션
 const statusOptions = [
-  { value: 'all', label: '전체' },
-  { value: 'pending', label: '정산 예정' },
-  { value: 'processing', label: '처리중' },
-  { value: 'completed', label: '정산 완료' },
-  { value: 'failed', label: '정산 실패' },
-  { value: 'hold', label: '보류' },
+  { value: "all", label: "전체" },
+  { value: "pending", label: "정산 예정" },
+  { value: "processing", label: "처리중" },
+  { value: "completed", label: "정산 완료" },
+  { value: "failed", label: "정산 실패" },
+  { value: "hold", label: "보류" },
 ];
 
 // 정산 상태별 배지 색상
 const getStatusBadgeColor = (status) => {
   const colors = {
-    pending: 'bg-yellow-100 text-yellow-800',
-    processing: 'bg-blue-100 text-blue-800',
-    completed: 'bg-green-100 text-green-800',
-    failed: 'bg-red-100 text-red-800',
-    hold: 'bg-gray-100 text-gray-800',
+    pending: "bg-yellow-100 text-yellow-800",
+    processing: "bg-blue-100 text-blue-800",
+    completed: "bg-green-100 text-green-800",
+    failed: "bg-red-100 text-red-800",
+    hold: "bg-gray-100 text-gray-800",
   };
-  return colors[status] || 'bg-gray-100 text-gray-800';
+  return colors[status] || "bg-gray-100 text-gray-800";
 };
 
 // 정산 상태 라벨
 const getStatusLabel = (status) => {
   const labels = {
-    pending: '정산 예정',
-    processing: '처리중',
-    completed: '정산 완료',
-    failed: '정산 실패',
-    hold: '보류',
+    pending: "정산 예정",
+    processing: "처리중",
+    completed: "정산 완료",
+    failed: "정산 실패",
+    hold: "보류",
   };
   return labels[status] || status;
 };
@@ -93,86 +93,86 @@ const formatNumber = (num) => {
 // Mock 데이터 (총 58개)
 const allSettlements = ref([
   {
-    id: 'ST001',
-    restaurantName: '한신포차 강남점',
+    id: "ST001",
+    restaurantName: "한신포차 강남점",
     settlementAmount: 3200000,
-    settlementDate: '2024-12-15',
-    status: 'completed',
+    settlementDate: "2024-12-15",
+    status: "completed",
   },
   {
-    id: 'ST002',
-    restaurantName: '본죽&비빔밥 서초점',
+    id: "ST002",
+    restaurantName: "본죽&비빔밥 서초점",
     settlementAmount: 850000,
-    settlementDate: '2024-12-14',
-    status: 'completed',
+    settlementDate: "2024-12-14",
+    status: "completed",
   },
   {
-    id: 'ST003',
-    restaurantName: '스시로 판교점',
+    id: "ST003",
+    restaurantName: "스시로 판교점",
     settlementAmount: 2100000,
-    settlementDate: '2024-12-16',
-    status: 'pending',
+    settlementDate: "2024-12-16",
+    status: "pending",
   },
   {
-    id: 'ST004',
-    restaurantName: '아웃백 스테이크하우스 홍대점',
+    id: "ST004",
+    restaurantName: "아웃백 스테이크하우스 홍대점",
     settlementAmount: 4500000,
-    settlementDate: '2024-12-13',
-    status: 'completed',
+    settlementDate: "2024-12-13",
+    status: "completed",
   },
   {
-    id: 'ST005',
-    restaurantName: '청년다방 신논현점',
+    id: "ST005",
+    restaurantName: "청년다방 신논현점",
     settlementAmount: 1200000,
-    settlementDate: '2024-12-17',
-    status: 'processing',
+    settlementDate: "2024-12-17",
+    status: "processing",
   },
   {
-    id: 'ST006',
-    restaurantName: '곱창이야기 강남점',
+    id: "ST006",
+    restaurantName: "곱창이야기 강남점",
     settlementAmount: 2800000,
-    settlementDate: '2024-12-12',
-    status: 'completed',
+    settlementDate: "2024-12-12",
+    status: "completed",
   },
   {
-    id: 'ST007',
-    restaurantName: '교촌치킨 역삼점',
+    id: "ST007",
+    restaurantName: "교촌치킨 역삼점",
     settlementAmount: 1500000,
-    settlementDate: '2024-12-18',
-    status: 'pending',
+    settlementDate: "2024-12-18",
+    status: "pending",
   },
   {
-    id: 'ST008',
-    restaurantName: '도쿄스테이크 압구정점',
+    id: "ST008",
+    restaurantName: "도쿄스테이크 압구정점",
     settlementAmount: 3800000,
-    settlementDate: '2024-12-11',
-    status: 'completed',
+    settlementDate: "2024-12-11",
+    status: "completed",
   },
   {
-    id: 'ST009',
-    restaurantName: '한신포차 신촌점',
+    id: "ST009",
+    restaurantName: "한신포차 신촌점",
     settlementAmount: 2900000,
-    settlementDate: '2024-12-19',
-    status: 'failed',
+    settlementDate: "2024-12-19",
+    status: "failed",
   },
   {
-    id: 'ST010',
-    restaurantName: '본죽&비빔밥 잠실점',
+    id: "ST010",
+    restaurantName: "본죽&비빔밥 잠실점",
     settlementAmount: 950000,
-    settlementDate: '2024-12-10',
-    status: 'completed',
+    settlementDate: "2024-12-10",
+    status: "completed",
   },
   // 추가 데이터 생성 (ST011 ~ ST058)
   ...Array.from({ length: 48 }, (_, i) => {
     const idx = i + 11;
     const statusList = [
-      'pending',
-      'processing',
-      'completed',
-      'completed',
-      'completed',
-      'failed',
-      'hold',
+      "pending",
+      "processing",
+      "completed",
+      "completed",
+      "completed",
+      "failed",
+      "hold",
     ];
     const status = statusList[i % statusList.length];
 
@@ -184,23 +184,23 @@ const allSettlements = ref([
     const day = 1 + (i % 28);
 
     return {
-      id: `ST${String(idx).padStart(3, '0')}`,
+      id: `ST${String(idx).padStart(3, "0")}`,
       restaurantName:
         [
-          '한신포차',
-          '본죽&비빔밥',
-          '스시로',
-          '아웃백 스테이크하우스',
-          '청년다방',
-          '곱창이야기',
+          "한신포차",
+          "본죽&비빔밥",
+          "스시로",
+          "아웃백 스테이크하우스",
+          "청년다방",
+          "곱창이야기",
         ][i % 6] +
-        ' ' +
-        ['강남점', '서초점', '판교점', '홍대점'][i % 4],
+        " " +
+        ["강남점", "서초점", "판교점", "홍대점"][i % 4],
       settlementAmount: 500000 + i * 100000,
       settlementDate: `${targetYear}-${String(finalMonth).padStart(
         2,
-        '0'
-      )}-${String(day).padStart(2, '0')}`,
+        "0"
+      )}-${String(day).padStart(2, "0")}`,
       status: status,
     };
   }),
@@ -219,7 +219,7 @@ const filteredSettlements = computed(() => {
   }
 
   // 상태 필터
-  if (selectedStatus.value !== 'all') {
+  if (selectedStatus.value !== "all") {
     filtered = filtered.filter((s) => s.status === selectedStatus.value);
   }
 
@@ -289,18 +289,18 @@ const stats = computed(() => {
 
   // 정산 예정액
   const pendingAmount = thisMonthSettlements
-    .filter((s) => s.status === 'pending' || s.status === 'processing')
+    .filter((s) => s.status === "pending" || s.status === "processing")
     .reduce((sum, s) => sum + s.settlementAmount, 0);
   const pendingAmountLastMonth = lastMonthSettlements
-    .filter((s) => s.status === 'pending' || s.status === 'processing')
+    .filter((s) => s.status === "pending" || s.status === "processing")
     .reduce((sum, s) => sum + s.settlementAmount, 0);
 
   // 정산 완료액
   const completedAmount = thisMonthSettlements
-    .filter((s) => s.status === 'completed')
+    .filter((s) => s.status === "completed")
     .reduce((sum, s) => sum + s.settlementAmount, 0);
   const completedAmountLastMonth = lastMonthSettlements
-    .filter((s) => s.status === 'completed')
+    .filter((s) => s.status === "completed")
     .reduce((sum, s) => sum + s.settlementAmount, 0);
 
   // 수수료 매출 (총매출의 10%로 가정)
@@ -344,7 +344,7 @@ const handlePageChange = (page) => {
 
 // 필터 값 업데이트 핸들러
 const handleFilterUpdate = ({ model, value }) => {
-  if (model === 'selectedStatus') {
+  if (model === "selectedStatus") {
     selectedStatus.value = value;
   }
   currentPage.value = 1;
@@ -352,18 +352,18 @@ const handleFilterUpdate = ({ model, value }) => {
 
 // 필터 초기화
 const resetFilters = () => {
-  searchQuery.value = '';
-  selectedStatus.value = 'all';
-  startDate.value = '';
-  endDate.value = '';
+  searchQuery.value = "";
+  selectedStatus.value = "all";
+  startDate.value = "";
+  endDate.value = "";
   currentPage.value = 1;
 };
 
 // 필터 설정
 const filters = computed(() => [
   {
-    model: 'selectedStatus',
-    label: '정산 상태',
+    model: "selectedStatus",
+    label: "정산 상태",
     value: selectedStatus.value,
     options: statusOptions,
   },
@@ -375,7 +375,7 @@ const salesTrendData = computed(() => {
   const salesData = [];
   const now = new Date();
 
-  if (selectedPeriod.value === '8weeks') {
+  if (selectedPeriod.value === "8weeks") {
     // 최근 8주
     for (let i = 7; i >= 0; i--) {
       const date = new Date(now);
@@ -388,7 +388,7 @@ const salesTrendData = computed(() => {
       const weekSales = 2000000 + Math.floor(Math.random() * 1000000);
       salesData.push(weekSales);
     }
-  } else if (selectedPeriod.value === '6months') {
+  } else if (selectedPeriod.value === "6months") {
     // 최근 6개월
     for (let i = 5; i >= 0; i--) {
       const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -409,7 +409,7 @@ const salesTrendData = computed(() => {
       );
       salesData.push(monthSales);
     }
-  } else if (selectedPeriod.value === '2years') {
+  } else if (selectedPeriod.value === "2years") {
     // 최근 2년 (분기별)
     for (let i = 7; i >= 0; i--) {
       const quarterOffset = i;
@@ -427,10 +427,10 @@ const salesTrendData = computed(() => {
     labels,
     datasets: [
       {
-        label: '매출액',
+        label: "매출액",
         data: salesData,
-        borderColor: '#3b82f6',
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        borderColor: "#3b82f6",
+        backgroundColor: "rgba(59, 130, 246, 0.1)",
         tension: 0.4,
         fill: true,
         pointRadius: 4,
@@ -448,15 +448,15 @@ const salesChartOptions = {
       display: false,
     },
     tooltip: {
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      backgroundColor: "rgba(0, 0, 0, 0.8)",
       padding: 12,
-      titleColor: '#fff',
-      bodyColor: '#fff',
-      borderColor: '#3b82f6',
+      titleColor: "#fff",
+      bodyColor: "#fff",
+      borderColor: "#3b82f6",
       borderWidth: 1,
       callbacks: {
         label: function (context) {
-          return '매출: ' + context.parsed.y.toLocaleString() + '원';
+          return "매출: " + context.parsed.y.toLocaleString() + "원";
         },
       },
     },
@@ -465,12 +465,12 @@ const salesChartOptions = {
     y: {
       beginAtZero: true,
       grid: {
-        color: 'rgba(0, 0, 0, 0.05)',
+        color: "rgba(0, 0, 0, 0.05)",
       },
       ticks: {
-        color: '#6c757d',
+        color: "#6c757d",
         callback: function (value) {
-          return (value / 1000000).toFixed(0) + 'M';
+          return (value / 1000000).toFixed(0) + "M";
         },
       },
     },
@@ -479,7 +479,7 @@ const salesChartOptions = {
         display: false,
       },
       ticks: {
-        color: '#6c757d',
+        color: "#6c757d",
       },
     },
   },
@@ -493,16 +493,16 @@ const categoryRevenueData = computed(() => {
   const penaltyFee = 3800000; // 위약금
 
   return {
-    labels: ['선결제 중개 수수료', '매칭 중개 수수료', '위약금'],
+    labels: ["선결제 중개 수수료", "매칭 중개 수수료", "위약금"],
     datasets: [
       {
         data: [prepaidCommission, matchingCommission, penaltyFee],
         backgroundColor: [
-          '#fbbf24', // 노란색
-          '#60a5fa', // 파란색
-          '#f87171', // 빨간색
+          "#fbbf24", // 노란색
+          "#60a5fa", // 파란색
+          "#f87171", // 빨간색
         ],
-        borderColor: '#fff',
+        borderColor: "#fff",
         borderWidth: 2,
       },
     ],
@@ -514,9 +514,9 @@ const pieChartOptions = {
   maintainAspectRatio: false,
   plugins: {
     legend: {
-      position: 'bottom',
+      position: "bottom",
       labels: {
-        color: '#1e3a5f',
+        color: "#1e3a5f",
         padding: 15,
         font: {
           size: 12,
@@ -524,18 +524,18 @@ const pieChartOptions = {
       },
     },
     tooltip: {
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      backgroundColor: "rgba(0, 0, 0, 0.8)",
       padding: 12,
-      titleColor: '#fff',
-      bodyColor: '#fff',
+      titleColor: "#fff",
+      bodyColor: "#fff",
       callbacks: {
         label: function (context) {
-          const label = context.label || '';
+          const label = context.label || "";
           const value = context.parsed;
           const total = context.dataset.data.reduce((a, b) => a + b, 0);
           const percentage = ((value / total) * 100).toFixed(1);
           return (
-            label + ': ' + value.toLocaleString() + '원 (' + percentage + '%)'
+            label + ": " + value.toLocaleString() + "원 (" + percentage + "%)"
           );
         },
       },
@@ -578,15 +578,15 @@ const handlePeriodChange = (period) => {
                 </div>
               </div>
               <p class="text-sm text-[#6c757d] mb-1">이번 달 총매출</p>
-              <p class="text-2xl font-bold text-blue-600 mb-2">
+              <p class="text-2xl font-bold mb-2">
                 {{ formatNumber(stats.totalSales) }}원
               </p>
               <div class="flex items-center text-sm">
                 <component
                   :is="stats.totalDiff >= 0 ? ArrowUpRight : ArrowDownRight"
-                  class="w-4 h-4 mr-1 text-blue-600"
+                  class="w-4 h-4 mr-1"
                 />
-                <span class="text-blue-600">
+                <span class="">
                   {{ formatNumber(Math.abs(stats.totalDiff)) }}
                 </span>
                 <span class="text-[#6c757d] ml-1">전월 대비</span>
@@ -601,15 +601,15 @@ const handlePeriodChange = (period) => {
                 </div>
               </div>
               <p class="text-sm text-[#6c757d] mb-1">정산 예정액</p>
-              <p class="text-2xl font-bold text-yellow-600 mb-2">
+              <p class="text-2xl font-bold mb-2">
                 {{ formatNumber(stats.pending) }}원
               </p>
               <div class="flex items-center text-sm">
                 <component
                   :is="stats.pendingDiff >= 0 ? ArrowUpRight : ArrowDownRight"
-                  class="w-4 h-4 mr-1 text-yellow-600"
+                  class="w-4 h-4 mr-1"
                 />
-                <span class="text-yellow-600">
+                <span class="">
                   {{ formatNumber(Math.abs(stats.pendingDiff)) }}
                 </span>
                 <span class="text-[#6c757d] ml-1">전월 대비</span>
@@ -624,15 +624,15 @@ const handlePeriodChange = (period) => {
                 </div>
               </div>
               <p class="text-sm text-[#6c757d] mb-1">정산 완료</p>
-              <p class="text-2xl font-bold text-green-600 mb-2">
+              <p class="text-2xl font-bold mb-2">
                 {{ formatNumber(stats.completed) }}원
               </p>
               <div class="flex items-center text-sm">
                 <component
                   :is="stats.completedDiff >= 0 ? ArrowUpRight : ArrowDownRight"
-                  class="w-4 h-4 mr-1 text-green-600"
+                  class="w-4 h-4 mr-1"
                 />
-                <span class="text-green-600">
+                <span class="">
                   {{ formatNumber(Math.abs(stats.completedDiff)) }}
                 </span>
                 <span class="text-[#6c757d] ml-1">전월 대비</span>
@@ -647,7 +647,7 @@ const handlePeriodChange = (period) => {
                 </div>
               </div>
               <p class="text-sm text-[#6c757d] mb-1">수수료 수익</p>
-              <p class="text-2xl font-bold text-purple-600 mb-2">
+              <p class="text-2xl font-bold mb-2">
                 {{ formatNumber(stats.commission) }}원
               </p>
               <div class="flex items-center text-sm">
@@ -655,9 +655,9 @@ const handlePeriodChange = (period) => {
                   :is="
                     stats.commissionDiff >= 0 ? ArrowUpRight : ArrowDownRight
                   "
-                  class="w-4 h-4 mr-1 text-purple-600"
+                  class="w-4 h-4 mr-1"
                 />
-                <span class="text-purple-600">
+                <span class="">
                   {{ formatNumber(Math.abs(stats.commissionDiff)) }}
                 </span>
                 <span class="text-[#6c757d] ml-1">전월 대비</span>
