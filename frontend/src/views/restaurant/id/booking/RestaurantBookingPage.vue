@@ -33,9 +33,35 @@ const timeSlots = ref(['11:00', '12:00', '13:00', '14:00']);
 
 const canProceed = computed(() => selectedDateIndex.value !== null && selectedTime.value !== null);
 
-const nextPage = computed(() =>
-  isPreorder.value ? `/restaurant/${restaurantId}/menu` : `/restaurant/${restaurantId}/payment?type=deposit`,
-);
+//예약금 * 인원수 계산식 + 선주문/선결제 플로우 포함
+const nextPage = computed(() => {
+  if (isPreorder.value) {
+  return {
+    path: `/restaurant/${restaurantId}/menu`,
+    query: {
+      type: 'preorder',
+      partySize: partySize.value,
+      requestNote: requestNote.value,
+      dateIndex: selectedDateIndex.value,
+      time: selectedTime.value,
+    },
+  };
+}
+
+  // 예약금 결제 페이지로 partySize 전달
+  return {
+    path: `/restaurant/${restaurantId}/payment`,
+    query: {
+      type: 'deposit',
+      partySize: partySize.value,
+      // 원하면 요청사항도 같이 넘김 (백엔드 붙기 전 임시로라도 UI 반영 가능)
+      requestNote: requestNote.value,
+      // 날짜/시간도 넘기고 싶으면 같이:
+      // dateIndex: selectedDateIndex.value,
+      // time: selectedTime.value,
+    },
+  };
+});
 
 const selectDate = (idx) => {
   selectedDateIndex.value = idx;

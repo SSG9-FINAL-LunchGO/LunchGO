@@ -8,14 +8,11 @@ defineProps({
     required: true,
   },
 });
-<<<<<<< Updated upstream
-=======
 
 const restaurantStore = useRestaurantStore();
 const restaurantId = computed(
   () => restaurantStore.restaurantInfo?.restaurantId || 1
 ); // 스토어에 ID가 없을 경우 임시로 1을 사용
->>>>>>> Stashed changes
 </script>
 
 <template>
