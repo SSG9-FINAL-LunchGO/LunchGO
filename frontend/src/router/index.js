@@ -78,6 +78,12 @@ const router = createRouter({
         import('../views/business/reviews/BusinessReviewsPage.vue'),
     },
     {
+      path: '/business/promotion',
+      name: 'business-promotion',
+      component: () =>
+        import('../views/business/promotion/BusinessPromotionPage.vue'),
+    },
+    {
       path: '/admin/dashboard',
       name: 'admin-dashboard',
       component: () =>

@@ -113,6 +113,19 @@ const restaurantId = computed(
         </li>
         <li>
           <RouterLink
+            :to="`/business/promotion`"
+            :class="[
+              'block px-4 py-3 rounded-lg transition-colors',
+              activeMenu === 'business-promotion'
+                ? 'text-white bg-gradient-to-r from-[#FF6B4A] to-[#FFC4B8] font-semibold'
+                : 'text-[#1e3a5f] hover:bg-[#f8f9fa]',
+            ]"
+          >
+            프로모션 관리
+          </RouterLink>
+        </li>
+        <li>
+          <RouterLink
             :to="`/business/mypage`"
             :class="[
               'block px-4 py-3 rounded-lg transition-colors',
