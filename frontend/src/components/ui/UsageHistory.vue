@@ -1,6 +1,6 @@
 <script setup>
-import { ref } from 'vue';
-import { RouterLink, useRouter } from 'vue-router';
+import { ref } from "vue";
+import { RouterLink, useRouter } from "vue-router";
 import {
   Calendar,
   Users,
@@ -9,9 +9,9 @@ import {
   MoreVertical,
   Edit,
   Trash2,
-} from 'lucide-vue-next';
-import Button from '@/components/ui/Button.vue';
-import Card from '@/components/ui/Card.vue';
+} from "lucide-vue-next";
+import Button from "@/components/ui/Button.vue";
+import Card from "@/components/ui/Card.vue";
 
 const router = useRouter();
 
@@ -29,7 +29,7 @@ const props = defineProps({
 });
 
 // Emits 정의 (즐겨찾기 토글을 부모에게 알림)
-const emit = defineEmits(['toggle-favorite']);
+const emit = defineEmits(["toggle-favorite"]);
 
 // 리뷰 메뉴 드롭다운 상태 (로컬 상태로 이동)
 const activeReviewMenu = ref(null);
@@ -49,22 +49,22 @@ const toggleReviewMenu = (reservationId) => {
 const getStatusInfo = (reservationStatus) => {
   const statusMap = {
     completed: {
-      text: '이용완료',
-      bgColor: 'bg-emerald-50',
-      textColor: 'text-emerald-600',
-      borderColor: 'border-emerald-200',
+      text: "이용완료",
+      bgColor: "bg-emerald-50",
+      textColor: "text-emerald-600",
+      borderColor: "border-emerald-200",
     },
     refund_pending: {
-      text: '환불대기',
-      bgColor: 'bg-amber-50',
-      textColor: 'text-amber-600',
-      borderColor: 'border-amber-200',
+      text: "환불대기",
+      bgColor: "bg-amber-50",
+      textColor: "text-amber-600",
+      borderColor: "border-amber-200",
     },
     refunded: {
-      text: '환불완료',
-      bgColor: 'bg-gray-50',
-      textColor: 'text-gray-600',
-      borderColor: 'border-gray-200',
+      text: "환불완료",
+      bgColor: "bg-gray-50",
+      textColor: "text-gray-600",
+      borderColor: "border-gray-200",
     },
   };
   return statusMap[reservationStatus] || statusMap.completed;
@@ -73,7 +73,7 @@ const getStatusInfo = (reservationStatus) => {
 // 방문 정보 텍스트
 const getVisitInfoText = (visitCount, daysSinceLastVisit) => {
   if (visitCount === 1) {
-    return '1번째 방문';
+    return "1번째 방문";
   } else if (daysSinceLastVisit) {
     return `${visitCount}번째, ${daysSinceLastVisit}일만의 방문`;
   } else {
@@ -84,7 +84,7 @@ const getVisitInfoText = (visitCount, daysSinceLastVisit) => {
 // 리뷰 텍스트 축약
 const truncateReviewText = (text, maxLength = 50) => {
   if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength) + '...';
+  return text.substring(0, maxLength) + "...";
 };
 
 // 리뷰 수정 핸들러
@@ -97,10 +97,9 @@ const handleEditReview = (reservation) => {
 
 // 리뷰 삭제 핸들러
 const handleDeleteReview = (reservation) => {
-  if (confirm('리뷰를 삭제하시겠습니까?')) {
+  if (confirm("리뷰를 삭제하시겠습니까?")) {
     // 실제 구현 시에는 emit으로 부모에게 알리거나 API 호출 필요
-    // 여기서는 예시로 로컬 데이터 조작 흉내 (실제론 prop 변경 불가하므로 API 호출 후 부모 데이터 갱신 필요)
-    console.log('리뷰 삭제 요청:', reservation.review.id);
+    console.log("리뷰 삭제 요청:", reservation.review.id);
     reservation.review = null;
   }
   activeReviewMenu.value = null;
@@ -120,6 +119,7 @@ const handleDeleteReview = (reservation) => {
       class="overflow-hidden border-[#e9ecef] rounded-2xl bg-white shadow-sm"
     >
       <div class="p-4">
+        <!-- 상단: 식당 이름, 즐겨찾기, 상태 배지 -->
         <div class="flex items-start justify-between mb-3">
           <div class="flex items-center gap-2">
             <h3 class="font-semibold text-[#1e3a5f] text-base">
@@ -151,6 +151,7 @@ const handleDeleteReview = (reservation) => {
           </span>
         </div>
 
+        <!-- 예약 상세 정보 -->
         <div class="space-y-2 mb-3">
           <div class="flex items-start gap-2 text-sm">
             <MapPin class="w-4 h-4 text-[#6c757d] mt-0.5 flex-shrink-0" />
@@ -188,6 +189,7 @@ const handleDeleteReview = (reservation) => {
           </div>
         </div>
 
+        <!-- 다시 예약 / 예약 내역 버튼 -->
         <div class="flex gap-2">
           <RouterLink
             :to="`/restaurant/${reservation.restaurant.id}`"
@@ -213,7 +215,9 @@ const handleDeleteReview = (reservation) => {
           </RouterLink>
         </div>
 
-        <div class="mt-2">
+        <!-- 리뷰 영역: 이용 완료(completed) 상태일 때만 노출 -->
+        <div class="mt-2" v-if="reservation.reservationStatus === 'completed'">
+          <!-- 리뷰가 없을 때: 리뷰 쓰기 버튼 -->
           <RouterLink
             v-if="!reservation.review"
             :to="`/restaurant/${reservation.restaurant.id}/reviews/write`"
@@ -227,6 +231,7 @@ const handleDeleteReview = (reservation) => {
             </Button>
           </RouterLink>
 
+          <!-- 리뷰가 있을 때: 리뷰 미리보기 및 수정/삭제 -->
           <div v-else class="relative">
             <RouterLink
               :to="`/mypage/reviews?highlight=${reservation.review.id}`"

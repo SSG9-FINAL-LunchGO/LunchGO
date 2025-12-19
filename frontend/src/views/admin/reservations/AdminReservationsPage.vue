@@ -1,9 +1,21 @@
 <script setup>
-import { ref, computed } from 'vue';
-import AdminSidebar from '@/components/ui/AdminSideBar.vue';
-import AdminHeader from '@/components/ui/AdminHeader.vue';
-import Pagination from '@/components/ui/Pagination.vue';
-import AdminSearchFilter from '@/components/ui/AdminSearchFilter.vue';
+import { ref, computed } from "vue";
+import AdminSideBar from "@/components/ui/AdminSideBar.vue";
+import AdminHeader from "@/components/ui/AdminHeader.vue";
+import Pagination from "@/components/ui/Pagination.vue";
+import AdminSearchFilter from "@/components/ui/AdminSearchFilter.vue";
+import { Line } from "vue-chartjs";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler,
+} from "chart.js";
 import {
   Calendar,
   CheckCircle,
@@ -12,285 +24,260 @@ import {
   XCircle,
   ArrowUpRight,
   ArrowDownRight,
-} from 'lucide-vue-next';
+  Activity,
+  AlertCircle,
+} from "lucide-vue-next";
 
-// 검색 및 필터
-const searchQuery = ref('');
-const selectedStatus = ref('all');
-const selectedType = ref('all');
-const startDate = ref('');
-const endDate = ref('');
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
 
-// 페이지네이션
+// --- 1. 상태 관리 (기간 선택) ---
+const chartPeriod = ref("8weeks"); // '8weeks' | '6months' | '2years'
+
+// --- 2. 통계 데이터 (Mock Data Map) ---
+const periodStatsMap = {
+  "8weeks": {
+    label: "최근 8주",
+    comparisonText: "지난주 대비",
+    total: 1450,
+    totalDiff: 125,
+    confirmed: 1120,
+    confirmedDiff: 98,
+    temp: 180,
+    tempDiff: -15,
+    refundPending: 95,
+    refundPendingDiff: 12,
+    refunded: 55,
+    refundedDiff: -5,
+  },
+  "6months": {
+    label: "최근 6개월",
+    comparisonText: "전월 대비",
+    total: 5840,
+    totalDiff: -320,
+    confirmed: 4950,
+    confirmedDiff: -150,
+    temp: 450,
+    tempDiff: 45,
+    refundPending: 280,
+    refundPendingDiff: 20,
+    refunded: 160,
+    refundedDiff: 15,
+  },
+  "2years": {
+    label: "최근 2년",
+    comparisonText: "전년 동기 대비",
+    total: 24500,
+    totalDiff: 5600,
+    confirmed: 21000,
+    confirmedDiff: 5100,
+    temp: 2000,
+    tempDiff: -300,
+    refundPending: 900,
+    refundPendingDiff: -50,
+    refunded: 600,
+    refundedDiff: -120,
+  },
+};
+
+// --- 3. 차트 데이터 로직 ---
+const getWeekLabels = () => {
+  const labels = [];
+  const today = new Date();
+  for (let i = 7; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i * 7);
+    labels.push(`${d.getMonth() + 1}월 ${Math.ceil(d.getDate() / 7)}주`);
+  }
+  return labels;
+};
+
+const getMonthLabels = (count) => {
+  const labels = [];
+  const today = new Date();
+  for (let i = count - 1; i >= 0; i--) {
+    const d = new Date(today);
+    d.setMonth(today.getMonth() - i);
+    labels.push(
+      `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}`
+    );
+  }
+  return labels;
+};
+
+const chartDataMap = {
+  "8weeks": {
+    labels: getWeekLabels(),
+    success: [150, 165, 160, 178, 190, 185, 210, 225],
+    completed: [130, 145, 148, 165, 175, 178, 195, 208],
+    cancel: [25, 28, 30, 22, 18, 15, 12, 10],
+  },
+  "6months": {
+    labels: getMonthLabels(6),
+    success: [650, 720, 680, 850, 920, 1050],
+    completed: [600, 680, 640, 800, 880, 1010],
+    cancel: [120, 110, 95, 80, 75, 60],
+  },
+  "2years": {
+    labels: getMonthLabels(24),
+    success: Array.from(
+      { length: 24 },
+      (_, i) => 500 + i * 30 + Math.random() * 50
+    ),
+    completed: Array.from(
+      { length: 24 },
+      (_, i) => 450 + i * 28 + Math.random() * 50
+    ),
+    cancel: Array.from(
+      { length: 24 },
+      (_, i) => 100 - i * 2 + Math.random() * 20
+    ),
+  },
+};
+
+const reservationSuccessData = computed(() => {
+  const data = chartDataMap[chartPeriod.value];
+  return {
+    labels: data.labels,
+    datasets: [
+      {
+        label: "신규 예약",
+        data: data.success,
+        borderColor: "#4A90E2",
+        backgroundColor: "rgba(74, 144, 226, 0.1)",
+        tension: 0.4,
+        fill: true,
+      },
+      {
+        label: "이용 완료",
+        data: data.completed,
+        borderColor: "#10B981",
+        backgroundColor: "rgba(16, 185, 129, 0.1)",
+        tension: 0.4,
+        fill: true,
+      },
+    ],
+  };
+});
+
+const cancellationTrendData = computed(() => {
+  const data = chartDataMap[chartPeriod.value];
+  return {
+    labels: data.labels,
+    datasets: [
+      {
+        label: "취소/환불",
+        data: data.cancel,
+        borderColor: "#EF4444",
+        backgroundColor: "rgba(239, 68, 68, 0.1)",
+        tension: 0.4,
+        fill: true,
+      },
+    ],
+  };
+});
+
+const currentStats = computed(() => {
+  return periodStatsMap[chartPeriod.value];
+});
+
+const chartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      position: "top",
+      align: "end",
+      labels: { boxWidth: 10, usePointStyle: true },
+    },
+  },
+  scales: {
+    y: { beginAtZero: true, grid: { borderDash: [2, 2] } },
+    x: { grid: { display: false } },
+  },
+  interaction: {
+    mode: "index",
+    intersect: false,
+  },
+};
+
+// --- 4. 테이블 관련 로직 ---
+const searchQuery = ref("");
+const selectedStatus = ref("all");
+const selectedType = ref("all");
+const startDate = ref("");
+const endDate = ref("");
 const currentPage = ref(1);
 const itemsPerPage = 10;
 
-// 예약 상태 옵션
 const statusOptions = [
-  { value: 'all', label: '전체' },
-  { value: 'temp', label: '임시 예약' },
-  { value: 'confirmed', label: '예약 확정' },
-  { value: 'completed', label: '이용 완료' },
-  { value: 'refund_pending', label: '환불 대기' },
-  { value: 'refunded', label: '환불 완료' },
+  { value: "all", label: "전체" },
+  { value: "temp", label: "임시 예약" },
+  { value: "confirmed", label: "예약 확정" },
+  { value: "completed", label: "이용 완료" },
+  { value: "refund_pending", label: "환불 대기" },
+  { value: "refunded", label: "환불 완료" },
 ];
 
-// 예약 타입 옵션
 const typeOptions = [
-  { value: 'all', label: '전체' },
-  { value: 'prepaid', label: '선결제' },
-  { value: 'deposit', label: '예약금' },
+  { value: "all", label: "전체" },
+  { value: "prepaid", label: "선결제" },
+  { value: "deposit", label: "예약금" },
 ];
 
-// 예약 상태별 배지 색상
 const getStatusBadgeColor = (status) => {
   const colors = {
-    temp: 'bg-yellow-100 text-yellow-800',
-    confirmed: 'bg-blue-100 text-blue-800',
-    completed: 'bg-green-100 text-green-800',
-    refund_pending: 'bg-orange-100 text-orange-800',
-    refunded: 'bg-gray-100 text-gray-800',
+    temp: "bg-yellow-100 text-yellow-800",
+    confirmed: "bg-blue-100 text-blue-800",
+    completed: "bg-green-100 text-green-800",
+    refund_pending: "bg-orange-100 text-orange-800",
+    refunded: "bg-gray-100 text-gray-800",
   };
-  return colors[status] || 'bg-gray-100 text-gray-800';
+  return colors[status] || "bg-gray-100 text-gray-800";
 };
 
-// 예약 상태 라벨
 const getStatusLabel = (status) => {
   const labels = {
-    temp: '임시 예약',
-    confirmed: '예약 확정',
-    completed: '이용 완료',
-    refund_pending: '환불 대기',
-    refunded: '환불 완료',
+    temp: "임시 예약",
+    confirmed: "예약 확정",
+    completed: "이용 완료",
+    refund_pending: "환불 대기",
+    refunded: "환불 완료",
   };
   return labels[status] || status;
 };
 
-// 예약 타입 라벨
-const getTypeLabel = (type) => {
-  return type === 'prepaid' ? '선결제' : '예약금';
-};
+const getTypeLabel = (type) => (type === "prepaid" ? "선결제" : "예약금");
+const maskName = (name) =>
+  name.length <= 1 ? name : name[0] + "*".repeat(name.length - 1);
 
-// 이름 블라인드 처리 함수
-const maskName = (name) => {
-  if (name.length <= 1) return name;
-  return name[0] + '*'.repeat(name.length - 1);
-};
-
-// Mock 데이터 (총 45개 - 페이지네이션 테스트용)
 const allReservations = ref([
-  {
-    id: 'R2024121701',
-    restaurantName: '한신포차 강남점',
-    customerName: '김민수',
-    reservationDateTime: '2024-12-20 18:30',
-    partySize: 4,
-    type: 'prepaid',
-    status: 'confirmed',
-  },
-  {
-    id: 'R2024121702',
-    restaurantName: '본죽&비빔밥 서초점',
-    customerName: '이영희',
-    reservationDateTime: '2024-12-21 12:00',
-    partySize: 2,
-    type: 'deposit',
-    status: 'temp',
-  },
-  {
-    id: 'R2024121703',
-    restaurantName: '스시로 판교점',
-    customerName: '박철수',
-    reservationDateTime: '2024-12-19 19:00',
-    partySize: 3,
-    type: 'prepaid',
-    status: 'completed',
-  },
-  {
-    id: 'R2024121704',
-    restaurantName: '아웃백 스테이크하우스 홍대점',
-    customerName: '정다은',
-    reservationDateTime: '2024-12-22 18:00',
-    partySize: 6,
-    type: 'deposit',
-    status: 'confirmed',
-  },
-  {
-    id: 'R2024121705',
-    restaurantName: '청년다방 신논현점',
-    customerName: '최지훈',
-    reservationDateTime: '2024-12-18 17:30',
-    partySize: 2,
-    type: 'prepaid',
-    status: 'refunded',
-  },
-  {
-    id: 'R2024121706',
-    restaurantName: '곱창이야기 강남점',
-    customerName: '강서연',
-    reservationDateTime: '2024-12-23 19:30',
-    partySize: 5,
-    type: 'prepaid',
-    status: 'confirmed',
-  },
-  {
-    id: 'R2024121707',
-    restaurantName: '교촌치킨 역삼점',
-    customerName: '윤준호',
-    reservationDateTime: '2024-12-21 18:00',
-    partySize: 3,
-    type: 'deposit',
-    status: 'temp',
-  },
-  {
-    id: 'R2024121708',
-    restaurantName: '도쿄스테이크 압구정점',
-    customerName: '임수진',
-    reservationDateTime: '2024-12-20 19:00',
-    partySize: 4,
-    type: 'prepaid',
-    status: 'confirmed',
-  },
-  {
-    id: 'R2024121709',
-    restaurantName: '한신포차 신촌점',
-    customerName: '송민재',
-    reservationDateTime: '2024-12-19 18:30',
-    partySize: 2,
-    type: 'deposit',
-    status: 'completed',
-  },
-  {
-    id: 'R2024121710',
-    restaurantName: '본죽&비빔밥 잠실점',
-    customerName: '한지우',
-    reservationDateTime: '2024-12-22 12:30',
-    partySize: 3,
-    type: 'prepaid',
-    status: 'refund_pending',
-  },
-  {
-    id: 'R2024121711',
-    restaurantName: '스시로 강남점',
-    customerName: '배수현',
-    reservationDateTime: '2024-12-21 19:30',
-    partySize: 4,
-    type: 'prepaid',
-    status: 'confirmed',
-  },
-  {
-    id: 'R2024121712',
-    restaurantName: '청년다방 건대점',
-    customerName: '오태양',
-    reservationDateTime: '2024-12-23 17:00',
-    partySize: 2,
-    type: 'deposit',
-    status: 'temp',
-  },
-  {
-    id: 'R2024121713',
-    restaurantName: '아웃백 스테이크하우스 여의도점',
-    customerName: '서은영',
-    reservationDateTime: '2024-12-20 18:30',
-    partySize: 5,
-    type: 'prepaid',
-    status: 'confirmed',
-  },
-  {
-    id: 'R2024121714',
-    restaurantName: '곱창이야기 홍대점',
-    customerName: '권민호',
-    reservationDateTime: '2024-12-19 19:00',
-    partySize: 4,
-    type: 'deposit',
-    status: 'completed',
-  },
-  {
-    id: 'R2024121715',
-    restaurantName: '교촌치킨 강남점',
-    customerName: '조혜린',
-    reservationDateTime: '2024-12-22 18:30',
-    partySize: 3,
-    type: 'prepaid',
-    status: 'confirmed',
-  },
-  {
-    id: 'R2024121716',
-    restaurantName: '도쿄스테이크 신사점',
-    customerName: '남궁현',
-    reservationDateTime: '2024-12-21 19:00',
-    partySize: 2,
-    type: 'deposit',
-    status: 'temp',
-  },
-  {
-    id: 'R2024121717',
-    restaurantName: '한신포차 판교점',
-    customerName: '유채원',
-    reservationDateTime: '2024-12-20 18:00',
-    partySize: 6,
-    type: 'prepaid',
-    status: 'confirmed',
-  },
-  {
-    id: 'R2024121718',
-    restaurantName: '본죽&비빔밥 강남점',
-    customerName: '홍석진',
-    reservationDateTime: '2024-12-23 12:00',
-    partySize: 2,
-    type: 'deposit',
-    status: 'refund_pending',
-  },
-  {
-    id: 'R2024121719',
-    restaurantName: '스시로 서초점',
-    customerName: '안소희',
-    reservationDateTime: '2024-12-19 19:30',
-    partySize: 3,
-    type: 'prepaid',
-    status: 'completed',
-  },
-  {
-    id: 'R2024121720',
-    restaurantName: '청년다방 판교점',
-    customerName: '장우진',
-    reservationDateTime: '2024-12-22 17:30',
-    partySize: 4,
-    type: 'deposit',
-    status: 'confirmed',
-  },
-  // 추가 데이터 (21-45)
-  ...Array.from({ length: 25 }, (_, i) => ({
-    id: `R20241217${21 + i}`,
+  ...Array.from({ length: 45 }, (_, i) => ({
+    id: `R20241217${(i + 1).toString().padStart(2, "0")}`,
     restaurantName:
-      [
-        '한신포차',
-        '본죽&비빔밥',
-        '스시로',
-        '아웃백 스테이크하우스',
-        '청년다방',
-      ][i % 5] +
-      ' ' +
-      ['강남점', '서초점', '판교점', '홍대점', '잠실점'][Math.floor(i / 5)],
-    customerName:
-      ['김', '이', '박', '정', '최', '강', '윤', '임', '송'][i % 9] +
-      ['민수', '영희', '철수', '지훈', '서연'][Math.floor(i / 5) % 5],
-    reservationDateTime: `2024-12-${18 + (i % 5)} ${12 + (i % 8)}:${
-      (i % 2) * 30
-    }0`,
+      ["한신포차", "본죽&비빔밥", "스시로", "아웃백", "청년다방"][i % 5] +
+      " " +
+      ["강남점", "서초점", "판교점"][i % 3],
+    customerName: ["김", "이", "박", "정", "최"][i % 5] + "민수",
+    reservationDateTime: `2024-12-${18 + (i % 5)} 18:30`,
     partySize: 2 + (i % 5),
-    type: i % 2 === 0 ? 'prepaid' : 'deposit',
-    status: ['temp', 'confirmed', 'completed', 'refund_pending', 'refunded'][
+    type: i % 2 === 0 ? "prepaid" : "deposit",
+    status: ["temp", "confirmed", "completed", "refund_pending", "refunded"][
       i % 5
     ],
   })),
 ]);
 
-// 필터링된 예약 목록
 const filteredReservations = computed(() => {
   let filtered = allReservations.value;
-
-  // 검색어 필터
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase();
     filtered = filtered.filter(
@@ -300,151 +287,66 @@ const filteredReservations = computed(() => {
         r.customerName.toLowerCase().includes(query)
     );
   }
-
-  // 상태 필터
-  if (selectedStatus.value !== 'all') {
+  if (selectedStatus.value !== "all")
     filtered = filtered.filter((r) => r.status === selectedStatus.value);
-  }
-
-  // 타입 필터
-  if (selectedType.value !== 'all') {
+  if (selectedType.value !== "all")
     filtered = filtered.filter((r) => r.type === selectedType.value);
-  }
-
-  // 날짜 범위 필터
   if (startDate.value || endDate.value) {
     filtered = filtered.filter((r) => {
-      const reservationDate = new Date(r.reservationDateTime);
-
+      const resDate = new Date(r.reservationDateTime);
       if (startDate.value && endDate.value) {
         const start = new Date(startDate.value);
         const end = new Date(endDate.value);
-        end.setHours(23, 59, 59, 999); // 종료일의 마지막 시간까지 포함
-        return reservationDate >= start && reservationDate <= end;
+        end.setHours(23, 59, 59, 999);
+        return resDate >= start && resDate <= end;
       } else if (startDate.value) {
-        const start = new Date(startDate.value);
-        return reservationDate >= start;
+        return resDate >= new Date(startDate.value);
       } else if (endDate.value) {
         const end = new Date(endDate.value);
         end.setHours(23, 59, 59, 999);
-        return reservationDate <= end;
+        return resDate <= end;
       }
-
       return true;
     });
   }
-
   return filtered;
 });
 
-// 통계 데이터 (필터링된 예약 기준)
-const stats = computed(() => {
-  const now = new Date();
-  const currentMonth = now.getMonth() + 1;
-  const currentYear = now.getFullYear();
-  const lastMonth = currentMonth === 1 ? 12 : currentMonth - 1;
-  const lastMonthYear = currentMonth === 1 ? currentYear - 1 : currentYear;
-
-  // 이번 달 예약
-  const thisMonthReservations = allReservations.value.filter((r) => {
-    const resDate = new Date(r.reservationDateTime);
-    return (
-      resDate.getMonth() + 1 === currentMonth &&
-      resDate.getFullYear() === currentYear
-    );
-  });
-
-  // 지난 달 예약
-  const lastMonthReservations = allReservations.value.filter((r) => {
-    const resDate = new Date(r.reservationDateTime);
-    return (
-      resDate.getMonth() + 1 === lastMonth &&
-      resDate.getFullYear() === lastMonthYear
-    );
-  });
-
-  // 전월 대비 증감
-  const totalDiff = thisMonthReservations.length - lastMonthReservations.length;
-  const confirmedDiff =
-    thisMonthReservations.filter((r) => r.status === 'confirmed').length -
-    lastMonthReservations.filter((r) => r.status === 'confirmed').length;
-  const tempDiff =
-    thisMonthReservations.filter((r) => r.status === 'temp').length -
-    lastMonthReservations.filter((r) => r.status === 'temp').length;
-  const refundPendingDiff =
-    thisMonthReservations.filter((r) => r.status === 'refund_pending').length -
-    lastMonthReservations.filter((r) => r.status === 'refund_pending').length;
-  const refundedDiff =
-    thisMonthReservations.filter((r) => r.status === 'refunded').length -
-    lastMonthReservations.filter((r) => r.status === 'refunded').length;
-
-  return {
-    total: filteredReservations.value.length,
-    totalDiff,
-    confirmed: filteredReservations.value.filter(
-      (r) => r.status === 'confirmed'
-    ).length,
-    confirmedDiff,
-    temp: filteredReservations.value.filter((r) => r.status === 'temp').length,
-    tempDiff,
-    refundPending: filteredReservations.value.filter(
-      (r) => r.status === 'refund_pending'
-    ).length,
-    refundPendingDiff,
-    refunded: filteredReservations.value.filter((r) => r.status === 'refunded')
-      .length,
-    refundedDiff,
-  };
-});
-
-// 페이지네이션된 예약 목록
 const paginatedReservations = computed(() => {
   const start = (currentPage.value - 1) * itemsPerPage;
   const end = start + itemsPerPage;
   return filteredReservations.value.slice(start, end);
 });
 
-// 총 페이지 수
-const totalPages = computed(() => {
-  return Math.ceil(filteredReservations.value.length / itemsPerPage);
-});
+const totalPages = computed(() =>
+  Math.ceil(filteredReservations.value.length / itemsPerPage)
+);
 
-// 페이지 변경 핸들러
-const handlePageChange = (page) => {
-  currentPage.value = page;
-};
-
-// 필터 값 업데이트 핸들러
+const handlePageChange = (page) => (currentPage.value = page);
 const handleFilterUpdate = ({ model, value }) => {
-  if (model === 'selectedStatus') {
-    selectedStatus.value = value;
-  } else if (model === 'selectedType') {
-    selectedType.value = value;
-  }
+  if (model === "selectedStatus") selectedStatus.value = value;
+  else if (model === "selectedType") selectedType.value = value;
   currentPage.value = 1;
 };
-
-// 필터 초기화
 const resetFilters = () => {
-  searchQuery.value = '';
-  selectedStatus.value = 'all';
-  selectedType.value = 'all';
-  startDate.value = '';
-  endDate.value = '';
+  searchQuery.value = "";
+  selectedStatus.value = "all";
+  selectedType.value = "all";
+  startDate.value = "";
+  endDate.value = "";
   currentPage.value = 1;
 };
 
-// 필터 설정
 const filters = computed(() => [
   {
-    model: 'selectedStatus',
-    label: '예약 상태',
+    model: "selectedStatus",
+    label: "예약 상태",
     value: selectedStatus.value,
     options: statusOptions,
   },
   {
-    model: 'selectedType',
-    label: '예약 타입',
+    model: "selectedType",
+    label: "예약 타입",
     value: selectedType.value,
     options: typeOptions,
   },
@@ -452,145 +354,255 @@ const filters = computed(() => [
 </script>
 
 <template>
-  <div class="flex h-screen bg-[#f8f9fa]">
-    <AdminSidebar activeMenu="reservations" />
+  <!-- AdminLayout 대신 직접 Flexbox 레이아웃 구성 -->
+  <div class="flex h-screen bg-[#f8f9fa] overflow-hidden">
+    <!-- 사이드바: 왼쪽 고정 -->
+    <AdminSideBar active-menu="reservations" class="flex-shrink-0" />
 
-    <!-- Main Content -->
-    <div class="flex-1 flex flex-col overflow-hidden">
+    <!-- 우측 메인 영역 -->
+    <div class="flex-1 flex flex-col min-w-0">
+      <!-- 헤더: 상단 고정 -->
       <AdminHeader />
 
-      <!-- Scrollable Content Area -->
-      <main class="flex-1 overflow-y-auto p-8">
+      <!-- 컨텐츠 영역: 스크롤 가능 -->
+      <main class="flex-1 overflow-y-auto p-8 custom-scrollbar">
         <div class="max-w-7xl mx-auto space-y-6">
-          <!-- Page Title -->
+          <!-- 1. Header & Period Selector -->
           <div class="flex items-center justify-between">
-            <h2 class="text-3xl font-bold text-[#1e3a5f]">예약 등록 현황</h2>
-            <p class="text-sm text-[#6c757d]">
-              총 {{ filteredReservations.length }}건
-            </p>
+            <div>
+              <h2 class="text-3xl font-bold text-[#1e3a5f]">예약 등록 현황</h2>
+              <p class="text-sm text-[#6c757d] mt-1">
+                전체 식당의 예약 흐름과 취소 현황을 모니터링합니다.
+              </p>
+            </div>
+
+            <div
+              class="flex items-center gap-2 bg-white rounded-lg p-1 border border-[#e9ecef] shadow-sm"
+            >
+              <button
+                v-for="period in [
+                  { key: '8weeks', label: '최근 8주' },
+                  { key: '6months', label: '최근 6개월' },
+                  { key: '2years', label: '최근 2년' },
+                ]"
+                :key="period.key"
+                @click="chartPeriod = period.key"
+                :class="[
+                  'px-4 py-2 text-sm font-medium rounded-md transition-all',
+                  chartPeriod === period.key
+                    ? 'bg-[#1e3a5f] text-white shadow-md'
+                    : 'text-gray-600 hover:bg-gray-100',
+                ]"
+              >
+                {{ period.label }}
+              </button>
+            </div>
           </div>
 
-          <!-- 요약 통계 카드 -->
+          <!-- 2. Dynamic Stats Cards -->
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-            <!-- 총 예약 수 -->
-            <div class="bg-white p-6 rounded-xl border border-[#e9ecef]">
+            <!-- 총 예약 -->
+            <div
+              class="bg-white p-6 rounded-xl border border-[#e9ecef] shadow-sm hover:shadow-md transition-shadow"
+            >
               <div class="flex items-center justify-between mb-4">
                 <div class="p-3 bg-purple-50 rounded-lg">
                   <Calendar class="w-6 h-6 text-purple-600" />
                 </div>
+                <span
+                  class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded"
+                  >{{ currentStats.label }}</span
+                >
               </div>
               <p class="text-sm text-[#6c757d] mb-1">총 예약 수</p>
-              <p class="text-2xl font-bold text-purple-600 mb-2">
-                {{ stats.total.toLocaleString() }}
+              <p class="text-2xl font-bold mb-2">
+                {{ currentStats.total.toLocaleString() }}
               </p>
               <div class="flex items-center text-sm">
                 <component
-                  :is="stats.totalDiff >= 0 ? ArrowUpRight : ArrowDownRight"
-                  class="w-4 h-4 mr-1 text-purple-600"
+                  :is="
+                    currentStats.totalDiff >= 0 ? ArrowUpRight : ArrowDownRight
+                  "
+                  class="w-4 h-4 mr-1"
                 />
-                <span class="text-purple-600">
-                  {{ Math.abs(stats.totalDiff) }}
-                </span>
-                <span class="text-[#6c757d] ml-1">전월 대비</span>
+                <span>{{
+                  Math.abs(currentStats.totalDiff).toLocaleString()
+                }}</span>
+                <span class="text-[#6c757d] ml-1">{{
+                  currentStats.comparisonText
+                }}</span>
               </div>
             </div>
 
-            <!-- 예약 확정 수 -->
-            <div class="bg-white p-6 rounded-xl border border-[#e9ecef]">
+            <!-- 예약 확정 -->
+            <div
+              class="bg-white p-6 rounded-xl border border-[#e9ecef] shadow-sm hover:shadow-md transition-shadow"
+            >
               <div class="flex items-center justify-between mb-4">
                 <div class="p-3 bg-blue-50 rounded-lg">
                   <CheckCircle class="w-6 h-6 text-blue-600" />
                 </div>
               </div>
               <p class="text-sm text-[#6c757d] mb-1">예약 확정</p>
-              <p class="text-2xl font-bold text-blue-600 mb-2">
-                {{ stats.confirmed.toLocaleString() }}
+              <p class="text-2xl font-bold mb-2">
+                {{ currentStats.confirmed.toLocaleString() }}
               </p>
               <div class="flex items-center text-sm">
                 <component
-                  :is="stats.confirmedDiff >= 0 ? ArrowUpRight : ArrowDownRight"
-                  class="w-4 h-4 mr-1 text-blue-600"
+                  :is="
+                    currentStats.confirmedDiff >= 0
+                      ? ArrowUpRight
+                      : ArrowDownRight
+                  "
+                  class="w-4 h-4 mr-1"
                 />
-                <span class="text-blue-600">
-                  {{ Math.abs(stats.confirmedDiff) }}
-                </span>
-                <span class="text-[#6c757d] ml-1">전월 대비</span>
+                <span>{{
+                  Math.abs(currentStats.confirmedDiff).toLocaleString()
+                }}</span>
+                <span class="text-[#6c757d] ml-1">{{
+                  currentStats.comparisonText
+                }}</span>
               </div>
             </div>
 
-            <!-- 임시 예약 수 -->
-            <div class="bg-white p-6 rounded-xl border border-[#e9ecef]">
+            <!-- 임시 예약 -->
+            <div
+              class="bg-white p-6 rounded-xl border border-[#e9ecef] shadow-sm hover:shadow-md transition-shadow"
+            >
               <div class="flex items-center justify-between mb-4">
                 <div class="p-3 bg-yellow-50 rounded-lg">
                   <Clock class="w-6 h-6 text-yellow-600" />
                 </div>
               </div>
               <p class="text-sm text-[#6c757d] mb-1">임시 예약</p>
-              <p class="text-2xl font-bold text-yellow-600 mb-2">
-                {{ stats.temp.toLocaleString() }}
+              <p class="text-2xl font-bold mb-2">
+                {{ currentStats.temp.toLocaleString() }}
               </p>
               <div class="flex items-center text-sm">
                 <component
-                  :is="stats.tempDiff >= 0 ? ArrowUpRight : ArrowDownRight"
-                  class="w-4 h-4 mr-1 text-yellow-600"
+                  :is="
+                    currentStats.tempDiff >= 0 ? ArrowUpRight : ArrowDownRight
+                  "
+                  class="w-4 h-4 mr-1"
                 />
-                <span class="text-yellow-600">
-                  {{ Math.abs(stats.tempDiff) }}
-                </span>
-                <span class="text-[#6c757d] ml-1">전월 대비</span>
+                <span>{{
+                  Math.abs(currentStats.tempDiff).toLocaleString()
+                }}</span>
+                <span class="text-[#6c757d] ml-1">{{
+                  currentStats.comparisonText
+                }}</span>
               </div>
             </div>
 
-            <!-- 환불 대기 수 -->
-            <div class="bg-white p-6 rounded-xl border border-[#e9ecef]">
+            <!-- 환불 대기 -->
+            <div
+              class="bg-white p-6 rounded-xl border border-[#e9ecef] shadow-sm hover:shadow-md transition-shadow"
+            >
               <div class="flex items-center justify-between mb-4">
                 <div class="p-3 bg-orange-50 rounded-lg">
                   <CreditCard class="w-6 h-6 text-orange-600" />
                 </div>
               </div>
               <p class="text-sm text-[#6c757d] mb-1">환불 대기</p>
-              <p class="text-2xl font-bold text-orange-600 mb-2">
-                {{ stats.refundPending.toLocaleString() }}
+              <p class="text-2xl font-bold mb-2">
+                {{ currentStats.refundPending.toLocaleString() }}
               </p>
               <div class="flex items-center text-sm">
                 <component
                   :is="
-                    stats.refundPendingDiff >= 0 ? ArrowUpRight : ArrowDownRight
+                    currentStats.refundPendingDiff >= 0
+                      ? ArrowUpRight
+                      : ArrowDownRight
                   "
-                  class="w-4 h-4 mr-1 text-orange-600"
+                  class="w-4 h-4 mr-1"
                 />
-                <span class="text-orange-600">
-                  {{ Math.abs(stats.refundPendingDiff) }}
-                </span>
-                <span class="text-[#6c757d] ml-1">전월 대비</span>
+                <span>{{
+                  Math.abs(currentStats.refundPendingDiff).toLocaleString()
+                }}</span>
+                <span class="text-[#6c757d] ml-1">{{
+                  currentStats.comparisonText
+                }}</span>
               </div>
             </div>
 
-            <!-- 환불 완료 수 -->
-            <div class="bg-white p-6 rounded-xl border border-[#e9ecef]">
+            <!-- 환불 완료 -->
+            <div
+              class="bg-white p-6 rounded-xl border border-[#e9ecef] shadow-sm hover:shadow-md transition-shadow"
+            >
               <div class="flex items-center justify-between mb-4">
                 <div class="p-3 bg-gray-50 rounded-lg">
                   <XCircle class="w-6 h-6 text-gray-600" />
                 </div>
               </div>
               <p class="text-sm text-[#6c757d] mb-1">환불 완료</p>
-              <p class="text-2xl font-bold text-gray-600 mb-2">
-                {{ stats.refunded.toLocaleString() }}
+              <p class="text-2xl font-bold mb-2">
+                {{ currentStats.refunded.toLocaleString() }}
               </p>
               <div class="flex items-center text-sm">
                 <component
-                  :is="stats.refundedDiff >= 0 ? ArrowUpRight : ArrowDownRight"
+                  :is="
+                    currentStats.refundedDiff >= 0
+                      ? ArrowUpRight
+                      : ArrowDownRight
+                  "
                   class="w-4 h-4 mr-1 text-gray-600"
                 />
-                <span class="text-gray-600">
-                  {{ Math.abs(stats.refundedDiff) }}
-                </span>
-                <span class="text-[#6c757d] ml-1">전월 대비</span>
+                <span class="text-gray-600">{{
+                  Math.abs(currentStats.refundedDiff).toLocaleString()
+                }}</span>
+                <span class="text-[#6c757d] ml-1">{{
+                  currentStats.comparisonText
+                }}</span>
               </div>
             </div>
           </div>
 
-          <!-- 필터 및 검색 -->
+          <!-- 3. Chart Section -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div
+              class="bg-white p-6 rounded-xl border border-[#e9ecef] shadow-sm"
+            >
+              <div class="flex items-center justify-between mb-4">
+                <div>
+                  <h3
+                    class="text-lg font-bold text-[#1e3a5f] flex items-center gap-2"
+                  >
+                    <Activity class="w-5 h-5 text-[#FF6B4A]" />
+                    예약 및 이용 완료 추이
+                  </h3>
+                  <p class="text-sm text-[#6c757d] mt-1">
+                    {{ currentStats.label }}간의 예약 흐름
+                  </p>
+                </div>
+              </div>
+              <div class="h-64">
+                <Line :data="reservationSuccessData" :options="chartOptions" />
+              </div>
+            </div>
+
+            <div
+              class="bg-white p-6 rounded-xl border border-[#e9ecef] shadow-sm"
+            >
+              <div class="flex items-center justify-between mb-4">
+                <div>
+                  <h3
+                    class="text-lg font-bold text-[#1e3a5f] flex items-center gap-2"
+                  >
+                    <AlertCircle class="w-5 h-5 text-red-500" />
+                    취소/환불 추이
+                  </h3>
+                  <p class="text-sm text-[#6c757d] mt-1">
+                    {{ currentStats.label }}간의 취소 발생 건수
+                  </p>
+                </div>
+              </div>
+              <div class="h-64">
+                <Line :data="cancellationTrendData" :options="chartOptions" />
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Table Section -->
           <AdminSearchFilter
             v-model:search-query="searchQuery"
             v-model:start-date="startDate"
@@ -605,13 +617,20 @@ const filters = computed(() => [
             @reset-filters="resetFilters"
           />
 
-          <!-- 예약 목록 테이블 -->
           <div
-            class="bg-white rounded-xl border border-[#e9ecef] overflow-hidden"
+            class="bg-white rounded-xl border border-[#e9ecef] overflow-hidden shadow-sm"
           >
+            <div
+              class="px-6 py-4 border-b border-[#e9ecef] flex justify-between items-center bg-gray-50"
+            >
+              <h3 class="font-bold text-[#1e3a5f]">예약 상세 리스트</h3>
+              <span class="text-sm text-gray-500"
+                >총 {{ filteredReservations.length }}건</span
+              >
+            </div>
             <div class="overflow-x-auto">
               <table class="w-full">
-                <thead class="bg-[#f8f9fa] border-b border-[#e9ecef]">
+                <thead class="bg-white border-b border-[#e9ecef]">
                   <tr>
                     <th
                       class="px-6 py-4 text-left text-xs font-semibold text-[#1e3a5f] uppercase tracking-wider"
@@ -636,17 +655,17 @@ const filters = computed(() => [
                     <th
                       class="px-6 py-4 text-left text-xs font-semibold text-[#1e3a5f] uppercase tracking-wider"
                     >
-                      예약 인원
+                      인원
                     </th>
                     <th
                       class="px-6 py-4 text-left text-xs font-semibold text-[#1e3a5f] uppercase tracking-wider"
                     >
-                      예약 타입
+                      타입
                     </th>
                     <th
                       class="px-6 py-4 text-left text-xs font-semibold text-[#1e3a5f] uppercase tracking-wider"
                     >
-                      예약 상태
+                      상태
                     </th>
                   </tr>
                 </thead>
@@ -699,21 +718,16 @@ const filters = computed(() => [
                   </tr>
                 </tbody>
               </table>
-
-              <!-- 데이터 없을 때 -->
               <div
                 v-if="paginatedReservations.length === 0"
                 class="text-center py-12 text-[#6c757d]"
               >
                 <p class="text-lg">검색 결과가 없습니다.</p>
-                <p class="text-sm mt-2">다른 조건으로 검색해보세요.</p>
               </div>
             </div>
-
-            <!-- 페이지네이션 -->
             <div
               v-if="totalPages > 1"
-              class="px-6 py-4 border-t border-[#e9ecef] flex justify-center"
+              class="px-6 py-4 border-t border-[#e9ecef] flex justify-center bg-white"
             >
               <Pagination
                 :current-page="currentPage"
@@ -729,22 +743,22 @@ const filters = computed(() => [
 </template>
 
 <style scoped>
-/* 스크롤바 스타일링 */
-.overflow-y-auto::-webkit-scrollbar {
+/* 스크롤바 스타일링 (AdminLayout을 쓰지 않으므로 여기에 직접 포함) */
+.custom-scrollbar::-webkit-scrollbar {
   width: 8px;
 }
 
-.overflow-y-auto::-webkit-scrollbar-track {
+.custom-scrollbar::-webkit-scrollbar-track {
   background: #f1f1f1;
   border-radius: 10px;
 }
 
-.overflow-y-auto::-webkit-scrollbar-thumb {
+.custom-scrollbar::-webkit-scrollbar-thumb {
   background: #ff6b4a;
   border-radius: 10px;
 }
 
-.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #e55a39;
 }
 </style>

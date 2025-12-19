@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import { RouterLink, useRoute } from 'vue-router';
+import { ref, computed, onMounted } from "vue";
+import { RouterLink, useRoute } from "vue-router";
 import {
   ArrowLeft,
   Star,
@@ -8,164 +8,164 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-} from 'lucide-vue-next';
-import Card from '@/components/ui/Card.vue';
+} from "lucide-vue-next";
+import Card from "@/components/ui/Card.vue";
 
 const route = useRoute();
-const restaurantId = route.params.id || '1'; // Default ID
+const restaurantId = route.params.id || "1"; // Default ID
 
-const sortOrder = ref('추천순');
+const sortOrder = ref("추천순");
 const isDropdownOpen = ref(false);
 
 const reviews = ref([
   {
     id: 1,
-    author: '김**',
-    company: '한화시스템',
+    author: "김**",
+    company: "한화시스템",
     visitCount: 3,
     rating: 5,
-    date: '2024.01.20',
+    date: "2024.01.20",
     content:
-      '회식하기 정말 좋았어요. 음식도 맛있고 분위기도 최고였습니다! 특히 룸이 프라이빗해서 회사 동료들과 편하게 대화할 수 있었고, 음식 양도 정말 푸짐해서 배불리 먹었습니다. 다음에 또 방문하고 싶어요.',
-    tags: ['룸이 있어 프라이빗해요', '대화하기 좋아요', '양이 푸짐해요'],
+      "회식하기 정말 좋았어요. 음식도 맛있고 분위기도 최고였습니다! 특히 룸이 프라이빗해서 회사 동료들과 편하게 대화할 수 있었고, 음식 양도 정말 푸짐해서 배불리 먹었습니다. 다음에 또 방문하고 싶어요.",
+    tags: ["룸이 있어 프라이빗해요", "대화하기 좋아요", "양이 푸짐해요"],
     images: [
-      '/korean-appetizer-main-dessert.jpg',
-      '/premium-course-meal-with-wine.jpg',
-      '/korean-fine-dining.jpg',
+      "/korean-appetizer-main-dessert.jpg",
+      "/premium-course-meal-with-wine.jpg",
+      "/korean-fine-dining.jpg",
     ],
     isExpanded: false,
   },
   {
     id: 2,
-    author: '이**',
-    company: '네이버',
+    author: "이**",
+    company: "네이버",
     visitCount: 2,
     rating: 5,
-    date: '2024.01.20',
+    date: "2024.01.20",
     content:
-      '직원분들이 친절하시고 코스 구성이 알차서 만족스러웠습니다. 예약 시간에 맞춰 테이블이 완벽하게 세팅되어 있었고, 서비스도 훌륭했습니다.',
-    tags: ['사장님이 친절해요', '예약 시간 맞춰 세팅돼요'],
+      "직원분들이 친절하시고 코스 구성이 알차서 만족스러웠습니다. 예약 시간에 맞춰 테이블이 완벽하게 세팅되어 있었고, 서비스도 훌륭했습니다.",
+    tags: ["사장님이 친절해요", "예약 시간 맞춰 세팅돼요"],
     images: [
-      '/elegant-dining-room-setup.jpg',
-      '/restaurant-private-room-atmosphere.jpg',
+      "/elegant-dining-room-setup.jpg",
+      "/restaurant-private-room-atmosphere.jpg",
     ],
     isExpanded: false,
   },
   {
     id: 3,
-    author: '박**',
-    company: '카카오',
+    author: "박**",
+    company: "카카오",
     visitCount: 1,
     rating: 4,
-    date: '2024.01.19',
-    content: '가격 대비 훌륭한 퀄리티입니다. 다음에 또 방문할게요.',
-    tags: ['법카 쓰기 좋은 가격대에요', '주차가 편해요'],
+    date: "2024.01.19",
+    content: "가격 대비 훌륭한 퀄리티입니다. 다음에 또 방문할게요.",
+    tags: ["법카 쓰기 좋은 가격대에요", "주차가 편해요"],
     images: [
-      '/italian-pasta-dish.png',
-      '/pasta-carbonara.png',
-      '/italian-restaurant-dining.jpg',
+      "/italian-pasta-dish.png",
+      "/pasta-carbonara.png",
+      "/italian-restaurant-dining.jpg",
     ],
     isExpanded: false,
   },
   {
     id: 4,
-    author: '최**',
-    company: '토스',
+    author: "최**",
+    company: "토스",
     visitCount: 5,
     rating: 5,
-    date: '2024.01.18',
-    content: '팀 회식으로 다녀왔는데 모두 만족했어요. 특히 C코스 추천합니다!',
-    tags: ['단체석이 넓어요', '음식이 빨리 나와요', '호불호 없는 맛이에요'],
+    date: "2024.01.18",
+    content: "팀 회식으로 다녀왔는데 모두 만족했어요. 특히 C코스 추천합니다!",
+    tags: ["단체석이 넓어요", "음식이 빨리 나와요", "호불호 없는 맛이에요"],
     images: [
-      '/elegant-dining-room-setup.jpg',
-      '/korean-course-meal-plating.jpg',
+      "/elegant-dining-room-setup.jpg",
+      "/korean-course-meal-plating.jpg",
     ],
     isExpanded: false,
   },
   {
     id: 5,
-    author: '정**',
+    author: "정**",
     company: null,
     visitCount: 1,
     rating: 4,
-    date: '2024.01.17',
-    content: '음식이 정갈하고 맛있습니다. 예약 필수인 이유를 알겠어요.',
-    tags: ['예약 시간 맞춰 세팅돼요', '특별한 메뉴가 있어요'],
+    date: "2024.01.17",
+    content: "음식이 정갈하고 맛있습니다. 예약 필수인 이유를 알겠어요.",
+    tags: ["예약 시간 맞춰 세팅돼요", "특별한 메뉴가 있어요"],
     images: [],
     isExpanded: false,
   },
   {
     id: 6,
-    author: '강**',
-    company: '쿠팡',
+    author: "강**",
+    company: "쿠팡",
     visitCount: 4,
     rating: 5,
-    date: '2024.01.16',
-    content: '회사 송년회로 다녀왔는데 분위기도 좋고 서비스도 훌륭했습니다.',
-    tags: ['대화하기 좋아요', '룸이 있어 프라이빗해요', '옷 보관하기 편해요'],
+    date: "2024.01.16",
+    content: "회사 송년회로 다녀왔는데 분위기도 좋고 서비스도 훌륭했습니다.",
+    tags: ["대화하기 좋아요", "룸이 있어 프라이빗해요", "옷 보관하기 편해요"],
     images: [
-      '/modern-korean-restaurant-interior.jpg',
-      '/restaurant-private-room-atmosphere.jpg',
+      "/modern-korean-restaurant-interior.jpg",
+      "/restaurant-private-room-atmosphere.jpg",
     ],
     isExpanded: false,
   },
   {
     id: 7,
-    author: '조**',
-    company: '배달의민족',
+    author: "조**",
+    company: "배달의민족",
     visitCount: 2,
     rating: 5,
-    date: '2024.01.15',
-    content: '음식 하나하나 정성이 느껴져요. 재방문 의사 100%입니다!',
-    tags: ['양이 푸짐해요', '특별한 메뉴가 있어요'],
-    images: ['/korean-course-meal-plating.jpg'],
+    date: "2024.01.15",
+    content: "음식 하나하나 정성이 느껴져요. 재방문 의사 100%입니다!",
+    tags: ["양이 푸짐해요", "특별한 메뉴가 있어요"],
+    images: ["/korean-course-meal-plating.jpg"],
     isExpanded: false,
   },
   {
     id: 8,
-    author: '윤**',
+    author: "윤**",
     company: null,
     visitCount: 1,
     rating: 4,
-    date: '2024.01.14',
-    content: '가격대가 있지만 그만큼 가치가 있는 곳입니다. 특별한 날 추천해요.',
-    tags: ['대화하기 좋아요', '특별한 메뉴가 있어요'],
+    date: "2024.01.14",
+    content: "가격대가 있지만 그만큼 가치가 있는 곳입니다. 특별한 날 추천해요.",
+    tags: ["대화하기 좋아요", "특별한 메뉴가 있어요"],
     images: [],
     isExpanded: false,
   },
   {
     id: 9,
-    author: '[블라인드]',
+    author: "[블라인드]",
     company: null,
     rating: 0,
-    date: '2024.01.13',
-    content: '관리자에 의해 블라인드 처리된 리뷰입니다.',
+    date: "2024.01.13",
+    content: "관리자에 의해 블라인드 처리된 리뷰입니다.",
     tags: [],
     images: [],
     isBlinded: true,
-    blindReason: '욕설/비속어 포함',
+    blindReason: "욕설/비속어 포함",
   },
   {
     id: 10,
-    author: '장**',
-    company: '라인',
+    author: "장**",
+    company: "라인",
     visitCount: 3,
     rating: 5,
-    date: '2024.01.12',
-    content: '파스타가 정말 맛있었고, 와인 추천도 완벽했습니다!',
-    tags: ['호불호 없는 맛이에요', '특별한 메뉴가 있어요'],
-    images: ['/italian-pasta-dish.png'],
+    date: "2024.01.12",
+    content: "파스타가 정말 맛있었고, 와인 추천도 완벽했습니다!",
+    tags: ["호불호 없는 맛이에요", "특별한 메뉴가 있어요"],
+    images: ["/italian-pasta-dish.png"],
     isExpanded: false,
   },
   {
     id: 11,
-    author: '임**',
+    author: "임**",
     company: null,
     visitCount: 1,
     rating: 5,
-    date: '2024.01.11',
-    content: '직원분들 응대가 정말 좋고, 음식도 너무 맛있어요. 강력 추천!',
-    tags: ['사장님이 친절해요', '회전율이 빨라요'],
+    date: "2024.01.11",
+    content: "직원분들 응대가 정말 좋고, 음식도 너무 맛있어요. 강력 추천!",
+    tags: ["사장님이 친절해요", "회전율이 빨라요"],
     images: [],
     isExpanded: false,
   },
@@ -191,7 +191,7 @@ const topTags = computed(() => {
     .slice(0, 3);
 });
 
-const sortOptions = ref(['추천순', '최신순', '별점 높은순', '별점 낮은순']);
+const sortOptions = ref(["추천순", "최신순", "별점 높은순", "별점 낮은순"]);
 
 const setSortOrder = (option) => {
   sortOrder.value = option;
@@ -203,13 +203,28 @@ const sortedReviews = computed(() => {
   const reviewsCopy = [...reviews.value];
 
   switch (sortOrder.value) {
-    case '최신순':
+    case "최신순":
       return reviewsCopy.sort((a, b) => new Date(b.date) - new Date(a.date));
-    case '별점 높은순':
-      return reviewsCopy.sort((a, b) => b.rating - a.rating);
-    case '별점 낮은순':
-      return reviewsCopy.sort((a, b) => a.rating - b.rating);
-    case '추천순':
+    case "별점 높은순":
+      return reviewsCopy.sort((a, b) => {
+        // 1. 블라인드 리뷰는 무조건 맨 아래로
+        if (a.isBlinded && !b.isBlinded) return 1;
+        if (!a.isBlinded && b.isBlinded) return -1;
+
+        // 2. 그 외에는 별점 내림차순 (5 -> 1)
+        return b.rating - a.rating;
+      });
+
+    case "별점 낮은순":
+      return reviewsCopy.sort((a, b) => {
+        // 1. 블라인드 리뷰는 무조건 맨 아래로
+        if (a.isBlinded && !b.isBlinded) return 1;
+        if (!a.isBlinded && b.isBlinded) return -1;
+
+        // 2. 그 외에는 별점 오름차순 (1 -> 5)
+        return a.rating - b.rating;
+      });
+    case "추천순":
     default:
       // 추천순: 날짜 스코어, 방문 횟수 스코어, 별점 스코어의 가중 평균
       return reviewsCopy.sort((a, b) => {
@@ -224,8 +239,8 @@ const sortedReviews = computed(() => {
 
         // 1. 날짜 스코어 계산 (0-100점, 최신일수록 높음)
         const today = new Date();
-        const dateA = new Date(a.date.replace(/\./g, '-'));
-        const dateB = new Date(b.date.replace(/\./g, '-'));
+        const dateA = new Date(a.date.replace(/\./g, "-"));
+        const dateB = new Date(b.date.replace(/\./g, "-"));
         const maxDaysDiff = 365; // 1년 기준
 
         const daysAgoA = Math.max(0, (today - dateA) / (1000 * 60 * 60 * 24));
@@ -269,7 +284,7 @@ const sortedReviews = computed(() => {
 
 // 이미지 확대 모달 상태
 const isImageModalOpen = ref(false);
-const modalImageUrl = ref('');
+const modalImageUrl = ref("");
 const modalImageIndex = ref(0);
 const modalImages = ref([]);
 
@@ -318,7 +333,7 @@ const truncateText = (content, isExpanded) => {
   if (isExpanded || content.length <= 70) {
     return content;
   }
-  return content.substring(0, 70) + '...';
+  return content.substring(0, 70) + "...";
 };
 
 // 마우스 드래그 스크롤 기능
@@ -329,24 +344,24 @@ const setupDragScroll = (element) => {
   let startX;
   let scrollLeft;
 
-  element.addEventListener('mousedown', (e) => {
+  element.addEventListener("mousedown", (e) => {
     isDown = true;
-    element.style.cursor = 'grabbing';
+    element.style.cursor = "grabbing";
     startX = e.pageX - element.offsetLeft;
     scrollLeft = element.scrollLeft;
   });
 
-  element.addEventListener('mouseleave', () => {
+  element.addEventListener("mouseleave", () => {
     isDown = false;
-    element.style.cursor = 'grab';
+    element.style.cursor = "grab";
   });
 
-  element.addEventListener('mouseup', () => {
+  element.addEventListener("mouseup", () => {
     isDown = false;
-    element.style.cursor = 'grab';
+    element.style.cursor = "grab";
   });
 
-  element.addEventListener('mousemove', (e) => {
+  element.addEventListener("mousemove", (e) => {
     if (!isDown) return;
     e.preventDefault();
     const x = e.pageX - element.offsetLeft;
@@ -357,7 +372,7 @@ const setupDragScroll = (element) => {
 
 // 컴포넌트 마운트 후 드래그 스크롤 설정
 onMounted(() => {
-  const scrollContainers = document.querySelectorAll('.review-image-scroll');
+  const scrollContainers = document.querySelectorAll(".review-image-scroll");
   scrollContainers.forEach((container) => {
     setupDragScroll(container);
   });
@@ -557,7 +572,7 @@ onMounted(() => {
                   @click.prevent="toggleReviewExpand(review)"
                   class="text-xs text-[#6c757d] hover:text-[#ff6b4a] font-medium mb-3 transition-colors"
                 >
-                  {{ review.isExpanded ? '접기' : '더보기' }}
+                  {{ review.isExpanded ? "접기" : "더보기" }}
                 </button>
 
                 <!-- 태그 -->

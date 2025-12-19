@@ -1,9 +1,9 @@
 <script setup>
-import { ref, computed } from 'vue';
-import AdminSidebar from '@/components/ui/AdminSideBar.vue';
-import AdminHeader from '@/components/ui/AdminHeader.vue';
-import Pagination from '@/components/ui/Pagination.vue';
-import AdminSearchFilter from '@/components/ui/AdminSearchFilter.vue';
+import { ref, computed } from "vue";
+import AdminSidebar from "@/components/ui/AdminSideBar.vue";
+import AdminHeader from "@/components/ui/AdminHeader.vue";
+import Pagination from "@/components/ui/Pagination.vue";
+import AdminSearchFilter from "@/components/ui/AdminSearchFilter.vue";
 import {
   Users,
   UserPlus,
@@ -12,8 +12,8 @@ import {
   AlertTriangle,
   ArrowUpRight,
   ArrowDownRight,
-} from 'lucide-vue-next';
-import { Line } from 'vue-chartjs';
+} from "lucide-vue-next";
+import { Line } from "vue-chartjs";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -24,7 +24,7 @@ import {
   Tooltip,
   Legend,
   Filler,
-} from 'chart.js';
+} from "chart.js";
 
 ChartJS.register(
   CategoryScale,
@@ -38,10 +38,10 @@ ChartJS.register(
 );
 
 // 검색 및 필터
-const searchQuery = ref('');
-const selectedStatus = ref('all');
-const startDate = ref('');
-const endDate = ref('');
+const searchQuery = ref("");
+const selectedStatus = ref("all");
+const startDate = ref("");
+const endDate = ref("");
 
 // 페이지네이션
 const currentPage = ref(1);
@@ -49,150 +49,150 @@ const itemsPerPage = 10;
 
 // 회원 상태 옵션
 const statusOptions = [
-  { value: 'all', label: '전체' },
-  { value: 'active', label: '활성' },
-  { value: 'dormant', label: '휴면' },
-  { value: 'withdrawn', label: '탈퇴' },
-  { value: 'blacklist', label: '블랙리스트' },
+  { value: "all", label: "전체" },
+  { value: "active", label: "활성" },
+  { value: "dormant", label: "휴면" },
+  { value: "withdrawn", label: "탈퇴" },
+  { value: "blacklist", label: "블랙리스트" },
 ];
 
 // 회원 상태별 배지 색상
 const getStatusBadgeColor = (status) => {
   const colors = {
-    active: 'bg-green-100 text-green-800',
-    dormant: 'bg-yellow-100 text-yellow-800',
-    withdrawn: 'bg-gray-100 text-gray-800',
-    blacklist: 'bg-red-100 text-red-800',
+    active: "bg-green-100 text-green-800",
+    dormant: "bg-yellow-100 text-yellow-800",
+    withdrawn: "bg-gray-100 text-gray-800",
+    blacklist: "bg-red-100 text-red-800",
   };
-  return colors[status] || 'bg-gray-100 text-gray-800';
+  return colors[status] || "bg-gray-100 text-gray-800";
 };
 
 // 회원 상태 라벨
 const getStatusLabel = (status) => {
   const labels = {
-    active: '활성',
-    dormant: '휴면',
-    withdrawn: '탈퇴',
-    blacklist: '블랙리스트',
+    active: "활성",
+    dormant: "휴면",
+    withdrawn: "탈퇴",
+    blacklist: "블랙리스트",
   };
   return labels[status] || status;
 };
 
 // 전화번호 마스킹 함수
 const maskPhone = (phone) => {
-  if (!phone) return '';
-  return phone.replace(/(\d{3})-(\d{3,4})-(\d{4})/, '$1-***-****');
+  if (!phone) return "";
+  return phone.replace(/(\d{3})-(\d{3,4})-(\d{4})/, "$1-***-****");
 };
 
 // 회원명 마스킹 함수
 const maskName = (name) => {
-  if (!name || name.length === 0) return '';
+  if (!name || name.length === 0) return "";
   if (name.length === 1) return name;
-  if (name.length === 2) return name[0] + '*';
-  return name[0] + '*'.repeat(name.length - 2) + name[name.length - 1];
+  if (name.length === 2) return name[0] + "*";
+  return name[0] + "*".repeat(name.length - 2) + name[name.length - 1];
 };
 
 // Mock 데이터 (총 62개)
 const allMembers = ref([
   {
-    id: 'M001',
-    name: '김민수',
-    email: 'minsu.kim@gmail.com',
-    phone: '010-1234-5678',
-    joinDate: '2024-11-15',
+    id: "M001",
+    name: "김민수",
+    email: "minsu.kim@gmail.com",
+    phone: "010-1234-5678",
+    joinDate: "2024-11-15",
     reservationCount: 12,
-    lastAccess: '2024-12-17',
-    status: 'active',
+    lastAccess: "2024-12-17",
+    status: "active",
   },
   {
-    id: 'M002',
-    name: '이영희',
-    email: 'younghee.lee@naver.com',
-    phone: '010-2345-6789',
-    joinDate: '2024-10-20',
+    id: "M002",
+    name: "이영희",
+    email: "younghee.lee@naver.com",
+    phone: "010-2345-6789",
+    joinDate: "2024-10-20",
     reservationCount: 8,
-    lastAccess: '2024-12-16',
-    status: 'active',
+    lastAccess: "2024-12-16",
+    status: "active",
   },
   {
-    id: 'M003',
-    name: '박철수',
-    email: 'chulsoo.park@daum.net',
-    phone: '010-3456-7890',
-    joinDate: '2024-12-01',
+    id: "M003",
+    name: "박철수",
+    email: "chulsoo.park@daum.net",
+    phone: "010-3456-7890",
+    joinDate: "2024-12-01",
     reservationCount: 3,
-    lastAccess: '2024-12-15',
-    status: 'active',
+    lastAccess: "2024-12-15",
+    status: "active",
   },
   {
-    id: 'M004',
-    name: '정다은',
-    email: 'daeun.jung@gmail.com',
-    phone: '010-4567-8901',
-    joinDate: '2024-09-10',
+    id: "M004",
+    name: "정다은",
+    email: "daeun.jung@gmail.com",
+    phone: "010-4567-8901",
+    joinDate: "2024-09-10",
     reservationCount: 15,
-    lastAccess: '2024-08-20',
-    status: 'dormant',
+    lastAccess: "2024-08-20",
+    status: "dormant",
   },
   {
-    id: 'M005',
-    name: '최지훈',
-    email: 'jihoon.choi@naver.com',
-    phone: '010-5678-9012',
-    joinDate: '2024-08-05',
+    id: "M005",
+    name: "최지훈",
+    email: "jihoon.choi@naver.com",
+    phone: "010-5678-9012",
+    joinDate: "2024-08-05",
     reservationCount: 20,
-    lastAccess: '2024-12-10',
-    status: 'active',
+    lastAccess: "2024-12-10",
+    status: "active",
   },
   {
-    id: 'M006',
-    name: '강서연',
-    email: 'seoyeon.kang@gmail.com',
-    phone: '010-6789-0123',
-    joinDate: '2024-12-10',
+    id: "M006",
+    name: "강서연",
+    email: "seoyeon.kang@gmail.com",
+    phone: "010-6789-0123",
+    joinDate: "2024-12-10",
     reservationCount: 2,
-    lastAccess: '2024-12-17',
-    status: 'active',
+    lastAccess: "2024-12-17",
+    status: "active",
   },
   {
-    id: 'M007',
-    name: '윤준호',
-    email: 'junho.yoon@daum.net',
-    phone: '010-7890-1234',
-    joinDate: '2024-07-15',
+    id: "M007",
+    name: "윤준호",
+    email: "junho.yoon@daum.net",
+    phone: "010-7890-1234",
+    joinDate: "2024-07-15",
     reservationCount: 5,
-    lastAccess: '2024-12-14',
-    status: 'active',
+    lastAccess: "2024-12-14",
+    status: "active",
   },
   {
-    id: 'M008',
-    name: '임수진',
-    email: 'sujin.lim@gmail.com',
-    phone: '010-8901-2345',
-    joinDate: '2024-11-25',
+    id: "M008",
+    name: "임수진",
+    email: "sujin.lim@gmail.com",
+    phone: "010-8901-2345",
+    joinDate: "2024-11-25",
     reservationCount: 7,
-    lastAccess: '2024-12-16',
-    status: 'active',
+    lastAccess: "2024-12-16",
+    status: "active",
   },
   {
-    id: 'M009',
-    name: '송민재',
-    email: 'minjae.song@naver.com',
-    phone: '010-9012-3456',
-    joinDate: '2024-06-20',
+    id: "M009",
+    name: "송민재",
+    email: "minjae.song@naver.com",
+    phone: "010-9012-3456",
+    joinDate: "2024-06-20",
     reservationCount: 0,
-    lastAccess: '2024-11-30',
-    status: 'withdrawn',
+    lastAccess: "2024-11-30",
+    status: "withdrawn",
   },
   {
-    id: 'M010',
-    name: '한지우',
-    email: 'jiwoo.han@gmail.com',
-    phone: '010-0123-4567',
-    joinDate: '2024-12-05',
+    id: "M010",
+    name: "한지우",
+    email: "jiwoo.han@gmail.com",
+    phone: "010-0123-4567",
+    joinDate: "2024-12-05",
     reservationCount: 4,
-    lastAccess: '2024-12-17',
-    status: 'active',
+    lastAccess: "2024-12-17",
+    status: "active",
   },
   // 추가 데이터 생성 (M011 ~ M062)
   ...Array.from({ length: 52 }, (_, i) => {
@@ -206,32 +206,32 @@ const allMembers = ref([
     const day = 1 + (i % 28);
 
     const statusList = [
-      'active',
-      'active',
-      'active',
-      'active',
-      'dormant',
-      'withdrawn',
-      'blacklist',
+      "active",
+      "active",
+      "active",
+      "active",
+      "dormant",
+      "withdrawn",
+      "blacklist",
     ];
     const status = statusList[i % statusList.length];
 
     return {
-      id: `M${String(idx).padStart(3, '0')}`,
+      id: `M${String(idx).padStart(3, "0")}`,
       name:
-        ['김', '이', '박', '정', '최', '강', '윤', '임'][i % 8] +
-        ['민수', '영희', '철수', '다은', '지훈', '서연'][i % 6],
-      email: `user${idx}@${['gmail.com', 'naver.com', 'daum.net'][i % 3]}`,
+        ["김", "이", "박", "정", "최", "강", "윤", "임"][i % 8] +
+        ["민수", "영희", "철수", "다은", "지훈", "서연"][i % 6],
+      email: `user${idx}@${["gmail.com", "naver.com", "daum.net"][i % 3]}`,
       phone: `010-${String(1000 + idx).slice(-4)}-${String(5000 + idx).slice(
         -4
       )}`,
-      joinDate: `${targetYear}-${String(finalMonth).padStart(2, '0')}-${String(
+      joinDate: `${targetYear}-${String(finalMonth).padStart(2, "0")}-${String(
         day
-      ).padStart(2, '0')}`,
+      ).padStart(2, "0")}`,
       reservationCount: Math.floor(Math.random() * 25),
-      lastAccess: `2024-${String(10 + (i % 3)).padStart(2, '0')}-${String(
+      lastAccess: `2024-${String(10 + (i % 3)).padStart(2, "0")}-${String(
         15 + (i % 15)
-      ).padStart(2, '0')}`,
+      ).padStart(2, "0")}`,
       status: status,
     };
   }),
@@ -253,7 +253,7 @@ const filteredMembers = computed(() => {
   }
 
   // 상태 필터
-  if (selectedStatus.value !== 'all') {
+  if (selectedStatus.value !== "all") {
     filtered = filtered.filter((m) => m.status === selectedStatus.value);
   }
 
@@ -313,17 +313,17 @@ const stats = computed(() => {
 
   // 활성 회원
   const activeMembers = allMembersList.filter(
-    (m) => m.status === 'active'
+    (m) => m.status === "active"
   ).length;
 
   // 휴면 회원
   const dormantMembers = allMembersList.filter(
-    (m) => m.status === 'dormant'
+    (m) => m.status === "dormant"
   ).length;
 
   // 블랙리스트 회원
   const blacklistMembers = allMembersList.filter(
-    (m) => m.status === 'blacklist'
+    (m) => m.status === "blacklist"
   ).length;
 
   // 전월 대비 증감
@@ -365,7 +365,7 @@ const handlePageChange = (page) => {
 
 // 필터 값 업데이트 핸들러
 const handleFilterUpdate = ({ model, value }) => {
-  if (model === 'selectedStatus') {
+  if (model === "selectedStatus") {
     selectedStatus.value = value;
   }
   currentPage.value = 1;
@@ -373,18 +373,18 @@ const handleFilterUpdate = ({ model, value }) => {
 
 // 필터 초기화
 const resetFilters = () => {
-  searchQuery.value = '';
-  selectedStatus.value = 'all';
-  startDate.value = '';
-  endDate.value = '';
+  searchQuery.value = "";
+  selectedStatus.value = "all";
+  startDate.value = "";
+  endDate.value = "";
   currentPage.value = 1;
 };
 
 // 필터 설정
 const filters = computed(() => [
   {
-    model: 'selectedStatus',
-    label: '상태',
+    model: "selectedStatus",
+    label: "상태",
     value: selectedStatus.value,
     options: statusOptions,
   },
@@ -418,10 +418,10 @@ const monthlyTrendData = computed(() => {
     labels: months,
     datasets: [
       {
-        label: '월별 가입자 수',
+        label: "월별 가입자 수",
         data: memberCounts,
-        borderColor: '#8b5cf6',
-        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+        borderColor: "#8b5cf6",
+        backgroundColor: "rgba(139, 92, 246, 0.1)",
         tension: 0.4,
         fill: true,
         pointRadius: 4,
@@ -439,11 +439,11 @@ const chartOptions = {
       display: false,
     },
     tooltip: {
-      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      backgroundColor: "rgba(0, 0, 0, 0.8)",
       padding: 12,
-      titleColor: '#fff',
-      bodyColor: '#fff',
-      borderColor: '#8b5cf6',
+      titleColor: "#fff",
+      bodyColor: "#fff",
+      borderColor: "#8b5cf6",
       borderWidth: 1,
     },
   },
@@ -451,10 +451,10 @@ const chartOptions = {
     y: {
       beginAtZero: true,
       grid: {
-        color: 'rgba(0, 0, 0, 0.05)',
+        color: "rgba(0, 0, 0, 0.05)",
       },
       ticks: {
-        color: '#6c757d',
+        color: "#6c757d",
       },
     },
     x: {
@@ -462,7 +462,7 @@ const chartOptions = {
         display: false,
       },
       ticks: {
-        color: '#6c757d',
+        color: "#6c757d",
       },
     },
   },
@@ -498,15 +498,15 @@ const chartOptions = {
                 </div>
               </div>
               <p class="text-sm text-[#6c757d] mb-1">전체 회원</p>
-              <p class="text-2xl font-bold text-purple-600 mb-2">
+              <p class="text-2xl font-bold mb-2">
                 {{ stats.total.toLocaleString() }}
               </p>
               <div class="flex items-center text-sm">
                 <component
                   :is="stats.totalDiff >= 0 ? ArrowUpRight : ArrowDownRight"
-                  class="w-4 h-4 mr-1 text-purple-600"
+                  class="w-4 h-4 mr-1"
                 />
-                <span class="text-purple-600">
+                <span class="">
                   {{ Math.abs(stats.totalDiff) }}
                 </span>
                 <span class="text-[#6c757d] ml-1">전월 대비</span>
@@ -521,7 +521,7 @@ const chartOptions = {
                 </div>
               </div>
               <p class="text-sm text-[#6c757d] mb-1">신규 가입 (이번달)</p>
-              <p class="text-2xl font-bold text-blue-600 mb-2">
+              <p class="text-2xl font-bold mb-2">
                 {{ stats.newMembers.toLocaleString() }}
               </p>
               <div class="flex items-center text-sm">
@@ -529,9 +529,9 @@ const chartOptions = {
                   :is="
                     stats.newMembersDiff >= 0 ? ArrowUpRight : ArrowDownRight
                   "
-                  class="w-4 h-4 mr-1 text-blue-600"
+                  class="w-4 h-4 mr-1"
                 />
-                <span class="text-blue-600">
+                <span class="">
                   {{ Math.abs(stats.newMembersDiff) }}
                 </span>
                 <span class="text-[#6c757d] ml-1">전월 대비</span>
@@ -546,15 +546,15 @@ const chartOptions = {
                 </div>
               </div>
               <p class="text-sm text-[#6c757d] mb-1">활성 회원</p>
-              <p class="text-2xl font-bold text-green-600 mb-2">
+              <p class="text-2xl font-bold mb-2">
                 {{ stats.active.toLocaleString() }}
               </p>
               <div class="flex items-center text-sm">
                 <component
                   :is="stats.activeDiff >= 0 ? ArrowUpRight : ArrowDownRight"
-                  class="w-4 h-4 mr-1 text-green-600"
+                  class="w-4 h-4 mr-1"
                 />
-                <span class="text-green-600">
+                <span class="">
                   {{ Math.abs(stats.activeDiff) }}
                 </span>
                 <span class="text-[#6c757d] ml-1">전월 대비</span>
@@ -569,15 +569,15 @@ const chartOptions = {
                 </div>
               </div>
               <p class="text-sm text-[#6c757d] mb-1">휴면 회원</p>
-              <p class="text-2xl font-bold text-yellow-600 mb-2">
+              <p class="text-2xl font-bold mb-2">
                 {{ stats.dormant.toLocaleString() }}
               </p>
               <div class="flex items-center text-sm">
                 <component
                   :is="stats.dormantDiff >= 0 ? ArrowUpRight : ArrowDownRight"
-                  class="w-4 h-4 mr-1 text-yellow-600"
+                  class="w-4 h-4 mr-1"
                 />
-                <span class="text-yellow-600">
+                <span class="">
                   {{ Math.abs(stats.dormantDiff) }}
                 </span>
                 <span class="text-[#6c757d] ml-1">전월 대비</span>
@@ -592,15 +592,15 @@ const chartOptions = {
                 </div>
               </div>
               <p class="text-sm text-[#6c757d] mb-1">블랙리스트</p>
-              <p class="text-2xl font-bold text-red-600 mb-2">
+              <p class="text-2xl font-bold mb-2">
                 {{ stats.blacklist.toLocaleString() }}
               </p>
               <div class="flex items-center text-sm">
                 <component
                   :is="stats.blacklistDiff >= 0 ? ArrowUpRight : ArrowDownRight"
-                  class="w-4 h-4 mr-1 text-red-600"
+                  class="w-4 h-4 mr-1"
                 />
-                <span class="text-red-600">
+                <span class="">
                   {{ Math.abs(stats.blacklistDiff) }}
                 </span>
                 <span class="text-[#6c757d] ml-1">전월 대비</span>
