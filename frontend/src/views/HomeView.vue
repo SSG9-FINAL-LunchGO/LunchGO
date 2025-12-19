@@ -29,6 +29,7 @@ import BottomNav from '@/components/ui/BottomNav.vue';
 import { RouterLink } from 'vue-router'; // Import Vue RouterLink
 import { loadKakaoMaps, geocodeAddress } from '@/utils/kakao';
 import { restaurants as restaurantData } from '@/data/restaurants';
+import AppHeader from '@/components/ui/AppHeader.vue';
 
 // State management (React's useState -> Vue's ref)
 const isFilterOpen = ref(false);
@@ -729,42 +730,7 @@ const closeMapRestaurantModal = () => {
 
 <template>
   <div class="min-h-screen bg-[#f8f9fa]">
-    <header class="sticky top-0 z-50 bg-white border-b border-[#e9ecef]">
-      <div
-        class="max-w-[500px] mx-auto px-4 h-14 flex items-center justify-between"
-      >
-        <div class="flex items-center gap-3">
-          <!-- Next.js Image component replaced with standard <img> -->
-          <img
-            src="/images/lunch-go-whitebg.png"
-            alt="런치고"
-            width="56"
-            height="56"
-            class="w-14 h-14"
-          />
-          <RouterLink
-            to="/intro"
-            class="font-semibold text-[#1e3a5f] text-base hover:text-[#ff6b4a] transition-colors"
-          >
-            서비스 소개
-          </RouterLink>
-        </div>
-        <div class="flex items-center gap-4">
-          <RouterLink
-            to="/login"
-            class="text-sm text-[#495057] font-medium hover:text-[#ff6b4a] transition-colors"
-          >
-            로그인
-          </RouterLink>
-          <RouterLink
-            to="/signup"
-            class="text-sm text-[#495057] font-medium hover:text-[#ff6b4a] transition-colors"
-          >
-            회원가입
-          </RouterLink>
-        </div>
-      </div>
-    </header>
+    <AppHeader />
 
     <main class="max-w-[500px] mx-auto pb-20">
       <div class="bg-white px-4 py-4 border-b border-[#e9ecef]">
