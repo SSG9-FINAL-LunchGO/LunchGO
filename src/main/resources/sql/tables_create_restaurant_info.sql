@@ -44,7 +44,7 @@ CREATE TABLE restaurant_images
 (
     restaurant_image_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '식당이미지ID',
     restaurant_id       BIGINT       NOT NULL COMMENT '식당ID',
-    image_url           VARCHAR(500) NOT NULL COMMENT '식당이미지 URL'
+    image_url           TEXT NOT NULL COMMENT '식당이미지 URL'
 ) COMMENT '식당 이미지';
 
 -- 4. 식당 메뉴
@@ -65,7 +65,7 @@ CREATE TABLE menu_images
 (
     menu_image_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '식당메뉴이미지ID',
     menu_id       BIGINT       NOT NULL COMMENT '식당메뉴ID',
-    image_url     VARCHAR(500) NOT NULL COMMENT '식당메뉴이미지 URL'
+    image_url     TEXT NOT NULL COMMENT '식당메뉴이미지 URL'
 ) COMMENT '식당 메뉴 이미지';
 
 -- 6. 식당-태그 매핑 (복합키 이름 지정: pk_restaurant_tag_map)
