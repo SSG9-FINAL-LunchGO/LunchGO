@@ -1,7 +1,11 @@
 package com.example.LunchGo.account.helper;
 
+import com.example.LunchGo.account.dto.OwnerFindRequest;
 import com.example.LunchGo.account.dto.OwnerJoinRequest;
+import com.example.LunchGo.account.dto.UserFindRequest;
 import com.example.LunchGo.account.dto.UserJoinRequest;
+import com.example.LunchGo.member.entity.Owner;
+import com.example.LunchGo.member.entity.User;
 import com.example.LunchGo.member.service.MemberService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
@@ -34,5 +38,21 @@ public class AccountHelperImpl implements AccountHelper {
     @Override
     public void checkLoginId(String loginId) {
         memberService.existsByLoginId(loginId);
+    }
+
+    @Override
+    public String getEmail(UserFindRequest userReq) {
+        //인증번호 전송 및 확인 로직
+
+        User user = memberService.find(userReq.getName(), userReq.getPhone()); //없으면 404처리 완료
+        return user.getEmail();
+    }
+
+    @Override
+    public String getLoginId(OwnerFindRequest ownerReq) {
+        //인증번호 전송 및 확인 로직
+
+        Owner owner = memberService.find(ownerReq.getName(), ownerReq.getBusinessNum(), ownerReq.getPhone());
+        return owner.getLoginId();
     }
 }
