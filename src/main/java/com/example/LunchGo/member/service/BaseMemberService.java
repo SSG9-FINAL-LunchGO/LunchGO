@@ -15,6 +15,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Optional;
+
 @Service
 @RequiredArgsConstructor
 @Log4j2
@@ -28,19 +30,19 @@ public class BaseMemberService implements MemberService {
                 .email(userReq.getEmail())
                 .password(userReq.getPassword()) //암호화 필수
                 .name(userReq.getName())
-                        .companyName(userReq.getCompanyName())
-                        .companyAddress(userReq.getCompanyAddress())
-                        .phone(userReq.getPhone())
-                        .marketingAgree(userReq.getMarketingAgree())
-                        .role(CustomRole.USER)
-                        .emailAuthentication(false) //기본값
-                        .status(UserStatus.ACTIVE) //기본값
+                .companyName(userReq.getCompanyName())
+                .companyAddress(userReq.getCompanyAddress())
+                .phone(userReq.getPhone())
+                .marketingAgree(userReq.getMarketingAgree())
+                .role(CustomRole.USER)
+                .emailAuthentication(false) //기본값
+                .status(UserStatus.ACTIVE) //기본값
                 .build());
     }
 
     @Override
     public void existsByEmail(String email) {
-        if(userRepository.existsByEmail(email)) {
+        if (userRepository.existsByEmail(email)) {
             log.info("User already exists with email: " + email);
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 존재하는 이메일입니다.");
         }
@@ -62,9 +64,23 @@ public class BaseMemberService implements MemberService {
 
     @Override
     public void existsByLoginId(String loginId) {
-        if(ownerRepository.existsByLoginId(loginId)) {
+        if (ownerRepository.existsByLoginId(loginId)) {
             log.info("User already exists with loginId: " + loginId);
             throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 존재하는 아이디입니다.");
         }
+    }
+
+    @Override
+    public User find(String name, String phone) {
+        return userRepository.findByNameAndPhone(name, phone).orElseThrow( () ->
+                new ResponseStatusException(HttpStatus.NOT_FOUND, "해당 이메일을 가진 사용자가 없습니다."
+                ));
+
+    }
+
+    @Override
+    public Owner find(String name, String businessNum, String phone) {
+        return ownerRepository.findByNameAndBusinessNumAndPhone(name, businessNum, phone)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "해당 아이디를 가진 사업자가 없습니다."));
     }
 }
