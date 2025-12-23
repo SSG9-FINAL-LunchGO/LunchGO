@@ -1,0 +1,7 @@
+spring:
+  datasource:
+    # SSH 터널링을 했다면 localhost:3307,
+    # 같은 VPC 내 배포라면 PRIVATE_DB_IP:3306
+    url: jdbc:mysql://localhost:3307/lunchgo?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+    username: lunchgo_user
+    password: usermysql1234!
