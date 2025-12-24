@@ -1,8 +1,12 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { RouterLink } from 'vue-router'; // Removed useRoute
+import { RouterLink } from 'vue-router';
 import BusinessSidebar from '@/components/ui/BusinessSideBar.vue';
 import BusinessHeader from '@/components/ui/BusinessHeader.vue';
+import { useRestaurantStore } from '@/stores/restaurant'; // Pinia 스토어 임포트
+
+// Pinia 스토어 초기화
+const store = useRestaurantStore();
 
 // Define props to receive the restaurant ID from the route
 const props = defineProps({
@@ -13,7 +17,8 @@ const props = defineProps({
 });
 
 // 2. 상태
-const restaurant = ref(null); // API로부터 받은 식당 정보를 저장할 ref
+// const restaurant = ref(null); // API로부터 받은 식당 정보를 저장할 ref -> Pinia 스토어 사용
+const restaurant = computed(() => store.restaurantInfo); // Pinia 스토어의 restaurantInfo를 참조
 
 // 3. 요일 매핑
 const dayOfWeekMap = {
@@ -29,60 +34,24 @@ const dayOfWeekMap = {
 // 4. 계산된 속성
 // 정기 휴무일 숫자 배열을 문자 배열로 변환
 const closedDaysAsStrings = computed(() => {
-  if (!restaurant.value || !restaurant.value.regularHolidays) return [];
-  return restaurant.value.regularHolidays.map(
+  if (!store.restaurantInfo || !store.restaurantInfo.regularHolidays) return [];
+  return store.restaurantInfo.regularHolidays.map(
     holiday => dayOfWeekMap[holiday.dayOfWeek]
   );
 });
 
 // 대표 이미지 URL
 const mainImageUrl = computed(() => {
-  if (!restaurant.value || !restaurant.value.images || restaurant.value.images.length === 0) {
+  if (!store.restaurantInfo || !store.restaurantInfo.images || store.restaurantInfo.images.length === 0) {
     return '/placeholder.svg'; // 기본 이미지
   }
-  return restaurant.value.images[0].imageUrl;
+  return store.restaurantInfo.images[0].imageUrl;
 });
 
 // 5. 라이프사이클 훅
-// 추후 API로부터 데이터를 받아오는 로직을 처리할 함수
-onMounted(() => {
-  // API: GET /api/my-restaurant/:id
-  // Here, you would typically make an API call to fetch restaurant data using props.id
-  // For now, we'll use a mock data, but simulate using props.id
-  const mockRestaurantDataFromApi = {
-    restaurantId: props.id, // Use the prop ID here
-    name: '런치고 한정식',
-    phone: '02-1234-5678',
-    roadAddress: '서울특별시 강남구 테헤란로 123',
-    detailAddress: '4층',
-    description: '전통 한정식의 맛을 현대적으로 재해석한 런치고 한정식입니다. 신선한 제철 재료로 만든 다채로운 한정식 코스를 즐겨보세요.',
-    reservationLimit: 50,
-    holidayAvailable: true,
-    preorderAvailable: true,
-    openTime: '10:00',
-    closeTime: '22:00',
-    openDate: '2020-01-01',
-    // from restaurant_image table
-    images: [
-        { imageUrl: '/modern-korean-restaurant-interior.jpg' }
-    ],
-    // from restaurant_tag_map and tag tables
-    tags: [
-        { tagId: 20, content: '한식' },
-        { tagId: 35, content: '조용한' },
-        { tagId: 36, content: '깔끔한' },
-        { tagId: 51, content: '룸' },
-        { tagId: 62, content: '주차장 제공' },
-        { tagId: 63, content: '와이파이' }
-    ],
-    // from regular_holiday table
-    regularHolidays: [
-        { dayOfWeek: 7 }, // 토요일
-        { dayOfWeek: 1 }  // 일요일
-    ]
-  };
-
-  restaurant.value = mockRestaurantDataFromApi;
+// API로부터 데이터를 받아오는 로직을 처리할 함수
+onMounted(async () => { // async 추가
+  await store.fetchRestaurantDetail(props.id); // API 호출 로직으로 변경
 });
 </script>
 
@@ -97,7 +66,7 @@ onMounted(() => {
       <!-- Scrollable Content Area -->
       <main class="flex-1 overflow-y-auto p-8">
         <!-- v-if를 추가하여 restaurant 데이터가 로드된 후에만 렌더링 -->
-        <div v-if="restaurant" class="max-w-4xl mx-auto space-y-8">
+        <div v-if="store.restaurantInfo" class="max-w-4xl mx-auto space-y-8">
           <!-- Page Title -->
           <h2 class="text-3xl font-bold text-[#1e3a5f]">식당 정보 조회</h2>
 
@@ -254,7 +223,7 @@ onMounted(() => {
               </div>
 
               <!-- Regular Closing Days -->
-              <div>
+              <div v-if="closedDaysAsStrings.length > 0">
                 <label class="block text-sm font-semibold text-[#1e3a5f] mb-2">
                   정기휴무일
                 </label>
