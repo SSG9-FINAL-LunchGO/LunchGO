@@ -1,4 +1,4 @@
-package com.example.LunchGo.restaurant.business.dto;
+package com.example.LunchGo.restaurant.dto;
 
 import lombok.*;
 

@@ -1,14 +1,13 @@
-package com.example.LunchGo.restaurant.business.service;
+package com.example.LunchGo.restaurant.service;
 
-import com.example.LunchGo.restaurant.business.dto.ImageDto;
-import com.example.LunchGo.restaurant.business.dto.RegularHolidayDto;
-import com.example.LunchGo.restaurant.business.dto.RestaurantDetailResponse;
-import com.example.LunchGo.restaurant.business.dto.RestaurantTagDto;
+import com.example.LunchGo.restaurant.dto.ImageDto;
+import com.example.LunchGo.restaurant.dto.RegularHolidayDto;
+import com.example.LunchGo.restaurant.dto.RestaurantDetailResponse;
+import com.example.LunchGo.restaurant.dto.RestaurantTagDto;
 import com.example.LunchGo.restaurant.entity.RegularHoliday;
 import com.example.LunchGo.restaurant.entity.Restaurant;
 import com.example.LunchGo.restaurant.repository.RegularHolidayRepository;
 import com.example.LunchGo.restaurant.repository.RestaurantRepository;
-import com.example.LunchGo.tag.domain.TagCategory;
 import com.example.LunchGo.tag.entity.SearchTag;
 import com.example.LunchGo.tag.repository.SearchTagRepository;
 import lombok.RequiredArgsConstructor;

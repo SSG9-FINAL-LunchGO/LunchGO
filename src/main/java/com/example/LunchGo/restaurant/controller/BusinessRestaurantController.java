@@ -1,7 +1,7 @@
-package com.example.LunchGo.restaurant.business.controller;
+package com.example.LunchGo.restaurant.controller;
 
-import com.example.LunchGo.restaurant.business.dto.RestaurantDetailResponse;
-import com.example.LunchGo.restaurant.business.service.BusinessRestaurantService;
+import com.example.LunchGo.restaurant.dto.RestaurantDetailResponse;
+import com.example.LunchGo.restaurant.service.BusinessRestaurantService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
