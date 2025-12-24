@@ -135,33 +135,33 @@ CREATE TABLE cafeteria_menus (
 # );
 
 # 03. 예약 테이블
-DROP TABLE IF EXISTS reservations;
-CREATE TABLE reservations
-(
-    reservation_id           bigint      NOT NULL PRIMARY KEY AUTO_INCREMENT,
-    restaurant_id            bigint      NOT NULL,
-    owner_id                 bigint      NOT NULL,
-    type                     varchar(20) NOT NULL,
-    status                   varchar(20) NOT NULL,
-    reserved_date            date        NOT NULL,
-    reserved_time            date        NOT NULL,
-    party_size               int         NOT NULL,
-    request_message          text        NULL,
-    slot_hold_expires_at     datetime    NULL,
-    payment_deadline_at      datetime    NULL,
-    visit_confirm_status     varchar(20) NOT NULL,
-    visit_confirm_sent_at    datetime    NULL,
-    visit_confirm_replied_at datetime    NULL,
-    cancelled_at             datetime    NULL,
-    cancelled_by             varchar(20) NULL,
-    cancel_reason            text        NULL,
-    no_show_at               datetime    NULL,
-    completed_at             datetime    NULL,
-    assumed_deposit_amount   int         NOT NULL,
-    total_prepay_amount      int         NOT NULL,
-    created_at               datetime    NOT NULL,
-    updated_at               datetime    NOT NULL
-);
+# DROP TABLE IF EXISTS reservations;
+# CREATE TABLE reservations
+# (
+#     reservation_id           bigint      NOT NULL PRIMARY KEY AUTO_INCREMENT,
+#     restaurant_id            bigint      NOT NULL,
+#     owner_id                 bigint      NOT NULL,
+#     type                     varchar(20) NOT NULL,
+#     status                   varchar(20) NOT NULL,
+#     reserved_date            date        NOT NULL,
+#     reserved_time            date        NOT NULL,
+#     party_size               int         NOT NULL,
+#     request_message          text        NULL,
+#     slot_hold_expires_at     datetime    NULL,
+#     payment_deadline_at      datetime    NULL,
+#     visit_confirm_status     varchar(20) NOT NULL,
+#     visit_confirm_sent_at    datetime    NULL,
+#     visit_confirm_replied_at datetime    NULL,
+#     cancelled_at             datetime    NULL,
+#     cancelled_by             varchar(20) NULL,
+#     cancel_reason            text        NULL,
+#     no_show_at               datetime    NULL,
+#     completed_at             datetime    NULL,
+#     assumed_deposit_amount   int         NOT NULL,
+#     total_prepay_amount      int         NOT NULL,
+#     created_at               datetime    NOT NULL,
+#     updated_at               datetime    NOT NULL
+# );
 
 
 
