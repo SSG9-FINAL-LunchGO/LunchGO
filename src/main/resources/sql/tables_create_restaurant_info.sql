@@ -10,7 +10,7 @@ use lunchgo;
 DROP TABLE IF EXISTS search_tags;
 CREATE TABLE search_tags
 (
-    tag_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '태그ID', -- (참고: 이전 파일명세와 맞추기 위해 tag_id -> search_tag_id로 변경 권장)
+    tag_id        BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '태그ID',
     content       VARCHAR(50) NOT NULL COMMENT '태그 내용',
     category      VARCHAR(50) NOT NULL COMMENT '태그 카테고리',
 
