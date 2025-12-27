@@ -1,8 +1,10 @@
 package com.example.LunchGo.restaurant.service;
 
+import com.example.LunchGo.restaurant.domain.RestaurantStatus;
 import com.example.LunchGo.restaurant.dto.ImageDto;
 import com.example.LunchGo.restaurant.dto.RegularHolidayDto;
 import com.example.LunchGo.restaurant.dto.RestaurantDetailResponse;
+import com.example.LunchGo.restaurant.dto.RestaurantCreateRequest; // Import added
 import com.example.LunchGo.restaurant.dto.RestaurantTagDto;
 import com.example.LunchGo.restaurant.entity.RegularHoliday;
 import com.example.LunchGo.restaurant.entity.Restaurant;
@@ -14,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalTime; // Import added
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +31,7 @@ public class BusinessRestaurantService {
 
     private final RestaurantRepository restaurantRepository;
     private final RegularHolidayRepository regularHolidayRepository;
+    // private final RestaurantImageRepository restaurantImageRepository; // Removed
     private final SearchTagRepository searchTagRepository; // Needed for restaurant tags
 
     /**
@@ -95,6 +99,63 @@ public class BusinessRestaurantService {
     }
 
 
-    // 2. 식당 정보 등록/수정
-    // (구현 예정)
+    @Transactional
+    public Long createRestaurant(RestaurantCreateRequest request) {
+        // 1. Restaurant 엔티티 생성 및 저장
+        // TODO: 추후 인증(Authentication) 도입 시 실제 ownerId 사용
+        long currentOwnerId = 1L;
+
+        Restaurant restaurant = Restaurant.builder()
+                .ownerId(currentOwnerId)
+                .name(request.getName())
+                .phone(request.getPhone())
+                .roadAddress(request.getRoadAddress())
+                .detailAddress(request.getDetailAddress())
+                .description(request.getDescription())
+                .status(RestaurantStatus.OPEN) // 초기 상태는 OPEN
+                .avgMainPrice(0) // 메뉴가 없으므로 초기값은 0
+                .reservationLimit(request.getReservationLimit())
+                .holidayAvailable(request.isHolidayAvailable())
+                .preorderAvailable(request.isPreorderAvailable())
+                .openTime(LocalTime.parse(request.getOpenTime()))
+                .closeTime(LocalTime.parse(request.getCloseTime()))
+                .openDate(request.getOpenDate())
+                .build();
+
+        Restaurant savedRestaurant = restaurantRepository.save(restaurant);
+        Long newRestaurantId = savedRestaurant.getRestaurantId();
+
+        // 2. 이미지 정보 저장은 ObjectStorage와 연동되어 추후 구현 예정이므로 현재는 건너뜀
+        // if (request.getImageUrls() != null && !request.getImageUrls().isEmpty()) {
+        //     request.getImageUrls().forEach(imageUrl -> {
+        //         RestaurantImage image = RestaurantImage.builder()
+        //                 .restaurant(savedRestaurant)
+        //                 .imageUrl(imageUrl)
+        //                 .build();
+        //         restaurantImageRepository.save(image);
+        //     });
+        // }
+
+        // 3. 식당 메뉴 정보 저장 (추후 구현 예정)
+
+        // 4. 정기 휴무일 정보 저장
+        if (request.getRegularHolidayNumbers() != null && !request.getRegularHolidayNumbers().isEmpty()) {
+            request.getRegularHolidayNumbers().forEach(dayOfWeek -> {
+                RegularHoliday holiday = RegularHoliday.builder()
+                        .restaurantId(newRestaurantId)
+                        .dayOfWeek(dayOfWeek)
+                        .build();
+                regularHolidayRepository.save(holiday);
+            });
+        }
+
+        // 5. 태그 정보 저장
+        if (request.getSelectedTagIds() != null && !request.getSelectedTagIds().isEmpty()) {
+            request.getSelectedTagIds().forEach(tagId -> {
+                restaurantRepository.saveRestaurantTagMapping(newRestaurantId, tagId);
+            });
+        }
+
+        return newRestaurantId;
+    }
 }
