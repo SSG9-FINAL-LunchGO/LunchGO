@@ -138,4 +138,7 @@ public interface RestaurantRepository extends JpaRepository<Restaurant, Long> {
             @Param("confirmWeight") double confirmWeight,
             @Param("viewWeight") double viewWeight
     );
+    @Modifying
+    @Query(value = "DELETE FROM restaurant_tag_maps WHERE restaurant_id = :restaurantId", nativeQuery = true)
+    void deleteRestaurantTagMappingsByRestaurantId(@Param("restaurantId") Long restaurantId);
 }
