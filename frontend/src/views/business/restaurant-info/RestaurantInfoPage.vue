@@ -229,7 +229,7 @@ onMounted(async () => { // async 추가
                 </label>
                 <div class="flex flex-wrap gap-3">
                   <button
-                    v-for="day in ['월', '화', '수', '목', '금', '토', '일']"
+                    v-for="day in ['일', '월', '화', '수', '목', '금', '토']"
                     :key="day"
                     :class="`px-4 py-2 rounded-lg border transition-colors ${
                       closedDaysAsStrings.includes(day)
