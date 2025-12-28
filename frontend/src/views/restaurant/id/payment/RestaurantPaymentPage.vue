@@ -65,12 +65,16 @@ const isBookingLoading = ref(false);
 const fetchBookingSummary = async () => {
   isBookingLoading.value = true;
   try {
-    // TODO: 백엔드 연결 시 여기만 실제 API로 교체
-    // ex) const res = await api.get(`/bookings/${bookingId.value}`);
-    // bookingSummary.value.requestNote = res.data.requestNote;
+    if (!reservationId.value) {
+      bookingSummary.value.requestNote = "";
+      return;
+    }
 
-    // 임시 더미(모양 확인용)
-    bookingSummary.value.requestNote = "유아용 의자 부탁드려요";
+    const res = await axios.get(`/api/reservations/${reservationId.value}/summary`);
+    bookingSummary.value.requestNote =
+        res.data?.requestNote ?? res.data?.booking?.requestNote ?? "";
+  } catch (e) {
+    bookingSummary.value.requestNote = "";
   } finally {
     isBookingLoading.value = false;
   }

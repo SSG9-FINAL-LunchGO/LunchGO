@@ -8,6 +8,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.List;
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/reservations")
@@ -26,5 +30,14 @@ public class ReservationController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().build();
         }
+    }
+
+    @GetMapping("/slots")
+    public ResponseEntity<List<LocalTime>> slotTimes(
+            @RequestParam Long restaurantId,
+            @RequestParam LocalDate slotDate
+    ) {
+        List<LocalTime> times = reservationService.slotTimes(restaurantId, slotDate);
+        return ResponseEntity.ok(times);
     }
 }

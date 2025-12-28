@@ -9,6 +9,7 @@ public class ReservationSummaryResponse {
     private RestaurantInfo restaurant;
     private BookingInfo booking;
     private PaymentInfo payment;
+    private String requestNote;
 
     @Getter
     @Builder
@@ -23,6 +24,7 @@ public class ReservationSummaryResponse {
         private String date;
         private String time;
         private Integer partySize;
+        private String requestNote;
     }
 
     @Getter
