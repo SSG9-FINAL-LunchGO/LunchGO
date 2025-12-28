@@ -511,6 +511,115 @@ try {
 - 구현 시, 상세 조회 진입 지점에서 `RestaurantStatsEventService.recordView(...)` 호출 필요
 - userKey 우선순위: userId > sessionId > ip
 
+## 🧩 상세 구현 코드 설명(현재 반영 버전)
+
+### 1) 조회수/예약 확정 이벤트 누적
+
+- 위치: `src/main/java/com/example/LunchGo/restaurant/stats/RestaurantStatsEventService.java`
+- 역할: 중복 필터 후 Redis Hash에 카운트 누적
+- 주의사항: userKey는 `userId > sessionId > ip` 순으로 생성하며, 빈 값이면 누적하지 않음
+
+핵심 로직
+
+```java
+public void recordView(Long restaurantId, String userKey) {
+    LocalDate today = keyFactory.todayKst();
+    String dedupeKey = keyFactory.viewDedupe(today, restaurantId, userKey);
+    if (!redisRepository.setIfAbsent(dedupeKey, "1", Duration.ofMinutes(viewDedupeTtlMinutes))) {
+        return;
+    }
+    redisRepository.hincrBy(keyFactory.viewHash(today), restaurantId.toString(), 1L);
+}
+
+public void recordConfirm(Long restaurantId, String paymentId) {
+    LocalDate today = keyFactory.todayKst();
+    String dedupeKey = keyFactory.confirmDedupe(paymentId);
+    if (!redisRepository.setIfAbsent(dedupeKey, "1", Duration.ofDays(confirmDedupeTtlDays))) {
+        return;
+    }
+    redisRepository.hincrBy(keyFactory.confirmHash(today), restaurantId.toString(), 1L);
+}
+```
+
+### 2) 배치 플러시 (조회수: 차감 방식)
+
+- 위치: `src/main/java/com/example/LunchGo/restaurant/stats/RestaurantStatsBatchService.java`
+- 역할: Hash에서 읽고 DB 반영 후 음수 차감으로 중복 집계 방지
+- 주의사항: chunk 단위로 DB upsert 후 차감하며, 0 이하 field는 정리
+
+```java
+public void flushViews(LocalDate date) {
+    Map<String, String> rawCounts = redisRepository.hGetAll(keyFactory.viewHash(date));
+    List<Map.Entry<Long, Long>> entries = toLongEntries(rawCounts);
+    for (List<Map.Entry<Long, Long>> chunk : chunk(entries, chunkSize)) {
+        statsRepository.upsertViewCounts(date, chunk);
+        for (Map.Entry<Long, Long> entry : chunk) {
+            long newValue = redisRepository.hincrBy(
+                keyFactory.viewHash(date), entry.getKey().toString(), -entry.getValue()
+            );
+            if (newValue <= 0L) {
+                redisRepository.hDelete(keyFactory.viewHash(date), entry.getKey().toString());
+            }
+        }
+    }
+}
+```
+
+### 3) 배치 플러시 (예약 확정: RENAME 방식)
+
+- 위치: `src/main/java/com/example/LunchGo/restaurant/stats/RestaurantStatsBatchService.java`
+- 역할: RENAME으로 processing 키 이동 후 안전 처리
+- 주의사항: processing 키가 남아있으면 재처리 대상이므로 우선 처리
+
+```java
+public void flushConfirms(LocalDate date) {
+    String sourceKey = keyFactory.confirmHash(date);
+    String processingKey = keyFactory.confirmProcessingHash(date);
+    if (!redisRepository.renameIfPresent(sourceKey, processingKey)) {
+        return;
+    }
+    Map<String, String> rawCounts = redisRepository.hGetAll(processingKey);
+    List<Map.Entry<Long, Long>> entries = toLongEntries(rawCounts);
+    for (List<Map.Entry<Long, Long>> chunk : chunk(entries, chunkSize)) {
+        statsRepository.upsertConfirmCounts(date, chunk);
+    }
+    redisRepository.delete(processingKey);
+}
+```
+
+### 4) 배치 스케줄러
+
+- 위치: `src/main/java/com/example/LunchGo/restaurant/stats/RestaurantStatsBatchScheduler.java`
+- 역할: 락 획득 후 주기적으로 flush 실행
+- 주의사항: 락 TTL은 배치 최대 소요 시간보다 길게 설정
+
+```java
+@Scheduled(fixedDelayString = "${stats.flush.interval-ms:180000}")
+public void flushStats() {
+    LocalDate today = keyFactory.todayKst();
+    String lockKey = keyFactory.flushLock(today);
+    if (!redisRepository.tryLock(lockKey, lockValue, Duration.ofSeconds(lockTtlSeconds))) {
+        return;
+    }
+    try {
+        batchService.flushViews(today);
+        batchService.flushConfirms(today);
+    } finally {
+        redisRepository.releaseLock(lockKey, lockValue);
+    }
+}
+```
+
+### 5) 상세 조회/결제 완료 연동
+
+- 상세 조회(사업자용): `BusinessRestaurantController#getRestaurantDetail`
+  - userKey 생성 후 `recordView` 호출
+  - TODO: 사용자용 상세 API 구현 시 이동 예정
+- 결제 완료: `ReservationPaymentService`
+  - 결제 완료 트랜잭션 commit 후 `recordConfirm` 호출
+  - `TransactionSynchronization`으로 after-commit 보장
+- 주의사항: 결제 완료 이벤트 중복 호출은 paymentId dedupe로 차단
+
 ### 핵심 메서드 설계
 
 #### 1) 이벤트 누적 (조회/예약)
