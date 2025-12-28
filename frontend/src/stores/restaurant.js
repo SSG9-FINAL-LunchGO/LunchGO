@@ -1,5 +1,25 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
+import axios from 'axios'; // axios 임포트
+
+// 새 식당 정보의 기본 구조
+const defaultRestaurant = () => ({
+  name: '',
+  phone: '',
+  roadAddress: '',
+  detailAddress: '',
+  description: '',
+  avgMainPrice: 0,
+  reservationLimit: '',
+  holidayAvailable: false,
+  preorderAvailable: false,
+  openTime: '',
+  closeTime: '',
+  openDate: '',
+  images: [],
+  regularHolidays: [],
+  tags: [],
+});
 
 export const useRestaurantStore = defineStore('restaurant', () => {
   // State
@@ -7,6 +27,15 @@ export const useRestaurantStore = defineStore('restaurant', () => {
   const menus = ref([]);
 
   // Actions
+
+  /**
+   * 새 식당 등록을 위해 스토어를 초기화합니다.
+   */
+  function initializeNewRestaurant() {
+    restaurantInfo.value = defaultRestaurant();
+    menus.value = [];
+  }
+
   /**
    * 수정 모드에서 식당 데이터를 로드합니다.
    * 스토어에 이미 같은 식당 데이터가 로드되어 있다면 아무것도 하지 않습니다.
@@ -18,7 +47,22 @@ export const useRestaurantStore = defineStore('restaurant', () => {
     }
     // 새로운 식당 데이터를 로드합니다.
     restaurantInfo.value = data;
-    menus.value = [...(data.menus || [])];
+    menus.value = [...(data.menus || [])]; // data.menus가 없는 경우를 대비하여 || [] 추가
+  }
+
+  /**
+   * 백엔드 API에서 식당 상세 정보를 가져와 스토어에 로드합니다.
+   * @param {number} restaurantId - 조회할 식당의 ID
+   */
+  async function fetchRestaurantDetail(restaurantId) {
+    try {
+      const response = await axios.get(`/api/business/restaurants/${restaurantId}`);
+      loadRestaurant(response.data);
+    } catch (error) {
+      console.error('Failed to fetch restaurant details:', error);
+      // 에러 처리 로직 추가 (예: 사용자에게 알림)
+      throw error; // 에러를 호출자에게 다시 던져 페이지에서 처리하도록 함
+    }
   }
 
   /**
@@ -74,7 +118,9 @@ export const useRestaurantStore = defineStore('restaurant', () => {
   return { 
     restaurantInfo,
     menus, 
+    initializeNewRestaurant,
     loadRestaurant,
+    fetchRestaurantDetail, // 새로운 액션 추가
     clearRestaurant,
     setDraftImageUrl,
     addMenu, 

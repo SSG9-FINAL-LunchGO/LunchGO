@@ -1,18 +1,18 @@
 <script setup>
-import { ref, reactive, onMounted, computed, watch } from 'vue';
-import { Upload, X } from 'lucide-vue-next';
-import { RouterLink, useRouter, useRoute } from 'vue-router';
+import {computed, onMounted, reactive, ref, watch} from 'vue';
+import {Upload, X} from 'lucide-vue-next';
+import {RouterLink, useRoute, useRouter} from 'vue-router';
 import axios from 'axios';
 import BusinessSidebar from '@/components/ui/BusinessSideBar.vue';
 import BusinessHeader from '@/components/ui/BusinessHeader.vue';
 import Pagination from '@/components/ui/Pagination.vue';
-import { useRestaurantStore } from '@/stores/restaurant';
+import {useRestaurantStore} from '@/stores/restaurant';
 
 const router = useRouter();
 const route = useRoute();
 const store = useRestaurantStore();
 
-// 메뉴 검색 및 필터링
+// 메뉴 검색 및 필터
 const menuSearchKeyword = ref('');
 const menuTypes = ['전체', '주메뉴', '서브메뉴', '기타(디저트, 음료)'];
 const selectedMenuType = ref('전체');
@@ -25,7 +25,9 @@ const filteredMenus = computed(() => {
 
   // 메뉴 타입으로 필터링
   if (selectedMenuType.value !== '전체') {
-    menus = menus.filter((menu) => menu.type === selectedMenuType.value);
+    menus = menus.filter(
+      (menu) => menu.category && menu.category.value === selectedMenuType.value
+    );
   }
 
   // 메뉴 이름 키워드로 필터링
@@ -84,7 +86,9 @@ const submitButtonText = computed(() =>
 );
 
 const avgMainPrice = computed(() => {
-  const mainMenus = store.menus.filter((menu) => menu.type === '주메뉴');
+  const mainMenus = store.menus.filter(
+    (menu) => menu.category && menu.category.code === 'MAIN'
+  );
   if (mainMenus.length === 0) {
     return 0;
   }
@@ -132,7 +136,7 @@ const tagCategoryDisplayNames = {
   MENUTYPE: '식당 종류',
   TABLETYPE: '테이블 옵션',
   ATMOSPHERE: '식당 분위기',
-  FACILITY: '편의시설',
+  FACILITY: '편의사항',
 };
 
 const handleRestaurantFileChange = (e) => {
@@ -195,19 +199,31 @@ const tagCategories = ref({});
 const toggleTag = (tag) => {
   const isRestaurantTypeTag = tag.category === 'MENUTYPE';
   const index = selectedTags.value.findIndex((st) => st.tagId === tag.tagId);
+  const isCurrentlySelected = index > -1;
 
   if (isRestaurantTypeTag) {
-    selectedTags.value = selectedTags.value.filter(
-      (st) => st.category !== 'MENUTYPE'
-    );
-    if (index === -1) {
-      selectedTags.value.push(tag);
+    if (isCurrentlySelected) {
+      // 이미 선택된 MENUTYPE 태그를 클릭 -> 선택 해제
+      selectedTags.value = selectedTags.value.filter(
+        (st) => st.tagId !== tag.tagId
+      );
+    } else {
+      // 새로운 MENUTYPE 태그를 클릭 -> 기존 MENUTYPE 태그를 모두 제거하고 새 태그만 추가
+      const otherTags = selectedTags.value.filter(
+        (st) => st.category !== 'MENUTYPE'
+      );
+      selectedTags.value = [...otherTags, tag];
     }
   } else {
-    if (index > -1) {
-      selectedTags.value.splice(index, 1);
+    // 다른 카테고리의 태그 (다중 선택)
+    if (isCurrentlySelected) {
+      // 선택 해제
+      selectedTags.value = selectedTags.value.filter(
+        (st) => st.tagId !== tag.tagId
+      );
     } else {
-      selectedTags.value.push(tag);
+      // 선택
+      selectedTags.value = [...selectedTags.value, tag];
     }
   }
 };
@@ -228,130 +244,27 @@ const fetchTags = async () => {
   }
 };
 
-// API: GET /api/restaurants/{id}
-const fetchRestaurantData = async (restaurantId) => {
-  console.log(`Fetching data for restaurant ID: ${restaurantId}`);
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        restaurantId: restaurantId,
-        name: '런치고 한정식 (수정)',
-        phone: '02-9876-5432',
-        openDate: '2022-10-20',
-        openTime: '11:00',
-        closeTime: '21:00',
-        reservationLimit: 75,
-        roadAddress: '서울특별시 종로구 종로 1',
-        detailAddress: '5층',
-        holidayAvailable: true,
-        preorderAvailable: false,
-        description: '수정된 식당 소개입니다. 더욱 맛있어졌습니다.',
-        images: [{ imageUrl: '/korean-course-meal-plating.jpg' }],
-        regularHolidays: [{ dayOfWeek: 1 }, { dayOfWeek: 7 }],
-        tags: [
-          { tagId: 1, content: '한식', category: 'MENUTYPE' },
-          { tagId: 8, content: '조용한', category: 'ATMOSPHERE' },
-          { tagId: 12, content: '주차장 제공', category: 'FACILITY' },
-        ],
-        menus: [
-          {
-            id: 101,
-            name: '한정식 A코스',
-            type: '주메뉴',
-            price: 50000,
-            imageUrl: '/korean-course-meal-plating.jpg',
-            tags: [ // Add sample tags for testing
-              { tagId: 15, content: '우유' },
-              { tagId: 17, content: '대두' },
-            ]
-          },
-          {
-            id: 102,
-            name: '한정식 B코스',
-            type: '주메뉴',
-            price: 75000,
-            imageUrl: '/korean-fine-dining.jpg',
-          },
-          {
-            id: 103,
-            name: '떡갈비',
-            type: '서브메뉴',
-            price: 25000,
-            imageUrl: '/placeholder.svg',
-          },
-          {
-            id: 104,
-            name: '해물파전',
-            type: '서브메뉴',
-            price: 20000,
-            imageUrl: '/placeholder.svg',
-          },
-          {
-            id: 105,
-            name: '수정과',
-            type: '기타(디저트, 음료)',
-            price: 5000,
-            imageUrl: '/placeholder.svg',
-          },
-          {
-            id: 106,
-            name: '식혜',
-            type: '기타(디저트, 음료)',
-            price: 5000,
-            imageUrl: '/placeholder.svg',
-          },
-        ],
-      });
-    }, 500);
-  });
-};
-
 onMounted(async () => {
-  const tagsFromApi = await fetchTags();
-  // allTags is no longer needed as backend groups by category
-  tagCategories.value = tagsFromApi; // Assign directly as backend returns grouped data
+  tagCategories.value = await fetchTags();
 
   if (isEditMode.value) {
     const restaurantId = Number(route.params.id);
     // 스토어에 정보가 없거나 다른 식당 정보가 들어있으면 새로 API 호출
-    if (
-      !store.restaurantInfo ||
-      store.restaurantInfo.restaurantId !== restaurantId
-    ) {
-      const restaurantData = await fetchRestaurantData(restaurantId);
-      store.loadRestaurant(restaurantData); // API 응답으로 스토어 전체를 설정
+    if (!store.restaurantInfo || store.restaurantInfo.restaurantId !== restaurantId) {
+      await store.fetchRestaurantDetail(restaurantId);
     }
+  }
 
-    // 항상 스토어의 데이터로 폼과 UI 상태를 채움
-    if (store.restaurantInfo) {
-      Object.assign(formData, store.restaurantInfo);
-      if (
-        store.restaurantInfo.images &&
-        store.restaurantInfo.images.length > 0
-      ) {
-        // This line is now redundant because of the computed property, but safe to keep
-        // restaurantImageUrl.value = store.restaurantInfo.images[0].imageUrl;
-        restaurantImageFile.value = new File([], 'mock-restaurant-image.png');
-      }
-      selectedClosedDays.value = store.restaurantInfo.regularHolidays.map(
-        (h) => h.dayOfWeek
-      );
-      selectedTags.value = store.restaurantInfo.tags;
-    }
-  } else {
-    // 등록 모드에서는 페이지를 다시 방문해도 store의 상태를 유지합니다.
-    // store는 router.beforeEach 네비게이션 가드에 의해 관리됩니다.
-    // 또한, 폼 데이터가 store에 이미 있을 수 있으므로 onMounted에서 다시 채워줍니다.
-    if (store.restaurantInfo) {
-      Object.assign(formData, store.restaurantInfo);
-      if (
-        store.restaurantInfo.images &&
-        store.restaurantInfo.images.length > 0
-      ) {
-        restaurantImageFile.value = new File([], 'mock-restaurant-image.png');
-      }
-      selectedClosedDays.value = store.restaurantInfo.regularHolidays || [];
-      selectedTags.value = store.restaurantInfo.tags || [];
+  // '등록' 및 '수정' 모드 모두, 라우터 가드에서 스토어 상태를 이미 올바르게 설정했으므로,
+  // 컴포넌트는 스토어의 데이터를 로컬 상태와 동기화하기만 하면 됩니다.
+  if (store.restaurantInfo) {
+    Object.assign(formData, store.restaurantInfo);
+    selectedClosedDays.value = store.restaurantInfo.regularHolidays?.map(h => h.dayOfWeek) ?? [];
+    selectedTags.value = store.restaurantInfo.tags ?? [];
+    if (store.restaurantInfo.images?.length > 0) {
+      restaurantImageFile.value = new File([], 'mock-restaurant-image.png');
+    } else {
+      restaurantImageFile.value = null;
     }
   }
 });
@@ -364,10 +277,11 @@ const saveRestaurant = async () => {
 
   // 2. Validate fields
   let isValid = true;
-  if (!restaurantImageFile.value) {
-    validationErrors.image = '식당 이미지를 등록해주세요.';
-    isValid = false;
-  }
+  // // 식당이미지 유효성 검사 (백엔드 로직 미구현으로 임시 주석 처리)
+  // if (!restaurantImageFile.value && !restaurantImageUrl.value) { // Ensure image exists for both new and existing
+  //   validationErrors.image = '식당 이미지를 등록해주세요.';
+  //   isValid = false;
+  // }
   if (!formData.name.trim()) {
     validationErrors.name = '식당 이름을 입력해주세요.';
     isValid = false;
@@ -414,7 +328,9 @@ const saveRestaurant = async () => {
     isValid = false;
   }
 
-  const hasMainMenu = store.menus.some((menu) => menu.type === '주메뉴');
+  const hasMainMenu = store.menus.some(
+    (menu) => menu.category && menu.category.code === 'MAIN'
+  );
   if (!hasMainMenu) {
     validationErrors.menus = '주메뉴를 1개 이상 등록해주세요.';
     isValid = false;
@@ -431,29 +347,36 @@ const saveRestaurant = async () => {
     regularHolidayNumbers: selectedClosedDays.value,
     selectedTagIds: selectedTags.value.map((tag) => tag.tagId),
     menus: store.menus, // Include menus from the store
+    avgMainPrice: avgMainPrice.value, // Include calculated average main price
+    imageUrls: restaurantImageUrl.value ? [restaurantImageUrl.value] : [], // Pass current image URL as a list
   };
 
-  // 추후 API를 통해 등록/수정 요청을 보낼 부분
+  // API를 통해 등록/수정 요청을 보낼 부분
   try {
+    const apiUrl = '/api/business/restaurants';
+    let response;
+
     if (isEditMode.value) {
-      console.log('Updating restaurant:', route.params.id, dataToSubmit);
-    } else {
-      console.log('Creating new restaurant:', dataToSubmit);
-    }
-    alert('저장되었습니다.');
-    if (isEditMode.value) {
-      // 수정 모드일 경우, 현재 restaurantId를 사용하여 상세 페이지로 이동
+      // 수정 모드일 경우: PUT 요청
+      response = await axios.put(`${apiUrl}/${route.params.id}`, dataToSubmit);
+      alert('식당 정보가 성공적으로 수정되었습니다.');
+      // 수정 후 상세 페이지로 이동
       router.push(`/business/restaurant-info/${route.params.id}`);
     } else {
-      // 등록 모드일 경우, 새로운 restaurantId가 필요합니다.
-      // 현재 API가 실제 ID를 반환하지 않으므로, 임시로 1로 설정합니다.
-      // TODO: 실제 API 연동 시, 응답으로 받은 새 ID를 사용해야 합니다.
-      const newRestaurantId = 1;
+      // 등록 모드일 경우: POST 요청
+      response = await axios.post(apiUrl, dataToSubmit);
+      const newRestaurantId = response.data; // 백엔드에서 생성된 ID를 응답으로 받음
+      alert('식당 정보가 성공적으로 등록되었습니다.');
+      // 등록 후 새로운 식당의 상세 페이지로 이동
       router.push(`/business/restaurant-info/${newRestaurantId}`);
     }
   } catch (error) {
     console.error('저장 실패:', error);
     alert('저장에 실패했습니다.');
+    // 에러 상세 메시지가 있다면 사용자에게 보여줄 수 있음
+    if (error.response && error.response.data && error.response.data.message) {
+      alert(`에러: ${error.response.data.message}`);
+    }
   }
 };
 
@@ -518,16 +441,18 @@ watch(restaurantImageFile, (newFile) => {
 watch(
   () => store.menus,
   (newMenus) => {
-    if (newMenus.some((menu) => menu.type === '주메뉴')) {
+    if (newMenus.some((menu) => menu.category && menu.category.code === 'MAIN')) {
       validationErrors.menus = '';
     }
   },
   { deep: true }
 );
 
-// avgMainPrice computed 속성의 변화를 감지하여 formData.avgMainPrice 업데이트
+// avgMainPrice computed 속성의 변화를 감지하여 store에 동기화
 watch(avgMainPrice, (newAvg) => {
-  formData.avgMainPrice = newAvg;
+  if(store.restaurantInfo) {
+    store.restaurantInfo.avgMainPrice = newAvg;
+  }
 });
 
 // 현재 페이지의 메뉴가 모두 삭제되었을 때 이전 페이지로 이동
@@ -797,13 +722,13 @@ watch(paginatedMenus, (newPaginatedMenus) => {
                 <div class="flex flex-wrap gap-3">
                   <button
                     v-for="dayString in [
+                      '일',
                       '월',
                       '화',
                       '수',
                       '목',
                       '금',
-                      '토',
-                      '일',
+                      '토'
                     ]"
                     :key="dayString"
                     @click="toggleClosedDay(dayString)"
@@ -954,7 +879,7 @@ watch(paginatedMenus, (newPaginatedMenus) => {
                       {{ menu.name }}
                     </td>
                     <td class="px-12 py-4 text-sm text-[#6c757d]">
-                      {{ menu.type }}
+                      {{ menu.category.value }}
                     </td>
                     <td class="px-12 py-4 text-sm text-[#6c757d]">
                       {{ menu.price.toLocaleString() }}원

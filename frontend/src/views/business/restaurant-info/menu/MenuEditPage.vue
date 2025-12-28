@@ -27,6 +27,7 @@ const menuData = reactive({
   name: '',
   category: '',
   price: 0,
+  description: '', // 메뉴 설명 추가
   tags: [], // 재료 태그는 메뉴 객체에 포함하여 관리
   imageUrl: '', // 이미지 URL도 메뉴 객체에 포함
 });
@@ -96,16 +97,17 @@ onMounted(async () => {
 
   if (isEditMode.value) {
     // 2. (수정 모드일 경우) 기존 메뉴 정보 가져오기
-    // API: GET /api/menus/{menuId}
     const menuId = route.params.id;
     const existingMenu = store.getMenuById(menuId);
     if (existingMenu) {
       // 스토어에서 찾은 메뉴로 데이터 채우기
       menuData.id = existingMenu.id;
       menuData.name = existingMenu.name;
-      // 'type'을 'category'로 매핑
-      menuData.category = menuTypes.value.find(mt => mt.text === existingMenu.type)?.value || '';
+
+      // 'category' 객체에서 'code'를 사용해 v-model과 바인딩
+      menuData.category = existingMenu.category?.code || '';
       menuData.price = existingMenu.price;
+      menuData.description = existingMenu.description || ''; // description 추가
       menuData.tags = existingMenu.tags || []; // 태그가 없을 수 있으므로 기본값 설정
       menuData.imageUrl = existingMenu.imageUrl || ''; // 이미지 URL이 없을 수 있음
       imageUrl.value = menuData.imageUrl;
@@ -118,6 +120,7 @@ const validationErrors = reactive({
   name: '',
   category: '',
   price: '',
+  description: '', // 메뉴 설명 유효성 검사 에러 필드 추가
 });
 
 // 7. 저장 함수
@@ -128,11 +131,12 @@ const saveMenu = () => {
   }
 
   let isValid = true;
-  // menuData.imageUrl이 이미 존재하면 이미지 파일 필수 아님 (수정 모드)
-  if (!imageFile.value && !menuData.imageUrl) {
-    validationErrors.image = '메뉴 사진을 등록해주세요.';
-    isValid = false;
-  }
+  // // 메뉴 이미지 유효성 검사 (백엔드 로직 미구현으로 임시 주석 처리)
+  // // menuData.imageUrl이 이미 존재하면 이미지 파일 필수 아님 (수정 모드)
+  // if (!imageFile.value && !menuData.imageUrl) {
+  //   validationErrors.image = '메뉴 사진을 등록해주세요.';
+  //   isValid = false;
+  // }
   if (!menuData.name.trim()) {
     validationErrors.name = '메뉴 이름을 입력해주세요.';
     isValid = false;
@@ -155,14 +159,17 @@ const saveMenu = () => {
     return;
   }
 
-  const menuTypeKor =
-    menuTypes.value.find((mt) => mt.value === menuData.category)?.text || '';
+  const selectedCategoryObject =
+    menuTypes.value.find((mt) => mt.value === menuData.category) || {};
   const menuToSave = {
     id: menuData.id,
     name: menuData.name,
-    category: menuData.category, // DB enum 값
-    type: menuTypeKor, // RestaurantInfoEditPage에서 보여주기 위한 한글 타입
+    category: {
+      code: selectedCategoryObject.value,
+      value: selectedCategoryObject.text,
+    },
     price: menuData.price,
+    description: menuData.description, // 메뉴 설명 추가
     tags: menuData.tags,
     imageUrl: menuData.imageUrl,
   };
@@ -204,6 +211,12 @@ watch(
   () => menuData.imageUrl,
   (newUrl) => {
     if (newUrl) validationErrors.image = '';
+  }
+);
+watch(
+  () => menuData.description, // description 필드에 대한 watch 추가
+  (newValue) => {
+    if (newValue.trim()) validationErrors.description = '';
   }
 );
 </script>
@@ -342,6 +355,25 @@ watch(
                   class="text-red-500 text-sm mt-1"
                 >
                   {{ validationErrors.price }}
+                </p>
+              </div>
+
+              <!-- Menu Description -->
+              <div>
+                <label class="block text-sm font-semibold text-[#1e3a5f] mb-2"
+                  >메뉴 설명</label
+                >
+                <textarea
+                  placeholder="메뉴 설명을 입력하세요"
+                  v-model="menuData.description"
+                  rows="4"
+                  class="w-full px-4 py-3 border border-[#dee2e6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF6B4A] resize-none"
+                ></textarea>
+                <p
+                  v-if="validationErrors.description"
+                  class="text-red-500 text-sm mt-1"
+                >
+                  {{ validationErrors.description }}
                 </p>
               </div>
 

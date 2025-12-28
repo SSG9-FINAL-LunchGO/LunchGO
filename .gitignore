@@ -17,6 +17,11 @@ AWSCLIV2.pkg
 ## api 명세서
 api_specification.csv
 docs/object-storage-manual.md
+.sample_images/
+
+## Frontend env
+frontend/.env
+frontend/.env.*
 
 
 ### STS ###
