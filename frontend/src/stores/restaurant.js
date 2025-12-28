@@ -2,12 +2,40 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import axios from 'axios'; // axios 임포트
 
+// 새 식당 정보의 기본 구조
+const defaultRestaurant = () => ({
+  name: '',
+  phone: '',
+  roadAddress: '',
+  detailAddress: '',
+  description: '',
+  avgMainPrice: 0,
+  reservationLimit: '',
+  holidayAvailable: false,
+  preorderAvailable: false,
+  openTime: '',
+  closeTime: '',
+  openDate: '',
+  images: [],
+  regularHolidays: [],
+  tags: [],
+});
+
 export const useRestaurantStore = defineStore('restaurant', () => {
   // State
   const restaurantInfo = ref(null); // 현재 편집 중인 식당 정보 전체
   const menus = ref([]);
 
   // Actions
+
+  /**
+   * 새 식당 등록을 위해 스토어를 초기화합니다.
+   */
+  function initializeNewRestaurant() {
+    restaurantInfo.value = defaultRestaurant();
+    menus.value = [];
+  }
+
   /**
    * 수정 모드에서 식당 데이터를 로드합니다.
    * 스토어에 이미 같은 식당 데이터가 로드되어 있다면 아무것도 하지 않습니다.
@@ -90,6 +118,7 @@ export const useRestaurantStore = defineStore('restaurant', () => {
   return { 
     restaurantInfo,
     menus, 
+    initializeNewRestaurant,
     loadRestaurant,
     fetchRestaurantDetail, // 새로운 액션 추가
     clearRestaurant,

@@ -7,6 +7,6 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class RegularHolidayDto {
+public class RegularHolidayDTO {
     private Integer dayOfWeek;
 }

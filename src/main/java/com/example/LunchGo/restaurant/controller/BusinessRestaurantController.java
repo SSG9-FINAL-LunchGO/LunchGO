@@ -59,7 +59,8 @@ public class BusinessRestaurantController {
     @PutMapping("/{id}")
     public ResponseEntity<RestaurantDetailResponse> updateRestaurant(
             @PathVariable("id") Long id,
-            @RequestBody RestaurantUpdateRequest request) {
+            @RequestBody RestaurantUpdateRequest request
+    ) {
         RestaurantDetailResponse updatedRestaurant = businessRestaurantService.updateRestaurant(id, request);
 
         return ResponseEntity.ok(updatedRestaurant);

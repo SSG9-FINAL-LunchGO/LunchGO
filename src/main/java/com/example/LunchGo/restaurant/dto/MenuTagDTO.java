@@ -8,7 +8,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class RestaurantTagDTO {
+public class MenuTagDTO {
     private Long tagId;
     private String content;
     private TagCategory category;

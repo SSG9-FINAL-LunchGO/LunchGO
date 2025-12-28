@@ -31,8 +31,9 @@ public class RestaurantDetailResponse {
     private String closeTime; // "HH:mm" format
     private LocalDate openDate;
 
-    private List<ImageDto> images;
-    private List<RestaurantTagDto> tags;
-    private List<RegularHolidayDto> regularHolidays;
+    private List<ImageDTO> images;
+    private List<RestaurantTagDTO> tags;
+    private List<RegularHolidayDTO> regularHolidays;
+    private List<MenuDTO> menus;
 
 }

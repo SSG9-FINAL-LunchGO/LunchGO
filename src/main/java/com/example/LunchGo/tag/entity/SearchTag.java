@@ -30,6 +30,6 @@ public class SearchTag {
     private TagCategory category;
 
     public SearchTagDTO to() {
-        return new SearchTagDTO(tagId, content);
+        return new SearchTagDTO(tagId, content, category);
     }
 }

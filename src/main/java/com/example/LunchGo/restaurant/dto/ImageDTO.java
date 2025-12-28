@@ -7,6 +7,6 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ImageDto {
+public class ImageDTO {
     private String imageUrl;
 }
