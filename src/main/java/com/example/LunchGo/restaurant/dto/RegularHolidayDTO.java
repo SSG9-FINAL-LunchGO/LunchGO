@@ -7,6 +7,6 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ImageDto {
-    private String imageUrl;
+public class RegularHolidayDTO {
+    private Integer dayOfWeek;
 }

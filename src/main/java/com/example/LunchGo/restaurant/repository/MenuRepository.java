@@ -8,28 +8,15 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import com.example.LunchGo.restaurant.dto.MenuTagMappingDTO; // MenuTagMappingDto import 예정
 
 public interface MenuRepository extends JpaRepository<Menu, Long> {
 
-    List<Menu> findAllByRestaurantIdAndIsDeletedFalseOrderByMenuIdAsc(Long restaurantId);
+    List<Menu> findAllByRestaurantIdAndIsDeletedFalse(Long restaurantId);
 
-    @Modifying
-    @Query("""
-            UPDATE Menu m
-               SET m.name = :name,
-                   m.category = :category,
-                   m.description = :description,
-                   m.price = :price
-             WHERE m.menuId = :menuId
-               AND m.restaurantId = :restaurantId
-               AND m.isDeleted = false
-            """)
-    int updateMenu(@Param("restaurantId") Long restaurantId,
-                   @Param("menuId") Long menuId,
-                   @Param("name") String name,
-                   @Param("category") MenuCategory category,
-                   @Param("description") String description,
-                   @Param("price") Integer price);
+    // 참고: `updateMenu` 메서드는 제거되었습니다. 이제 메뉴 업데이트는 `MenuService.updateMenusForRestaurant`에서
+    // JPA의 변경 감지(dirty checking) 메커니즘을 통해 처리됩니다. `isDeleted = false` 조건 검사는
+    // `findAllByRestaurantIdAndIsDeletedFalse`를 통한 초기 조회 시 암묵적으로 처리됩니다.
 
     @Modifying
     @Query("""
@@ -41,4 +28,16 @@ public interface MenuRepository extends JpaRepository<Menu, Long> {
             """)
     int softDeleteMenu(@Param("restaurantId") Long restaurantId,
                        @Param("menuId") Long menuId);
+
+    // N+1 문제 해결을 위한 조회 메서드 (DTO 클래스 반환)
+    @Query(value = "SELECT menu_id as menuId, tag_id as tagId FROM menu_tag_maps WHERE menu_id IN (:menuIds)", nativeQuery = true)
+    List<MenuTagMappingDTO> findTagsForMenus(@Param("menuIds") List<Long> menuIds);
+
+    @Modifying
+    @Query(value = "INSERT INTO menu_tag_maps (menu_id, tag_id) VALUES (:menuId, :tagId)", nativeQuery = true)
+    void saveMenuTagMapping(@Param("menuId") Long menuId, @Param("tagId") Long tagId);
+
+    @Modifying
+    @Query(value = "DELETE FROM menu_tag_maps WHERE menu_id = :menuId", nativeQuery = true)
+    void deleteMenuTagMappingsByMenuId(@Param("menuId") Long menuId);
 }

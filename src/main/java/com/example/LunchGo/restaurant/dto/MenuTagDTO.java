@@ -1,13 +1,14 @@
-package com.example.LunchGo.tag.dto;
+package com.example.LunchGo.restaurant.dto;
 
 import com.example.LunchGo.tag.domain.TagCategory;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
+import lombok.*;
 
 @Getter
+@Setter
+@NoArgsConstructor
 @AllArgsConstructor
-public class SearchTagDTO {
-
+@Builder
+public class MenuTagDTO {
     private Long tagId;
     private String content;
     private TagCategory category;

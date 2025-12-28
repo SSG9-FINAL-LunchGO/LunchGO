@@ -11,7 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/business/restaurants")
+@RequestMapping("/api")
 @RequiredArgsConstructor
 public class BusinessRestaurantController {
 
@@ -23,7 +23,7 @@ public class BusinessRestaurantController {
      * @param id 식당 ID
      * @return RestaurantDetailResponse DTO를 포함하는 ResponseEntity
      */
-    @GetMapping("/{id}")
+    @GetMapping("/business/restaurants/{id}")
     public ResponseEntity<RestaurantDetailResponse> getRestaurantDetail(
             @PathVariable("id") Long id,
             HttpServletRequest request
@@ -41,7 +41,7 @@ public class BusinessRestaurantController {
      * @param request RestaurantCreateRequest DTO
      * @return 생성된 식당 ID를 포함하는 ResponseEntity
      */
-    @PostMapping
+    @PostMapping("/business/restaurants")
     public ResponseEntity<Long> createRestaurant(
             @RequestBody RestaurantCreateRequest request
     ) {
@@ -58,10 +58,11 @@ public class BusinessRestaurantController {
      * @param request RestaurantUpdateRequest DTO
      * @return 수정된 RestaurantDetailResponse DTO를 포함하는 ResponseEntity
      */
-    @PutMapping("/{id}")
+    @PutMapping("/business/restaurants/{id}")
     public ResponseEntity<RestaurantDetailResponse> updateRestaurant(
             @PathVariable("id") Long id,
-            @RequestBody RestaurantUpdateRequest request) {
+            @RequestBody RestaurantUpdateRequest request
+    ) {
         RestaurantDetailResponse updatedRestaurant = businessRestaurantService.updateRestaurant(id, request);
 
         return ResponseEntity.ok(updatedRestaurant);
