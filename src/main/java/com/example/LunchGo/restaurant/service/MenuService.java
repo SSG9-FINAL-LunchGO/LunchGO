@@ -79,18 +79,24 @@ public class MenuService {
 
         // 3. 신규 및 수정 메뉴 처리
         for (MenuDTO dto : updatedMenuDtos) {
-            if (dto.getMenuId() == null) {
+            Long menuId = dto.getMenuId();
+
+            // 휴리스틱: 1,000,000보다 큰 ID는 클라이언트에서 생성된 임시 ID로 간주
+            // 실제 DB ID는 보통 이보다 훨씬 작음
+            boolean isNew = (menuId == null || menuId > 1000000L);
+
+            if (isNew) {
                 // 신규 메뉴 -> INSERT
                 Menu newMenu = modelMapper.map(dto, Menu.class);
-                newMenu.setRestaurantId(restaurantId); // restaurantId 수동 설정
+                newMenu.setRestaurantId(restaurantId);
+                newMenu.setMenuId(null); // DB에 저장하기 전, ID를 null로 설정하여 auto-increment 적용
 
                 Menu savedMenu = menuRepository.save(newMenu);
                 updateMenuTags(savedMenu.getMenuId(), dto.getTags());
             } else {
                 // 기존 메뉴 -> UPDATE
-                Menu existingMenu = existingMenuMap.get(dto.getMenuId());
+                Menu existingMenu = existingMenuMap.get(menuId);
                 if (existingMenu != null) {
-                    // ModelMapper를 사용하여 DTO의 값을 기존 엔티티에 매핑 (ID는 변경되지 않음)
                     modelMapper.map(dto, existingMenu);
                     menuRepository.save(existingMenu); // 변경된 메뉴를 명시적으로 저장
                     updateMenuTags(existingMenu.getMenuId(), dto.getTags());
