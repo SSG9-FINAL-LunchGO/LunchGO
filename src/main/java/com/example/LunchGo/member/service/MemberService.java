@@ -6,6 +6,7 @@ import com.example.LunchGo.account.dto.UserJoinRequest;
 import com.example.LunchGo.member.dto.*;
 import com.example.LunchGo.member.entity.Owner;
 import com.example.LunchGo.member.entity.User;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -28,11 +29,11 @@ public interface MemberService {
 
     MemberInfo getMemberInfo(Long userId);
 
-    void updateMemberInfo(Long userId, MemberUpdateInfo memberUpdateInfo);
+    void updateMemberInfo(Long userId, MemberUpdateInfo memberUpdateInfo, MultipartFile image);
 
     OwnerInfo getOwnerInfo(Long ownerId);
 
-    void updateOwnerInfo(Long ownerId, OwnerUpdateInfo ownerUpdateInfo);
+    void updateOwnerInfo(Long ownerId, OwnerUpdateInfo ownerUpdateInfo, MultipartFile image);
 
     List<String> getEmails(Long ownerId);
 
