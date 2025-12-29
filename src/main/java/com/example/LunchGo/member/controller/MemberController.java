@@ -24,6 +24,7 @@ public class MemberController {
         return new ResponseEntity<>(member, HttpStatus.OK);
     }
 
+
     @PutMapping("/info/user/{userId}")
     public ResponseEntity<?> updateUser(@PathVariable Long userId, @RequestBody MemberUpdateInfo memberUpdateInfo) {
         memberService.updateMemberInfo(userId, memberUpdateInfo); //예외 발생시 404 발생
