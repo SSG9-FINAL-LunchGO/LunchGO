@@ -51,13 +51,13 @@ public class MemberController {
         return new ResponseEntity<>(HttpStatus.OK);
     }
 
-    @PostMapping("/business/staff")
-    public ResponseEntity<?> addStaff(@RequestBody StaffInfo staffInfo) {
-        if(!StringUtils.hasLength(staffInfo.getEmail())) return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        @PostMapping("/business/staff")
+        public ResponseEntity<?> addStaff(@RequestBody StaffInfo staffInfo) {
+            if(!StringUtils.hasLength(staffInfo.getEmail())) return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
 
-        memberService.save(staffInfo); //해당 email을 가진 user 존재하지 않으면 404, 이미 등록한 email이면 409
-        return new ResponseEntity<>(HttpStatus.OK);
-    }
+            memberService.save(staffInfo); //해당 email을 가진 user 존재하지 않으면 404, 이미 등록한 email이면 409
+            return new ResponseEntity<>(HttpStatus.OK);
+        }
 
     @DeleteMapping("/business/staff")
     public ResponseEntity<?> deleteStaff(@RequestBody StaffInfo staffInfo) {

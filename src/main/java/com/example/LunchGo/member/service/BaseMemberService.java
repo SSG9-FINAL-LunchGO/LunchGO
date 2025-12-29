@@ -74,7 +74,7 @@ public class BaseMemberService implements MemberService {
                 .businessNum(ownerReq.getBusinessNum())
                 .phone(ownerReq.getPhone())
                 .role(CustomRole.OWNER)
-                .status(OwnerStatus.PENDING)
+                .status(OwnerStatus.ACTIVE)
                 .build());
     }
 
