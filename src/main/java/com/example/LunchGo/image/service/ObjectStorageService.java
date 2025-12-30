@@ -115,6 +115,7 @@ public class ObjectStorageService {
             case "cafeteria" -> String.format("cafeteria/%s/%s/%s/%s.%s", year, month, day, uuid, extension);
             case "restaurants" -> String.format("restaurants/%s/%s/%s.%s", year, month, uuid, extension);
             case "menus" -> String.format("menus/%s/%s/%s.%s", year, month, uuid, extension);
+            case "profile" -> String.format("profile/%s/%s/%s.%s", year, month, uuid, extension);
             default -> throw new IllegalArgumentException("unsupported domain: " + domain);
         };
     }
@@ -124,7 +125,8 @@ public class ObjectStorageService {
         return "reviews".equals(normalized)
             || "cafeteria".equals(normalized)
             || "restaurants".equals(normalized)
-            || "menus".equals(normalized);
+            || "menus".equals(normalized)
+            || "profile".equals(normalized);
     }
 
     private String buildPublicUrlInternal(String key) {

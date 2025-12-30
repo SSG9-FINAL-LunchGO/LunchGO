@@ -74,6 +74,7 @@ const linkSearchEmail = ref('');
 const searchResult = ref<UserSearchResult | null>(null);
 const searchResults = ref<UserSearchResult[]>([]);
 const searchError = ref('');
+const linkRequestError = ref('');
 const sentLinks = ref<LinkItem[]>([]);
 const receivedLinks = ref<LinkItem[]>([]);
 const isLinkLoading = ref(false);
@@ -168,6 +169,7 @@ const handlePromotionToggle = async (restaurant: Restaurant) => {
 
 const handleSearchUser = async () => {
   searchError.value = '';
+  linkRequestError.value = '';
   searchResult.value = null;
   searchResults.value = [];
 
@@ -192,9 +194,14 @@ const handleRequestLink = async (targetUser?: UserSearchResult) => {
   const target = targetUser || searchResult.value;
   if (!props.userId || !target) return;
   try {
+    linkRequestError.value = '';
     await requestLink(props.userId, target.userId);
     await fetchLinkLists();
   } catch (error) {
+    if (error?.response?.status === 409) {
+      linkRequestError.value = '이미 링크 등록한 이메일입니다.';
+      return;
+    }
     alert('링크 요청에 실패했습니다.');
   }
 };
@@ -324,6 +331,7 @@ const statusLabel = (status: LinkItem['status']) => {
             </button>
           </div>
           <p v-if="searchError" class="text-xs text-red-500 mt-2">{{ searchError }}</p>
+          <p v-if="linkRequestError" class="text-xs text-red-500 mt-2">{{ linkRequestError }}</p>
 
           <div v-if="searchResults.length > 0" class="mt-3 space-y-2">
             <div
@@ -554,6 +562,7 @@ const statusLabel = (status: LinkItem['status']) => {
                     <div class="-mt-1 -mr-1">
                       <FavoriteHeart
                         :restaurant-id="restaurant.id"
+                        :user-id="props.userId"
                         :initial-favorite="restaurant.isFavorite"
                         @remove="handleRemoveFromList(restaurant.id)" 
                       />

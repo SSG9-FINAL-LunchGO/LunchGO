@@ -14,10 +14,23 @@ import Card from '@/components/ui/Card.vue';
 const route = useRoute();
 const router = useRouter();
 
+const getReviewRestaurantId = (review) =>
+  review?.restaurant?.id ?? review?.restaurantId;
+
+const getReviewId = (review) => {
+  const raw = review?.id ?? review?.reviewId;
+  if (typeof raw === "number") return raw;
+  if (typeof raw === "string") {
+    const match = raw.match(/\d+/);
+    return match ? Number(match[0]) : null;
+  }
+  return null;
+};
+
 // 내가 작성한 리뷰 목록 (Mock data - 실제로는 API에서 가져옴)
 const myReviews = ref([
   {
-    id: 'review-1',
+    id: 1,
     reservationId: 3,
     restaurant: {
       id: 1,
@@ -41,7 +54,7 @@ const myReviews = ref([
     ],
   },
   {
-    id: 'review-2',
+    id: 2,
     reservationId: 5,
     restaurant: {
       id: 1,
@@ -57,7 +70,7 @@ const myReviews = ref([
     images: ['/italian-pasta-dish.png'],
   },
   {
-    id: 'review-3',
+    id: 3,
     reservationId: 6,
     restaurant: {
       id: 2,
@@ -92,7 +105,13 @@ const handleEditReview = (review) => {
   console.log('리뷰 수정:', review.id);
   activeReviewMenu.value = null;
   // 리뷰 수정 페이지로 이동
-  router.push(`/restaurant/${review.restaurant.id}/reviews/${review.id}/edit`);
+  const restaurantId = getReviewRestaurantId(review);
+  const reviewId = getReviewId(review);
+  if (!restaurantId || !reviewId) {
+    alert('리뷰 상세 정보가 없습니다.');
+    return;
+  }
+  router.push(`/restaurant/${restaurantId}/reviews/${reviewId}/edit`);
 };
 
 // 리뷰 삭제
@@ -164,9 +183,9 @@ onMounted(() => {
     <!-- Header -->
     <header class="sticky top-0 z-50 bg-white border-b border-[#e9ecef]">
       <div class="max-w-[500px] mx-auto px-4 h-14 flex items-center">
-        <RouterLink to="/mypage" class="mr-3">
+        <button class="mr-3" type="button" @click="router.back()">
           <ArrowLeft class="w-6 h-6 text-[#1e3a5f]" />
-        </RouterLink>
+        </button>
         <h1 class="font-semibold text-[#1e3a5f] text-base">내가 쓴 리뷰</h1>
       </div>
     </header>
@@ -290,7 +309,7 @@ onMounted(() => {
               <RouterLink
                 v-for="(image, idx) in review.images"
                 :key="idx"
-                :to="`/restaurant/${review.restaurant.id}/reviews/${review.id}`"
+                :to="`/restaurant/${getReviewRestaurantId(review)}/reviews/${getReviewId(review)}`"
                 class="flex-shrink-0 w-32 h-32"
               >
                 <div
@@ -323,7 +342,7 @@ onMounted(() => {
 
           <!-- 태그 -->
           <RouterLink
-            :to="`/restaurant/${review.restaurant.id}/reviews/${review.id}`"
+            :to="`/restaurant/${getReviewRestaurantId(review)}/reviews/${getReviewId(review)}`"
             class="block"
           >
             <div
@@ -333,7 +352,7 @@ onMounted(() => {
               <span
                 v-for="(tag, idx) in review.tags"
                 :key="idx"
-                class="inline-block px-2.5 py-1 text-xs rounded-full bg-gradient-to-r from-[#ff6b4a] to-[#ffc4b8] text-white"
+                class="inline-flex items-center px-2.5 py-1 text-xs rounded-full bg-gradient-to-r from-[#ff6b4a] to-[#ff8e72] text-white font-semibold shadow-sm"
               >
                 {{ tag }}
               </span>
@@ -343,7 +362,7 @@ onMounted(() => {
           <!-- 리뷰 상세 보기 버튼 -->
           <div class="mt-3 pt-3 border-t border-[#e9ecef]">
             <RouterLink
-              :to="`/restaurant/${review.restaurant.id}/reviews/${review.id}`"
+              :to="`/restaurant/${getReviewRestaurantId(review)}/reviews/${getReviewId(review)}`"
               class="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
             >
               리뷰 상세 보기 →

@@ -9,6 +9,7 @@ import {
   Star,
   X,
   FileText,
+  ChevronDown,
 } from 'lucide-vue-next';
 import ReservationHistory from '@/components/ui/ReservationHistory.vue';
 import UsageHistory from '@/components/ui/UsageHistory.vue';
@@ -31,6 +32,7 @@ const activeNav = ref('info');
 
 const showSuccess = ref(false);
 const specialInterests =ref<(number | null)[]>([null]); //특이사항 id 저장
+const openInterestIndex = ref<number | null>(null);
 const currentUserId = ref<number | null>(null);
 
 // Form fields state
@@ -166,6 +168,7 @@ const startTimer = () => {
 
 onUnmounted(() => {
   if (timerInterval.value) clearInterval(timerInterval.value);
+  document.removeEventListener('click', handleInterestOutsideClick);
 });
 
 //도로명주소 api
@@ -191,6 +194,37 @@ const getAvailableOptions = (currentIndex: number) => {
     // 2. 현재 내 줄(currentIndex)에서 선택된 옵션인 경우
     return !allSelectedIds.includes(option.id) || allSelectedIds[currentIndex] === option.id;
   });
+};
+
+const getSelectedLabel = (index: number) => {
+  const selectedId = specialInterests.value[index];
+  const selected = preferenceOptions.find((option) => option.id === selectedId);
+  return selected ? selected.label : '특이사항을 선택해주세요.';
+};
+
+const toggleInterestDropdown = (index: number) => {
+  openInterestIndex.value =
+    openInterestIndex.value === index ? null : index;
+};
+
+const getInterestDropdownStyle = () => {
+  const viewportHeight = window.innerHeight || 0;
+  const maxHeight = Math.min(320, Math.max(180, Math.round(viewportHeight * 0.4)));
+  return {
+    maxHeight: `${maxHeight}px`,
+  };
+};
+
+const selectInterest = (index: number, optionId: number) => {
+  const selectedIndex = specialInterests.value.findIndex(
+    (interestId, idx) => idx !== index && interestId === optionId
+  );
+  if (selectedIndex !== -1) {
+    specialInterests.value[selectedIndex] = null;
+  }
+
+  specialInterests.value[index] = optionId;
+  openInterestIndex.value = null;
 };
 
 // 특이사항 추가 버튼
@@ -249,6 +283,7 @@ const fetchUserInfo = async() => {
 onMounted(() => {
   loadDaumPostcodeScript();
   fetchUserInfo();
+  document.addEventListener('click', handleInterestOutsideClick);
 });
 
 // 주소 검색 핸들러
@@ -403,6 +438,17 @@ const handleAddressChangeBtn = () => {
 
 const removeInterest = (index: number) => {
   specialInterests.value.splice(index, 1);
+  if (openInterestIndex.value === index) {
+    openInterestIndex.value = null;
+  }
+};
+
+const handleInterestOutsideClick = (event: MouseEvent) => {
+  if (openInterestIndex.value === null) return;
+  const target = event.target as HTMLElement;
+  if (!target.closest('.interest-dropdown')) {
+    openInterestIndex.value = null;
+  }
 };
 
 const handleSave = async () => {
@@ -640,7 +686,7 @@ const handleWithdraw = () => {
           </div>
         </div>
 
-        <div class="info-card">
+        <div class="info-card info-card--overflow interest-card">
           <div class="card-title">연락처 및 소속</div>
           <div class="p-6 space-y-5">
             <div class="input-group">
@@ -766,14 +812,14 @@ const handleWithdraw = () => {
           </div>
         </div>
 
-        <div class="info-card">
+        <div class="info-card info-card--overflow">
   <div class="card-title">기타</div>
 
   <p class="px-6 pt-4 text-xs text-[#868E96] leading-relaxed">
     팀원의 특이사항도 입력해보세요! 함께 반영됩니다.
   </p>
 
-  <div class="p-6 space-y-5">
+  <div class="p-6 space-y-5 interest-wrap">
     <div class="input-group">
       <label>특이사항</label>
       <div class="space-y-2">
@@ -782,19 +828,38 @@ const handleWithdraw = () => {
           :key="index"
           class="flex items-center gap-2"
         >
-          <select
-            v-model="specialInterests[index]"
-            class="input-field flex-1 appearance-none bg-white cursor-pointer"
-          >
-            <option :value="null" disabled>특이사항을 선택해주세요.</option>
-            <option
-              v-for="option in getAvailableOptions(index)"
-              :key="option.id"
-              :value="option.id"
+          <div class="relative flex-1 interest-dropdown">
+            <button
+              type="button"
+              class="w-full h-11 px-4 border border-[#dee2e6] rounded-lg text-left text-sm text-[#1e3a5f] flex items-center justify-between hover:bg-white transition-colors"
+              @click.stop="toggleInterestDropdown(index)"
             >
-              {{ option.label }}
-            </option>
-          </select>
+              <span
+                :class="[
+                  'truncate',
+                  interestId ? 'text-[#1e3a5f]' : 'text-[#adb5bd]',
+                ]"
+              >
+                {{ getSelectedLabel(index) }}
+              </span>
+              <ChevronDown class="w-4 h-4 text-[#6c757d]" />
+            </button>
+
+            <div
+              v-if="openInterestIndex === index"
+              class="absolute left-0 right-0 mt-2 bg-white border border-[#e9ecef] rounded-lg shadow-md z-30 overflow-y-auto"
+              :style="getInterestDropdownStyle()"
+            >
+              <button
+                v-for="option in getAvailableOptions(index)"
+                :key="option.id"
+                class="w-full text-left px-4 py-2 text-sm hover:bg-[#f8f9fa]"
+                @click.stop="selectInterest(index, option.id)"
+              >
+                {{ option.label }}
+              </button>
+            </div>
+          </div>
 
           <button
             @click="removeInterest(index)"
@@ -913,6 +978,19 @@ const handleWithdraw = () => {
   overflow: hidden;
 }
 
+.info-card--overflow {
+  overflow: visible;
+}
+
+.interest-wrap {
+  position: relative;
+  z-index: 20;
+}
+
+.interest-card {
+  position: relative;
+  z-index: 30;
+}
 .card-title {
   padding: 16px 24px 0;
   font-size: 15px;

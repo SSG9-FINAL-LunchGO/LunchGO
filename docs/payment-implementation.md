@@ -729,6 +729,7 @@ BASE_URL=https://milagro-unhistoried-olinda.ngrok-free.dev \
 
 1) 로컬 서버 실행 (백엔드/프론트)  
 2) ngrok 실행 후 외부 URL 확보  
+   - 예: `ngrok http 8080`  
 3) 포트원 콘솔에 웹훅 URL 등록  
 4) 예약 생성 → `reservationId` 확보  
 5) 결제 요청 생성 API 호출 → `merchantUid` 확보  

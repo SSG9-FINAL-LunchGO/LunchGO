@@ -2,13 +2,10 @@
 import { ref, watch } from 'vue';
 import { Heart } from 'lucide-vue-next';
 import axios from 'axios'; 
-import { data } from 'autoprefixer';
-
-//userId를 pinia에서 가져와야함
-const userId = ref('');
 
 const props = defineProps<{
   restaurantId: number;
+  userId: number | null;
   initialFavorite?: boolean; // 초기 즐겨찾기 상태
 }>();
 
@@ -27,6 +24,11 @@ watch(() => props.initialFavorite, (newVal) => {
 });
 
 const toggleFavorite = async () => {
+  if (!props.userId) {
+    alert('로그인이 필요합니다.');
+    return;
+  }
+
   const previousState = isActive.value;
 
   // 1. 채워진 상태 -> 빈 상태
@@ -38,7 +40,7 @@ const toggleFavorite = async () => {
     
     try {
       await axios.delete(`/api/bookmark`,{ 
-      data: { userId: userId.value, restaurantId: props.restaurantId }
+      data: { userId: props.userId, restaurantId: props.restaurantId }
     });
       
       emit('update:favorite', false);
@@ -67,7 +69,7 @@ const toggleFavorite = async () => {
     
     try {
       await axios.post('/api/bookmark', {
-        userId: userId.value, restaurantId: props.restaurantId 
+        userId: props.userId, restaurantId: props.restaurantId 
       });
       
       emit('update:favorite', true);

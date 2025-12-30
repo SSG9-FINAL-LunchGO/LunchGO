@@ -13,6 +13,7 @@ import {
 import axios from "axios";
 import Button from "@/components/ui/Button.vue";
 import Card from "@/components/ui/Card.vue";
+import FavoriteHeart from "@/components/ui/FavoriteHeart.vue";
 
 const router = useRouter();
 
@@ -27,18 +28,17 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  userId: {
+    type: Number,
+    default: null,
+  },
 });
-
-// Emits 정의 (즐겨찾기 토글을 부모에게 알림)
-const emit = defineEmits(["toggle-favorite"]);
 
 // 리뷰 메뉴 드롭다운 상태 (로컬 상태로 이동)
 const activeReviewMenu = ref(null);
 
-// 즐겨찾기 여부 확인
-const isFavorite = (restaurantId) => {
-  return props.favorites.includes(restaurantId);
-};
+const isFavorite = (restaurantId) =>
+  props.favorites.includes(restaurantId);
 
 // 리뷰 메뉴 토글
 const toggleReviewMenu = (reservationId) => {
@@ -133,19 +133,11 @@ const handleDeleteReview = (reservation) => {
             <h3 class="font-semibold text-[#1e3a5f] text-base">
               {{ reservation.restaurant.name }}
             </h3>
-            <button
-              @click="emit('toggle-favorite', reservation.restaurant.id)"
-              class="transition-colors"
-            >
-              <Star
-                :class="[
-                  'w-5 h-5',
-                  isFavorite(reservation.restaurant.id)
-                    ? 'fill-yellow-400 text-yellow-400'
-                    : 'text-gray-300 hover:text-yellow-400',
-                ]"
-              />
-            </button>
+            <FavoriteHeart
+              :restaurant-id="reservation.restaurant.id"
+              :user-id="userId"
+              :initial-favorite="isFavorite(reservation.restaurant.id)"
+            />
           </div>
           <span
             :class="[
@@ -269,7 +261,7 @@ const handleDeleteReview = (reservation) => {
                 <span
                   v-for="(tag, idx) in reservation.review.tags.slice(0, 2)"
                   :key="idx"
-                  class="inline-block px-2 py-0.5 text-xs rounded-full bg-gradient-to-r from-orange-400 to-pink-400 text-white"
+                  class="inline-flex items-center px-2 py-0.5 text-xs rounded-full bg-gradient-to-r from-[#ff6b4a] to-[#ff8e72] text-white font-semibold shadow-sm"
                 >
                   {{ tag }}
                 </span>

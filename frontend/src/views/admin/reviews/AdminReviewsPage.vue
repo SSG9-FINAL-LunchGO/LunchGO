@@ -907,7 +907,7 @@ const submitReportProcess = async (decision) => {
               <span
                 v-for="tag in selectedReviewDetail.tags"
                 :key="tag"
-                class="px-3 py-1 rounded-full text-sm bg-gradient-to-r from-[#ff6b4a]/10 to-[#ffc4b8]/10 text-[#ff6b4a] border border-[#ff6b4a]/20"
+                class="inline-flex items-center px-3 py-1 rounded-full text-sm bg-gradient-to-r from-[#ff6b4a] to-[#ff8e72] text-white font-semibold shadow-sm"
               >
                 {{ tag }}
               </span>
