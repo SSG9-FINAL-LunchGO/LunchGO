@@ -1,15 +1,40 @@
 USE lunchgo;
 
+-- 테스트용: 사용자 데이터 초기화 (FK 체크 비활성화)
+SET FOREIGN_KEY_CHECKS = 0;
+DELETE FROM users WHERE user_id BETWEEN 1 AND 10;
+SET FOREIGN_KEY_CHECKS = 1;
+
 -- ==========================================
 -- 1. 독립적인 테이블 데이터 생성 (FK 의존성 없음)
 -- ==========================================
 
 -- [1-1] Users (사용자)
-INSERT INTO users (email, password, name, nickname, phone, birth, gender, company_name, company_address, status, marketing_agree, email_authentication) VALUES
-                                                                                                                                                            ('kim@lunch.com', '1234', '김판교', '점심사냥꾼', '010-1234-5678', '1992-05-05', 'M', '카카오뱅크', '경기 성남시 분당구', 'ACTIVE', 1, 1),
-                                                                                                                                                            ('lee@lunch.com', '1234', '이강남', '맛집탐험가', '010-9876-5432', '1995-12-25', 'NONE', '네이버', '경기 성남시 분당구', 'ACTIVE', 0, 1),
-                                                                                                                                                            ('park@lunch.com', '1234', '박휴면', '잠자는유저', '010-1111-2222', '1988-08-15', 'M', '삼성전자', '서울 서초구', 'DORMANT', 1, 1),
-                                                                                                                                                            ('choi@lunch.com', '1234', '최탈퇴', NULL, '010-3333-4444', '1990-01-01', 'F', '무소속', '서울', 'WITHDRAWAL', 0, 0);
+INSERT INTO users (
+    user_id, email, password, name, nickname, phone, birth, gender, image,
+    company_name, company_address, status, marketing_agree, email_authentication, role
+) VALUES
+    (1, 'popsicle0404@naver.com', '1234', '김판교', '맛있는점심', '010-1234-5678', '1995-08-15', 'M', NULL,
+     '런치고주식회사', '서울시 강남구 테헤란로 123', 'ACTIVE', 1, 1, 'USER'),
+    (2, 'lee@lunch.com', '1234', '이강남', '맛집탐험가', '010-9876-5432', '1995-12-25', 'NONE', NULL,
+     '네이버', '경기 성남시 분당구', 'ACTIVE', 0, 1, 'USER'),
+    (3, 'park@lunch.com', '1234', '박휴면', '잠자는유저', '010-1111-2222', '1988-08-15', 'M', NULL,
+     '삼성전자', '서울 서초구', 'DORMANT', 1, 1, 'USER'),
+    (4, 'choi@lunch.com', '1234', '최탈퇴', NULL, '010-3333-4444', '1990-01-01', 'F', NULL,
+     '무소속', '서울', 'WITHDRAWAL', 0, 0, 'USER'),
+    (5, 'wonyejeon04@gmail.com', 'wjsdPdnjs04!', '전예원', 'yewoni', '010-4255-6115', '2004-04-20', 'F',
+     'https://kr.object.ncloudstorage.com/lunchgo-storage/profile/2025/12/29/8f2dd8c7-704b-402c-b085-f5db70553fb2.jpg',
+     '판교회사', '경기 성남시 분당구 판교역로 166 1층', 'ACTIVE', 1, 1, 'USER'),
+    (6, 'user1@example.com', 'password123!', '김철수', 'IronSoo', '010-1111-2222', '1990-01-15', 'M', NULL,
+     '테크솔루션', '서울시 강남구 테헤란로 123', 'ACTIVE', 1, 1, 'USER'),
+    (7, 'user2@test.co.kr', 'securepass456', '이영희', 'ZeroHee', '010-3333-4444', '1995-05-20', 'F', NULL,
+     '디자인그룹 픽셀', '서울시 마포구 양화로 45', 'ACTIVE', 0, 1, 'USER'),
+    (8, 'dev_park@coding.io', 'devpass789', '박민수', 'CodeMaster', '010-5555-6666', '1988-11-03', 'M', NULL,
+     '넥스트레벨 소프트', '경기도 성남시 분당구 판교역로 200', 'ACTIVE', 1, 0, 'USER'),
+    (9, 'art_choi@studio.net', 'artpass321', '최지우', 'ArtChoi', '010-7777-8888', '1992-08-12', 'F', NULL,
+     '크리에이티브 랩', '부산시 해운대구 센텀중앙로 99', 'ACTIVE', 1, 1, 'USER'),
+    (10, 'sales_jung@biz.com', 'bizpass654', '정재훈', 'BizJung', '010-9999-0000', '1985-03-30', 'M', NULL,
+     '글로벌 무역', '인천시 연수구 송도과학로 50', 'ACTIVE', 0, 1, 'USER');
 
 -- 테스트용: user_id=2 활성 상태로 설정
 UPDATE users SET status = 'ACTIVE' WHERE user_id = 2;
@@ -137,11 +162,17 @@ INSERT INTO restaurants (
       );
 
 -- [2-4] Bookmarks (즐겨찾기) -> User, Restaurant 참조
-INSERT INTO bookmarks (user_id, restaurant_id, promotion_agree) VALUES
-                                                                    (1, 1, 1), -- 김판교 -> 판교 숯불갈비 (알림 ON)
-                                                                    (1, 3, 0), -- 김판교 -> 스시 오마카세 (알림 OFF)
-                                                                    (2, 3, 1), -- 이강남 -> 스시 오마카세 (알림 ON)
-                                                                    (3, 2, 0); -- 박휴면 -> 판교 김치찌개 (알림 OFF)
+INSERT INTO bookmarks (user_id, restaurant_id, promotion_agree, is_public) VALUES
+    (1, 1, 1, 1), -- 김판교 -> 판교 숯불갈비 (알림 ON, 공개)
+    (1, 3, 0, 0), -- 김판교 -> 스시 오마카세 (알림 OFF, 비공개)
+    (2, 3, 1, 1), -- 이강남 -> 스시 오마카세 (알림 ON, 공개)
+    (3, 2, 0, 0); -- 박휴면 -> 판교 김치찌개 (알림 OFF, 비공개)
+
+-- [2-5] Bookmark links (링크 요청/승인)
+INSERT INTO bookmark_links (requester_id, receiver_id, status, created_at, responded_at) VALUES
+    (1, 2, 'APPROVED', '2025-12-29 10:00:00', '2025-12-29 10:05:00'),
+    (5, 1, 'PENDING', '2025-12-29 11:00:00', NULL),
+    (6, 7, 'REJECTED', '2025-12-29 12:00:00', '2025-12-29 12:10:00');
 
 
 -- 사업자 122개의 data 등록

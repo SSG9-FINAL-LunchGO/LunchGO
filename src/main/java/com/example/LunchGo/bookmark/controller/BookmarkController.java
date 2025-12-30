@@ -1,7 +1,10 @@
 package com.example.LunchGo.bookmark.controller;
 
 import com.example.LunchGo.bookmark.dto.BookmarkInfo;
+import com.example.LunchGo.bookmark.dto.BookmarkVisibilityRequest;
+import com.example.LunchGo.bookmark.dto.SharedBookmarkItem;
 import com.example.LunchGo.bookmark.service.BookmarkService;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,5 +34,21 @@ public class BookmarkController {
 
         bookmarkService.delete(bookmarkInfo); //등록되어 있지 않은 식당이면 404
         return new ResponseEntity<>(HttpStatus.OK);
+    }
+
+    @PatchMapping("/bookmark/visibility")
+    public ResponseEntity<?> updateBookmarkVisibility(@RequestBody BookmarkVisibilityRequest request) {
+        if (request.getUserId() == null || request.getRestaurantId() == null || request.getIsPublic() == null) {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
+
+        bookmarkService.updateVisibility(request);
+        return new ResponseEntity<>(HttpStatus.OK);
+    }
+
+    @GetMapping("/bookmark/shared")
+    public ResponseEntity<List<SharedBookmarkItem>> getSharedBookmarks(@RequestParam Long requesterId,
+                                                                       @RequestParam Long targetUserId) {
+        return ResponseEntity.ok(bookmarkService.getSharedBookmarks(requesterId, targetUserId));
     }
 }
