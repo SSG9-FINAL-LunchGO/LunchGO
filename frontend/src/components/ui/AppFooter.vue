@@ -8,10 +8,14 @@ import { RouterLink } from 'vue-router';
       <p class="font-semibold text-[#1e3a5f]">(주) 런치고</p>
       <p>주소 : 경기도 성남시 분당구 대왕판교로 ~~</p>
       <p>
-        서비스 이용 약관 | 개인정보 처리방침 | 위치정보 이용약관 | 환불 정책 |
+        <RouterLink to="/intro" class="hover:underline">서비스 소개</RouterLink> |
+        서비스 이용 약관 | 환불 정책 |
         <RouterLink to="/partner" class="text-[#FF6B4A] hover:underline">
           입점 문의
         </RouterLink>
+      </p>
+      <p>
+        개인정보 처리방침 | 위치정보 이용약관
       </p>
     </div>
   </footer>

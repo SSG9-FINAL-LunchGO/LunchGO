@@ -575,6 +575,18 @@ const renderMapMarkers = async (kakaoMaps) => {
   mapMarkers.forEach((marker) => marker.setMap(null));
   mapMarkers.length = 0;
 
+  const markerSvg =
+    "data:image/svg+xml;utf8," +
+    "<svg xmlns='http://www.w3.org/2000/svg' width='32' height='46' viewBox='0 0 32 46'>" +
+    "<path d='M16 1C8.8 1 3 6.8 3 14c0 9.3 13 30 13 30s13-20.7 13-30C29 6.8 23.2 1 16 1z' fill='%23ff6b4a' stroke='white' stroke-width='2'/>" +
+    "<circle cx='16' cy='14' r='5' fill='white'/>" +
+    "</svg>";
+  const markerImage = new kakaoMaps.MarkerImage(
+    markerSvg,
+    new kakaoMaps.Size(32, 46),
+    { offset: new kakaoMaps.Point(16, 46) }
+  );
+
   const distanceLimit = selectedDistanceKm.value;
 
   for (const restaurant of restaurants) {
@@ -587,6 +599,7 @@ const renderMapMarkers = async (kakaoMaps) => {
     const marker = new kakaoMaps.Marker({
       position: new kakaoMaps.LatLng(coords.lat, coords.lng),
       title: restaurant.name,
+      image: markerImage,
     });
 
     try {
