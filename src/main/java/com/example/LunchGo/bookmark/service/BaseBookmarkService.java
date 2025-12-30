@@ -1,8 +1,12 @@
 package com.example.LunchGo.bookmark.service;
 
 import com.example.LunchGo.bookmark.dto.BookmarkInfo;
+import com.example.LunchGo.bookmark.dto.BookmarkVisibilityRequest;
+import com.example.LunchGo.bookmark.dto.SharedBookmarkItem;
 import com.example.LunchGo.bookmark.entity.Bookmark;
+import com.example.LunchGo.bookmark.repository.BookmarkLinkRepository;
 import com.example.LunchGo.bookmark.repository.BookmarkRepository;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
 import org.springframework.http.HttpStatus;
@@ -15,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Log4j2
 public class BaseBookmarkService implements BookmarkService {
     private final BookmarkRepository bookmarkRepository;
+    private final BookmarkLinkRepository bookmarkLinkRepository;
 
     @Override
     public void save(BookmarkInfo bookmarkInfo) {
@@ -26,7 +31,8 @@ public class BaseBookmarkService implements BookmarkService {
         bookmarkRepository.save(Bookmark.builder()
                 .userId(bookmarkInfo.getUserId()) //해당 사용자
                 .restaurantId(bookmarkInfo.getRestaurantId()) //식당Id를 즐겨찾기에 등록
-                        .promotionAgree(false) //기본값 false
+                .promotionAgree(false) //기본값 false
+                .isPublic(false) //기본값 비공개
                 .build());
     }
 
@@ -38,5 +44,32 @@ public class BaseBookmarkService implements BookmarkService {
         }
 
         bookmarkRepository.deleteByRestaurantIdAndUserId(bookmarkInfo.getRestaurantId(), bookmarkInfo.getUserId());
+    }
+
+    @Override
+    @Transactional
+    public void updateVisibility(BookmarkVisibilityRequest request) {
+        if (request == null || request.getUserId() == null || request.getRestaurantId() == null || request.getIsPublic() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "즐겨찾기 공개 정보가 필요합니다.");
+        }
+
+        Bookmark bookmark = bookmarkRepository.findTopByUserIdAndRestaurantIdOrderByBookmarkIdDesc(
+                request.getUserId(), request.getRestaurantId())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "즐겨찾기를 찾을 수 없습니다."));
+
+        bookmark.updatePublic(request.getIsPublic());
+    }
+
+    @Override
+    public List<SharedBookmarkItem> getSharedBookmarks(Long requesterId, Long targetUserId) {
+        if (requesterId == null || targetUserId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "요청자/대상 사용자 정보가 필요합니다.");
+        }
+
+        if (!bookmarkLinkRepository.existsApprovedBetweenUsers(requesterId, targetUserId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "링크가 승인되지 않았습니다.");
+        }
+
+        return bookmarkRepository.findPublicBookmarksWithRestaurant(targetUserId);
     }
 }
