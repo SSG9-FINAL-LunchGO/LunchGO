@@ -359,6 +359,9 @@ const changeDetailMapDistance = (delta) => {
 
 // 컴포넌트 마운트 후 드래그 스크롤 및 지도 설정
 onMounted(() => {
+  if (typeof window !== 'undefined') {
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }
   const scrollContainers = document.querySelectorAll('.review-image-scroll');
   scrollContainers.forEach((container) => {
     setupDragScroll(container);

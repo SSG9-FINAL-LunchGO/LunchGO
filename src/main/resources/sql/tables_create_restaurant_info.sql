@@ -73,7 +73,6 @@ CREATE TABLE restaurant_images
 
 
 -- 4. 식당 메뉴
-DROP TABLE IF EXISTS menus;
 CREATE TABLE menus
 (
     menu_id       BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT '식당메뉴ID',
