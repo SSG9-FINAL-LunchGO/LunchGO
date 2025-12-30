@@ -9,7 +9,10 @@ import com.example.LunchGo.reservation.mapper.ReservationMapper;
 import com.example.LunchGo.reservation.mapper.row.ReservationCreateRow;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,8 +23,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class ReservationServiceImpl implements ReservationService {
 
     private static final DateTimeFormatter CODE_DATE = DateTimeFormatter.ofPattern("yyyyMMdd");
-
     private final ReservationMapper reservationMapper;
+    private static final int DEFAULT_MAX_CAPACITY = 20;
+
 
     @Override
     @Transactional
@@ -35,7 +39,20 @@ public class ReservationServiceImpl implements ReservationService {
         );
 
         if (slot == null) {
-            return null;
+            reservationMapper.upsertSlot(
+                    request.getRestaurantId(),
+                    request.getSlotDate(),
+                    request.getSlotTime(),
+                    DEFAULT_MAX_CAPACITY
+            );
+            slot = reservationMapper.selectSlot(
+                    request.getRestaurantId(),
+                    request.getSlotDate(),
+                    request.getSlotTime()
+            );
+            if (slot == null) {
+                throw new IllegalStateException("slot create failed");
+            }
         }
 
         Reservation reservation = new Reservation();
@@ -104,5 +121,10 @@ public class ReservationServiceImpl implements ReservationService {
         if (s == null) return null;
         String t = s.trim();
         return t.isEmpty() ? null : t;
+    }
+
+    @Override
+    public List<LocalTime> slotTimes(Long restaurantId, LocalDate slotDate) {
+        return reservationMapper.selectSlotTimesByDate(restaurantId, slotDate);
     }
 }

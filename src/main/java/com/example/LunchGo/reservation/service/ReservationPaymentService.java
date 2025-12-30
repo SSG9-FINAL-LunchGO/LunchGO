@@ -293,11 +293,13 @@ public class ReservationPaymentService {
                 .date(slot.getSlotDate().toString())
                 .time(slot.getSlotTime().toString())
                 .partySize(reservation.getPartySize())
+                .requestNote(reservation.getRequestMessage())
                 .build())
             .payment(ReservationSummaryResponse.PaymentInfo.builder()
                 .type(payment != null ? payment.getPaymentType() : null)
                 .amount(payment != null ? payment.getAmount() : 0)
                 .build())
+            .requestNote(reservation.getRequestMessage())
             .build();
     }
 

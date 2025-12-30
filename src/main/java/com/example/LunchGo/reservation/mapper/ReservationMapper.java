@@ -25,4 +25,17 @@ public interface ReservationMapper {
     );
 
     ReservationCreateRow selectReservationCreateRow(@Param("reservationId") Long reservationId);
+
+    java.util.List<java.time.LocalTime> selectSlotTimesByDate(
+            @Param("restaurantId") Long restaurantId,
+            @Param("slotDate") java.time.LocalDate slotDate
+    );
+
+    int upsertSlot(
+            @Param("restaurantId") Long restaurantId,
+            @Param("slotDate") LocalDate slotDate,
+            @Param("slotTime") LocalTime slotTime,
+            @Param("maxCapacity") Integer maxCapacity
+    );
+
 }

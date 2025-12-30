@@ -56,4 +56,19 @@
         WHERE r.reservation_id = #{reservationId}
     </select>
 
+    <select id="selectSlotTimesByDate" resultType="java.time.LocalTime">
+        SELECT slot_time
+        FROM restaurant_reservation_slots
+        WHERE restaurant_id = #{restaurantId}
+          AND slot_date = #{slotDate}
+        ORDER BY slot_time
+    </select>
+
+    <insert id="upsertSlot">
+        INSERT INTO restaurant_reservation_slots (restaurant_id, slot_date, slot_time, max_capacity)
+        VALUES (#{restaurantId}, #{slotDate}, #{slotTime}, #{maxCapacity})
+            ON DUPLICATE KEY UPDATE
+                                 max_capacity = max_capacity
+    </insert>
+
 </mapper>
