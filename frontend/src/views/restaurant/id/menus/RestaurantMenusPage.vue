@@ -1,17 +1,12 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { RouterLink, useRoute } from 'vue-router'; // Import useRoute to get dynamic params
-import { ArrowLeft, Plus, Minus, ShoppingCart } from 'lucide-vue-next';
+import { ArrowLeft } from 'lucide-vue-next';
 import { getMenuCategoriesByRestaurant } from '@/data/restaurantMenus';
-import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
 
 const route = useRoute();
 const restaurantId = route.params.id || '1'; // Default to '1' if id is not available
-
-const reservationId = computed(() => route.query.reservationId || null);
-
-const cart = ref([]); // Use ref for the cart array
 
 const menuCategories = ref(getMenuCategoriesByRestaurant(restaurantId));
 
@@ -33,43 +28,7 @@ const menuItems = computed(() =>
 
 const categories = computed(() => menuCategories.value.map((c) => c.name));
 
-const addToCart = (item) => {
-  const existingItem = cart.value.find((cartItem) => cartItem.id === item.id);
-  if (existingItem) {
-    existingItem.quantity++;
-  } else {
-    cart.value.push({ ...item, quantity: 1 });
-  }
-};
-
-const removeFromCart = (itemId) => {
-  const existingItem = cart.value.find((cartItem) => cartItem.id === itemId);
-  if (existingItem && existingItem.quantity > 1) {
-    existingItem.quantity--;
-  } else {
-    cart.value = cart.value.filter((cartItem) => cartItem.id !== itemId);
-  }
-};
-
-const getItemQuantity = (itemId) => {
-  return cart.value.find((item) => item.id === itemId)?.quantity || 0;
-};
-
-const totalAmount = computed(() => {
-  return cart.value.reduce((sum, item) => sum + item.price * item.quantity, 0);
-});
-const totalItems = computed(() => {
-  return cart.value.reduce((sum, item) => sum + item.quantity, 0);
-});
-
-// 예약 페이지에서 넘어온 인원수 (없으면 1)
-const partySize = computed(() => {
-  const q = Number(route.query.partySize);
-  return Number.isFinite(q) && q > 0 ? q : 1;
-});
-
-// 1인당 최소 1개 => 총 선택 개수 >= 인원수
-const canProceed = computed(() => totalItems.value >= partySize.value);
+const menuItemCount = computed(() => menuItems.value.length);
 </script>
 
 <template>
@@ -78,29 +37,19 @@ const canProceed = computed(() => totalItems.value >= partySize.value);
     <header class="sticky top-0 z-50 bg-white border-b border-[#e9ecef]">
       <div class="max-w-[500px] mx-auto px-4 h-14 flex items-center">
         <RouterLink
-            :to="{
-            path: `/restaurant/${restaurantId}/booking`,
-            query: {
-              type: 'preorder',
-              partySize: route.query.partySize,
-              requestNote: route.query.requestNote,
-              dateIndex: route.query.dateIndex,
-              time: route.query.time,
-              reservationId: route.query.reservationId,
-            },
-          }"
-            class="mr-3"
+          :to="`/restaurant/${restaurantId}`"
+          class="mr-3"
         >
           <ArrowLeft class="w-6 h-6 text-[#1e3a5f]" />
         </RouterLink>
-        <h1 class="font-semibold text-[#1e3a5f] text-base">메뉴 선택</h1>
+        <h1 class="font-semibold text-[#1e3a5f] text-base">메뉴 전체보기</h1>
       </div>
     </header>
 
-    <main class="max-w-[500px] mx-auto pb-32">
+    <main class="max-w-[500px] mx-auto pb-8">
       <div class="bg-white px-4 py-3 border-b border-[#e9ecef]">
         <p class="text-sm text-[#495057] leading-relaxed">
-          회식에 필요한 메뉴를 선택해주세요. 1인당 최소 1개 이상 선택해야 합니다.
+          총 {{ menuItemCount.toLocaleString() }}개의 메뉴가 있어요.
         </p>
       </div>
 
@@ -120,77 +69,11 @@ const canProceed = computed(() => totalItems.value >= partySize.value);
                 </p>
                 <p class="text-base font-semibold text-[#1e3a5f]">{{ item.price.toLocaleString() }}원</p>
               </div>
-
-              <div class="flex items-center gap-2">
-                <template v-if="getItemQuantity(item.id) > 0">
-                  <button
-                      @click="removeFromCart(item.id)"
-                      class="w-8 h-8 rounded-full border-2 border-[#ff6b4a] bg-white text-[#ff6b4a] flex items-center justify-center hover:bg-[#fff5f3] transition-colors"
-                  >
-                    <Minus class="w-4 h-4" />
-                  </button>
-                  <span class="w-8 text-center font-semibold text-[#1e3a5f]">{{ getItemQuantity(item.id) }}</span>
-                  <button
-                      @click="addToCart(item)"
-                      class="w-8 h-8 rounded-full gradient-primary text-white flex items-center justify-center shadow-button-hover hover:shadow-button-pressed transition-shadow"
-                  >
-                    <Plus class="w-4 h-4" />
-                  </button>
-                </template>
-                <template v-else>
-                  <button
-                      @click="addToCart(item)"
-                      class="w-8 h-8 rounded-full border-2 border-[#dee2e6] bg-white text-[#6c757d] flex items-center justify-center hover:border-[#ff6b4a] hover:text-[#ff6b4a] transition-colors"
-                  >
-                    <Plus class="w-4 h-4" />
-                  </button>
-                </template>
-              </div>
             </div>
           </Card>
         </div>
       </div>
     </main>
-
-    <!-- Fixed Bottom Cart Summary -->
-    <div v-if="cart.length > 0" class="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e9ecef] z-50 shadow-lg">
-      <div class="max-w-[500px] mx-auto px-4 py-3">
-        <div class="flex items-center justify-between mb-3">
-          <div class="flex items-center gap-2">
-            <ShoppingCart class="w-5 h-5 text-[#ff6b4a]" />
-            <span class="font-semibold text-[#1e3a5f]">총 {{ totalItems }}개 선택</span>
-          </div>
-          <p class="text-lg font-bold text-[#1e3a5f]">{{ totalAmount.toLocaleString() }}원</p>
-        </div>
-        <RouterLink
-            v-if="canProceed"
-            :to="{
-            path: `/restaurant/${restaurantId}/payment`,
-            query: {
-              type: 'full',
-              totalAmount: totalAmount,
-              partySize: route.query.partySize,
-              requestNote: route.query.requestNote,
-              dateIndex: route.query.dateIndex,
-              time: route.query.time,
-              reservationId: reservationId,
-            },
-          }"
-        >
-          <Button class="w-full h-12 gradient-primary text-white font-semibold text-base rounded-xl shadow-button-hover hover:shadow-button-pressed">
-            {{ totalAmount.toLocaleString() }}원 결제하기
-          </Button>
-        </RouterLink>
-
-        <Button
-            v-else
-            disabled
-            class="w-full h-12 gradient-primary text-white font-semibold text-base rounded-xl opacity-50 cursor-not-allowed"
-        >
-          1인당 최소 1개 선택 ({{ totalItems }}/{{ partySize }})
-        </Button>
-      </div>
-    </div>
   </div>
 </template>
 
