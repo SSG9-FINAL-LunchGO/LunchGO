@@ -2,15 +2,19 @@
 import { ref, computed, onMounted } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import { ArrowLeft } from "lucide-vue-next";
+import { useBookmarkShare } from "@/composables/useBookmarkShare";
 
 // 분리한 자식 컴포넌트 임포트
 import ReservationHistory from "@/components/ui/ReservationHistory.vue"; // 예정된 예약 목록
 import UsageHistory from "@/components/ui/UsageHistory.vue"; // 지난 예약(이용완료/환불) 목록
 
 const route = useRoute();
+const { getMyBookmarks } = useBookmarkShare();
 
 // 탭 상태 관리 ('upcoming' | 'past')
 const activeTab = ref("upcoming");
+const currentUserId = ref(1); // pinia 연결 전 임시 사용자
+const favorites = ref([]);
 
 // URL 쿼리에 따라 초기 탭 설정 (예: ?tab=past)
 onMounted(() => {
@@ -18,20 +22,19 @@ onMounted(() => {
   if (route.query.tab === "past") {
     activeTab.value = "past";
   }
+  loadFavorites();
 });
 
-// 즐겨찾기 목록 상태 관리 (부모에서 관리하여 자식에게 전달)
-const favorites = ref([1]);
-
-const toggleFavorite = (restaurantId) => {
-  const index = favorites.value.indexOf(restaurantId);
-  if (index > -1) {
-    favorites.value.splice(index, 1);
-  } else {
-    favorites.value.push(restaurantId);
+const loadFavorites = async () => {
+  try {
+    const response = await getMyBookmarks(currentUserId.value);
+    const data = Array.isArray(response.data) ? response.data : [];
+    favorites.value = data.map((item) => item.restaurantId);
+  } catch (error) {
+    console.error("즐겨찾기 목록 조회 실패:", error);
+    favorites.value = [];
   }
 };
-
 //취소 버튼
 const goCancel = (id) => {
   router.push({ name: "reservation-cancel", params: { id: String(id) } });
@@ -222,8 +225,8 @@ const pastReservations = computed(() =>
         <UsageHistory
           v-show="activeTab === 'past'"
           :reservations="pastReservations"
+          :user-id="currentUserId"
           :favorites="favorites"
-          @toggle-favorite="toggleFavorite"
         />
       </div>
     </main>
