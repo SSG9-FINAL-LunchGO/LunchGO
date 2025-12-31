@@ -22,10 +22,6 @@ const member = computed(() => accountStore.member || getStoredMember());
 const isLoggedIn = computed(() =>
   Boolean(accountStore.accessToken || localStorage.getItem('accessToken'))
 );
-const userName = computed(
-  () =>
-    member.value?.name
-);
 const userProfileImage = computed(
   () =>
     member.value?.image ||

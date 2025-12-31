@@ -13,6 +13,7 @@ import com.example.LunchGo.member.entity.Owner;
 import com.example.LunchGo.member.entity.Staff;
 import com.example.LunchGo.member.entity.User;
 import com.example.LunchGo.member.mapper.MemberMapper;
+import com.example.LunchGo.member.repository.ManagerRepository;
 import com.example.LunchGo.member.repository.OwnerRepository;
 import com.example.LunchGo.member.repository.StaffRepository;
 import com.example.LunchGo.member.repository.UserRepository;
@@ -21,6 +22,8 @@ import lombok.extern.log4j.Log4j2;
 import org.springframework.boot.autoconfigure.graphql.GraphQlProperties;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -31,12 +34,15 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import com.example.LunchGo.account.dto.CustomUserDetails;
+
 @Service
 @RequiredArgsConstructor
 @Log4j2
 public class BaseMemberService implements MemberService {
     private final UserRepository userRepository;
     private final OwnerRepository ownerRepository;
+    private final ManagerRepository managerRepository;
     private final MemberMapper memberMapper;
     private final StaffRepository staffRepository;
     private final ObjectStorageService objectStorageService;
@@ -232,8 +238,23 @@ public class BaseMemberService implements MemberService {
     }
 
     @Override
-    public List<StaffInfo> getStaffs(Long ownerId) {
-        List<Staff> staffList = staffRepository.searchByOwnerId(ownerId);
+    public List<StaffInfo> getStaffs(Long ownerId) { //임직원 id일 수도 있음
+        Long resolvedOwnerId = null;
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof CustomUserDetails userDetails) {
+            if ("ROLE_STAFF".equals(userDetails.getRole())) {
+                Staff staff = staffRepository.findByStaffId(userDetails.getId())
+                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Staff not found."));
+                resolvedOwnerId = staff.getOwnerId();
+            }
+        }
+
+        if (resolvedOwnerId == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "임직원에 사업자 id가 존재하지 않습니다.");
+        }
+
+        List<Staff> staffList = staffRepository.searchByOwnerId(resolvedOwnerId);
 
         return staffList.stream().map(
                 staff -> StaffInfo.builder()
@@ -241,5 +262,22 @@ public class BaseMemberService implements MemberService {
                         .name(staff.getName())
                         .staffId(staff.getStaffId())
                         .build()).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public void updateLastLoginAt(String userType, Long memberId) {
+        if (!StringUtils.hasText(userType) || memberId == null) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "최근접속일 update 중 에러 발생");
+        }
+
+        switch (userType) {
+            case "USER" -> userRepository.updateLastLoginAt(memberId);
+            case "OWNER" -> ownerRepository.updateLastLoginAt(memberId);
+            case "STAFF" -> staffRepository.updateLastLoginAt(memberId);
+            case "MANAGER" -> managerRepository.updateLastLoginAt(memberId);
+            default -> {
+            }
+        }
     }
 }

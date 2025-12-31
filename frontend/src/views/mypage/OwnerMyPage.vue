@@ -1,12 +1,33 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, watch, computed, onUnmounted, onMounted } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { ArrowLeft, User, Camera } from 'lucide-vue-next';
 import BusinessHeader from '@/components/ui/BusinessHeader.vue';
 import BusinessSideBar from '@/components/ui/BusinessSideBar.vue';
-import axios from 'axios';
+import httpRequest from '@/router/httpRequest';
+import { useAccountStore } from '@/stores/account';
 
 const router = useRouter();
+const accountStore = useAccountStore();
+
+const getStoredMember = () => {
+  if (typeof window === 'undefined') return null;
+  const raw = localStorage.getItem('member');
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    return null;
+  }
+};
+
+const member = computed(() => accountStore.member || getStoredMember());
+const ownerId = computed(() => {
+  const rawId = member.value?.id;
+  if (rawId === null || rawId === undefined) return null;
+  const parsed = Number(rawId);
+  return Number.isNaN(parsed) ? null : parsed;
+});
 
 // 이미지 상태 관리
 const profileImage = ref<string | null>(null);
@@ -15,13 +36,13 @@ const fileInput = ref<HTMLInputElement | null>(null);
 const showSuccess = ref(false);
 
 // 사업자 정보
-const loginId = ref('popsicle0404');
-const name = ref('테스터');
-const startAt = ref('2022-07-22');
-const businessNum = ref('111-22-33333');
+const loginId = ref('');
+const name = ref('');
+const startAt = ref('');
+const businessNum = ref('');
 
 // 전화번호 관련 상태
-const phoneNumber = ref('010-1234-5678');
+const phoneNumber = ref('');
 const isPhoneEditable = ref(false);
 const showPhoneVerification = ref(false);
 const isVerificationRequested = ref(false);
@@ -82,34 +103,38 @@ onUnmounted(() => {
   if (timerInterval.value) clearInterval(timerInterval.value);
 });
 
-const fetchOwnerInfo = async() => {
-  try {
-    const ownerId = 4; //pinia에서 가져오기
+const fetchOwnerInfo = async () => {
+  const resolvedOwnerId = ownerId.value;
+  if (!resolvedOwnerId) {
+    alert('로그인 정보를 찾을 수 없습니다. 다시 로그인해주세요.');
+    return;
+  }
 
-    const response = await axios.get(`/api/info/business/${ownerId}`);
+  try {
+    const response = await httpRequest.get(`/api/info/business/${resolvedOwnerId}`);
     const data = response.data;
 
-    loginId.value = data.loginId;
-    name.value = data.name;
-    phoneNumber.value = data.phone;
-    businessNum.value = data.businessNum;
-    startAt.value = data.startAt;
+    loginId.value = data.loginId || '';
+    name.value = data.name || '';
+    phoneNumber.value = data.phone || '';
+    businessNum.value = data.businessNum || '';
+    startAt.value = data.startAt || '';
 
-    if(data.image){
+    if (data.image) {
       profileImage.value = data.image;
     }
-  }catch(error){
-     const status = error.response.status;
+  } catch (error) {
+    const status = error?.response?.status;
 
-      if(status === 404){
-        alert("[404 Not Found] 해당 사용자가 존재하지 않습니다.");
-      }else{
-        alert(`오류가 발생했습니다. (Code: ${status})`);
-      }
+    if (status === 404) {
+      alert('[404 Not Found] 해당 사용자가 존재하지 않습니다.');
+    } else {
+      alert(`오류가 발생했습니다. (Code: ${status ?? 'unknown'})`);
+    }
   }
-}
+};
 
-onMounted(()=>{
+onMounted(() => {
   fetchOwnerInfo();
 });
 
@@ -131,49 +156,41 @@ const handleImageUpload = (event: Event) => {
 
 const handleVerifyCode = async () => {
   if (!verificationCode.value) return alert('인증번호를 입력해주세요.');
-  
+
   try {
-    const response = await axios.post('/api/sms/verify', {
+    const response = await httpRequest.post('/api/sms/verify', {
       phone: phoneNumber.value,
-      verifyCode: verificationCode.value
+      verifyCode: verificationCode.value,
     });
 
-    if(response.data === true){
+    if (response.data === true) {
       alert('인증이 완료되었습니다.');
-      
-      // [인증 성공 시 로직]
+
+      // 인증 성공 처리
       isPhoneVerified.value = true;
-
-      //인증번호 입력란 숨기기
       showPhoneVerification.value = false;
-
-      //전화번호 입력창을 다시 Readonly로 변경
       isPhoneEditable.value = false;
-
-      //버튼 상태 초기화 (다시 '번호변경' 버튼으로 돌아가기)
       isVerificationRequested.value = false;
 
-      //타이머 정지
       if (timerInterval.value) clearInterval(timerInterval.value);
-
-    } else{
-      alert("인증번호가 일치하지 않습니다. 다시 확인해주세요.");
-
+    } else {
+      alert('인증번호가 일치하지 않습니다. 다시 확인해주세요.');
       isPhoneVerified.value = false;
     }
   } catch (error) {
-    // 에러 처리
-    const status = error.response.status;
-    if (status === 400) alert("[400 Bad Request] 잘못된 요청입니다. 입력값을 확인해주세요.");
-    else alert(`오류가 발생했습니다. (Code: ${status})`);
-    
+    const status = error?.response?.status;
+    if (status === 400)
+      alert('[400 Bad Request] 잘못된 요청입니다. 입력값을 확인해주세요.');
+    else alert(`오류가 발생했습니다. (Code: ${status ?? 'unknown'})`);
+
     isPhoneVerified.value = false;
   }
 };
 
 const checkInputElement = () => {
   if (isPhoneEditable.value) {
-    if (!isPhoneVerified.value) return alert('전화번호 수정 시 인증은 필수입니다.');
+    if (!isPhoneVerified.value)
+      return alert('전화번호 수정 시 인증은 필수입니다.');
   }
   return null;
 };
@@ -189,68 +206,79 @@ const handlePhoneBtn = async () => {
       alert('올바른 전화번호를 입력해주세요.');
       return;
     }
-    
+
     isPhoneVerified.value = false;
     verificationCode.value = '';
 
-  alert(`인증번호를 발송했습니다: ${phoneNumber.value}`);
-  try {
-    await axios.post('/api/sms/send', {phone: phoneNumber.value});
+    alert(`인증번호를 발송했습니다: ${phoneNumber.value}`);
+    try {
+      await httpRequest.post('/api/sms/send', { phone: phoneNumber.value });
 
-    showPhoneVerification.value = true;
-    isVerificationRequested.value = true;
-    startTimer(); 
-  }catch(error){
-    const status = error.response.status;
+      showPhoneVerification.value = true;
+      isVerificationRequested.value = true;
+      startTimer();
+    } catch (error) {
+      const status = error?.response?.status;
 
-    if(status === 400) alert("[400 Bad Request] 잘못된 요청입니다. 입력값을 확인해주세요.");
-    else alert(`메시지 전송에 오류가 발생했습니다. (Code: ${status})`);
-  }  
-}
+      if (status === 400)
+        alert('[400 Bad Request] 잘못된 요청입니다. 입력값을 확인해주세요.');
+      else
+        alert(
+          `메시지 전송에 오류가 발생했습니다. (Code: ${status ?? 'unknown'})`
+        );
+    }
+  }
 };
 
-//최종적 수정
+// 최종 수정
 const handleSave = async () => {
   if (checkInputElement() !== null) return;
-  
-  try{
+
+  const resolvedOwnerId = ownerId.value;
+  if (!resolvedOwnerId) {
+    alert('로그인 정보를 찾을 수 없습니다. 다시 로그인해주세요.');
+    return;
+  }
+
+  try {
     const formData = new FormData();
 
     const infoData = {
       phone: phoneNumber.value,
-      image: selectedImageFile.value? null: profileImage.value
-    }
+      image: selectedImageFile.value ? null : profileImage.value,
+    };
 
-    const jsonBlob = new Blob([JSON.stringify(infoData)], {type: "application/json"});
-      formData.append("info",jsonBlob);
+    const jsonBlob = new Blob([JSON.stringify(infoData)], {
+      type: 'application/json',
+    });
+    formData.append('info', jsonBlob);
 
-    if(selectedImageFile.value){
+    if (selectedImageFile.value) {
       formData.append('image', selectedImageFile.value);
     }
 
-    const ownerId = 4; //pinia에서 가져오기
-    await axios.put(`/api/info/business/${ownerId}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+    await httpRequest.put(`/api/info/business/${resolvedOwnerId}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
     });
-    
-     //성공 처리
+
+    // 성공 처리
     showSuccess.value = true;
     isPhoneEditable.value = false;
 
-    //파일 객체 초기화 (저장 후에는 다시 선택 전까지 비워둠)
+    // 파일 객체 초기화
     selectedImageFile.value = null;
 
     setTimeout(() => (showSuccess.value = false), 3000);
-  }catch(error){
-    const status = error.response.status;
+  } catch (error) {
+    const status = error?.response?.status;
 
-      if(status === 404){
-        alert("[404 Not Found] 해당 사용자가 존재하지 않습니다.");
-      }else{
-        alert(`오류가 발생했습니다. (Code: ${status})`);
-      }
+    if (status === 404) {
+      alert('[404 Not Found] 해당 사용자가 존재하지 않습니다.');
+    } else {
+      alert(`오류가 발생했습니다. (Code: ${status ?? 'unknown'})`);
+    }
   }
 };
 
@@ -358,7 +386,7 @@ const handleWithdraw = () => {
                   v-if="!isTimeout && isPhoneVerified"
                   class="text-xs text-blue-500 mt-2 pl-1 font-medium"
                 >
-                  ✓ 인증되었습니다.
+                  인증되었습니다.
                 </p>
 
                 <div
@@ -493,7 +521,7 @@ const handleWithdraw = () => {
   background-color: #fff;
 }
 
-/* Input Styles - 여기가 핵심 수정 부분입니다 */
+/* Input Styles */
 .input-group label {
   display: block;
   font-size: 13px;
@@ -503,7 +531,7 @@ const handleWithdraw = () => {
 }
 
 .input-field {
-  width: 100%; /* 부모 너비 가득 채우기 */
+  width: 100%;
   height: 48px;
   padding: 0 16px;
   font-size: 15px;
@@ -511,26 +539,24 @@ const handleWithdraw = () => {
   border-radius: 12px;
   transition: all 0.2s ease-in-out;
   color: #1e3a5f;
-  background-color: #fff; /* 기본값 흰색 */
+  background-color: #fff;
 }
 
-/* Readonly 상태일 때 자동으로 회색 처리 */
+/* Readonly 상태 */
 .input-field:read-only {
   background-color: #f8f9fa;
-  color: #495057; /* 텍스트 색상을 약간 흐리게 */
+  color: #495057;
   cursor: default;
   opacity: 1;
   -webkit-text-fill-color: #495057;
 }
 
-/* Readonly 상태에서는 포커스 시 보더 색상 변경 안 함 */
 .input-field:read-only:focus {
   border-color: #dee2e6;
   box-shadow: none;
   outline: none;
 }
 
-/* 일반 상태에서 포커스 */
 .input-field:not(:read-only):focus {
   outline: none;
   border-color: #ff6b4a;
@@ -544,7 +570,7 @@ const handleWithdraw = () => {
 /* Button Styles */
 .btn-outline-sm {
   height: 48px;
-  padding: 0 20px; /* 버튼 패딩을 살짝 늘림 */
+  padding: 0 20px;
   font-size: 14px;
   font-weight: 600;
   color: #495057;
@@ -553,30 +579,12 @@ const handleWithdraw = () => {
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s;
-  flex-shrink: 0; /* flex 컨테이너 안에서 버튼이 찌그러지지 않도록 */
+  flex-shrink: 0;
 }
 
 .btn-outline-sm:hover {
   background-color: #f8f9fa;
   border-color: #ced4da;
-}
-
-.btn-primary-outline-sm {
-  height: 48px;
-  padding: 0 20px;
-  font-size: 14px;
-  font-weight: 600;
-  color: #ff6b4a;
-  background: white;
-  border: 1px solid #ff6b4a;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-  flex-shrink: 0;
-}
-
-.btn-primary-outline-sm:hover {
-  background-color: #fff5f2;
 }
 
 .btn-primary-gradient {

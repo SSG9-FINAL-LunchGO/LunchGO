@@ -43,8 +43,5 @@ public interface MemberService {
 
     List<StaffInfo> getStaffs(Long ownerId);
 
-    /**
-     * Spring Security
-     * */
-
+    void updateLastLoginAt(String userType, Long memberId);
 }

@@ -1,34 +1,62 @@
-<script setup>
-import { ref, computed, watch } from 'vue';
+﻿<script setup>
+import { ref, computed, watch, onMounted } from 'vue';
 import StaffSideBar from '@/components/ui/StaffSideBar.vue';
 import BusinessHeader from '@/components/ui/BusinessHeader.vue';
+import httpRequest from '@/router/httpRequest';
+import { useAccountStore } from '@/stores/account';
+
+const accountStore = useAccountStore();
+
+const getStoredMember = () => {
+  if (typeof window === 'undefined') return null;
+  const raw = localStorage.getItem('member');
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    return null;
+  }
+};
+
+const member = computed(() => accountStore.member || getStoredMember());
+const staffId = computed(() => {
+  const rawId = member.value?.staffId ?? member.value?.id ?? member.value?.memberId;
+  if (rawId === null || rawId === undefined) return null;
+  const parsed = Number(rawId);
+  return Number.isNaN(parsed) ? null : parsed;
+});
 
 const currentPage = ref(1);
 const itemsPerPage = 7;
 const maxPageButtons = 5;
 
-const staffList = ref([
-  { id: 1, name: '김민준', email: 'minjun.kim@example.com' },
-  { id: 2, name: '이서연', email: 'seoyeon.lee@example.com' },
-  { id: 3, name: '박지호', email: 'jiho.park@example.com' },
-  { id: 4, name: '최수빈', email: 'subin.choi@example.com' },
-  { id: 5, name: '정예은', email: 'yeeun.jung@example.com' },
-  { id: 6, name: '강현우', email: 'hyunwoo.kang@example.com' },
-  { id: 7, name: '윤지아', email: 'jia.yoon@example.com' },
-  { id: 8, name: '임도현', email: 'dohyun.lim@example.com' },
-  { id: 9, name: '한소희', email: 'sohee.han@example.com' },
-  { id: 10, name: '송태우', email: 'taewoo.song@example.com' },
-  { id: 11, name: '전정국', email: 'jk.jeon@example.com' },
-  { id: 12, name: '박지민', email: 'jimin.park@example.com' },
-  { id: 13, name: '김태형', email: 'v.kim@example.com' },
-  { id: 14, name: '민윤기', email: 'suga.min@example.com' },
-  { id: 15, name: '정호석', email: 'jhope.jung@example.com' },
-  { id: 16, name: '김남준', email: 'rm.kim@example.com' },
-  { id: 17, name: '김석진', email: 'jin.kim@example.com' },
-  { id: 18, name: '아이유', email: 'iu.lee@example.com' },
-  { id: 19, name: '박효신', email: 'hyoshin.park@example.com' },
-  { id: 20, name: '성시경', email: 'sikyung.sung@example.com' },
-]);
+// 직원 목록
+const staffList = ref([]); // id, name, email
+
+const fetchStaffList = async () => {
+  const resolvedStaffId = staffId.value;
+  if (!resolvedStaffId) {
+    alert('로그인 정보를 찾을 수 없습니다. 다시 로그인해주세요.');
+    return;
+  }
+
+  try {
+    const response = await httpRequest.get(`/api/business/staff/${resolvedStaffId}`);
+    if (response.data) {
+      staffList.value = response.data.map((item) => ({
+        id: item.staffId,
+        name: item.name,
+        email: item.email,
+      }));
+    }
+  } catch (error) {
+    alert(`오류가 발생했습니다. (Code: ${error?.response?.status ?? 'unknown'})`);
+  }
+};
+
+onMounted(() => {
+  fetchStaffList();
+});
 
 const totalPages = computed(() => {
   return Math.ceil(staffList.value.length / itemsPerPage);
@@ -92,7 +120,7 @@ const nextPage = () => {
 
       <main class="flex-1 overflow-auto p-8">
         <div class="max-w-6xl mx-auto">
-          <h2 class="text-3xl font-bold text-[#1E3A5F] mb-8">임직원 현황</h2>
+          <h2 class="text-3xl font-bold text-[#1E3A5F] mb-8">직원 현황</h2>
 
           <div class="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
             <table class="w-full table-fixed">

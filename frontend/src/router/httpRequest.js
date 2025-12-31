@@ -61,19 +61,21 @@ instance.interceptors.response.use((res) => {
 });
 
 const generateConfig = (options = {}) => {
-    if (options.skipAuth) {
-        return options.headers ? { headers: { ...options.headers } } : {};
+    const { skipAuth, ...rest } = options;
+
+    if (skipAuth) {
+        return rest.headers ? { ...rest, headers: { ...rest.headers } } : rest;
     }
 
     const accountStore = useAccountStore();
     const token = accountStore.accessToken || localStorage.getItem('accessToken');
-    const headers = options.headers ? { ...options.headers } : {};
+    const headers = rest.headers ? { ...rest.headers } : {};
 
     if (token) {
         headers.Authorization = `Bearer ${token}`;
     }
 
-    return Object.keys(headers).length ? { headers } : {};
+    return Object.keys(headers).length ? { ...rest, headers } : rest;
 }
 
 export default {

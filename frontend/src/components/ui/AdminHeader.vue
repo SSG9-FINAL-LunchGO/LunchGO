@@ -1,23 +1,40 @@
-<script setup>
-import { User, Bell, LogOut } from 'lucide-vue-next';
+﻿<script setup>
+import { computed } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
+import { Bell, LogOut } from 'lucide-vue-next';
+import httpRequest from '@/router/httpRequest';
+import { useAccountStore } from '@/stores/account';
 
 const router = useRouter();
+const accountStore = useAccountStore();
 
-const handleLogout = () => {
+const getStoredMember = () => {
+  if (typeof window === 'undefined') return null;
+  const raw = localStorage.getItem('member');
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    return null;
+  }
+};
+
+const member = computed(() => accountStore.member || getStoredMember());
+const userName = computed(()=> {return "관리자";});
+
+const handleLogout = async () => {
   const confirmLogout = confirm('정말 로그아웃 하시겠습니까?');
+  if (!confirmLogout) return;
 
-  if (confirmLogout) {
-    try {
-      // 여기에 실제 로그아웃 로직 작성 (예: Pinia action 호출, 토큰 삭제 등)
-      // await authStore.logout();
-      console.log('로그아웃 로직 실행됨');
-
-      // 로그아웃 후 첫 페이지로 이동
-      router.push('/');
-    } catch (error) {
-      console.error('로그아웃 실패:', error);
-    }
+  try {
+    await httpRequest.post('/api/logout', {});
+    
+    alert('로그아웃 되었습니다.');
+  } catch (error) {
+    console.warn('로그아웃 요청 실패:', error);
+  } finally {
+    accountStore.clearAccount();
+    router.push('/');
   }
 };
 </script>
@@ -30,7 +47,7 @@ const handleLogout = () => {
       <h1
         class="text-2xl font-bold text-[#1E3A5F] hover:text-[#FF6B4A] transition-colors cursor-pointer"
       >
-        LunchGo 총관리자
+        LunchGo 관리자
       </h1>
     </RouterLink>
     <div class="flex items-center gap-4">
@@ -38,17 +55,18 @@ const handleLogout = () => {
         <Bell class="w-6 h-6" />
       </button>
       <div class="flex items-center gap-4">
-        <span class="text-sm text-gray-600">관리자님 안녕하세요!</span>
+        <span class="text-sm text-gray-600">
+          <span class="text-[#1e3a5f] font-bold">{{ userName }}</span>
+          <span>님, 안녕하세요</span>
+        </span>
 
-        <div class="relative">
-          <button
-            @click="handleLogout"
-            class="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-          >
-            <span class="text-sm">로그아웃</span>
-            <LogOut class="w-4 h-4" />
-          </button>
-        </div>
+        <button
+          @click="handleLogout"
+          class="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+        >
+          <span class="text-sm">로그아웃</span>
+          <LogOut class="w-4 h-4" />
+        </button>
       </div>
     </div>
   </header>

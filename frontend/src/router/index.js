@@ -78,6 +78,7 @@ const router = createRouter({
       path: '/business/staff',
       name: 'business-staff',
       component: () => import('../views/business/staff/BusinessStaffPage.vue'),
+      meta: { requiredAuth: true, roles: ['ROLE_OWNER']},
     },
     {
       path: '/business/reviews',
@@ -90,6 +91,7 @@ const router = createRouter({
       name: 'business-promotion',
       component: () =>
         import('../views/business/promotion/BusinessPromotionPage.vue'),
+      meta: { requiredAuth: true, roles: ['ROLE_OWNER']},
     },
     {
       path: '/admin/dashboard',
@@ -128,6 +130,7 @@ const router = createRouter({
       path: '/admin/owners',
       name: 'admin-owners',
       component: () => import('../views/admin/owners/AdminOwnerApprovalPage.vue'),
+      meta: { requiredAuth: true, roles: ['ROLE_ADMIN']},
     },
     {
       path: '/intro',
@@ -285,7 +288,7 @@ const router = createRouter({
       path: '/staff/list',
       name : 'staff-list',
       component: () => import('@/views/staff/StaffListPage.vue'),
-      meta: {requiredAuth: true, roles: ['ROLE_OWNER']}
+      meta: {requiredAuth: true, roles: ['ROLE_STAFF']}
     },
     // Wildcard route for 404 - make sure this is the last route
     {

@@ -92,6 +92,7 @@ public class AccountHelperImpl implements AccountHelper {
         HttpUtils.setCookie(response, "refreshToken", tokenDTO.getRefreshToken(),REFRESH_TOKEN_EXPIRE_TIME);
 
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        memberService.updateLastLoginAt(loginReq.getUserType(), userDetails.getId());
 
         return MemberLogin.builder()
                 .id(userDetails.getId())
