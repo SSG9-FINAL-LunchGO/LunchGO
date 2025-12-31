@@ -696,7 +696,7 @@ watch(detailMapDistanceStepIndex, () => {
                     <span
                       v-for="(tag, idx) in review.tags"
                       :key="idx"
-                      class="inline-block px-2.5 py-1 text-xs rounded-full bg-gradient-to-r from-[#ff6b4a] to-[#ffc4b8] text-white"
+                      class="inline-flex items-center px-2.5 py-1 text-xs rounded-full bg-gradient-to-r from-[#ff6b4a] to-[#ff8e72] text-white font-semibold shadow-sm"
                     >
                       {{ tag }}
                     </span>

@@ -10,6 +10,7 @@ import {
   MessageSquare,
 } from "lucide-vue-next";
 import Card from "@/components/ui/Card.vue";
+import Button from "@/components/ui/Button.vue";
 import axios from "axios";
 
 const route = useRoute();
@@ -184,7 +185,7 @@ onMounted(() => {
     <!-- Header -->
     <header class="sticky top-0 z-50 bg-white border-b border-[#e9ecef]">
       <div class="max-w-[500px] mx-auto px-4 h-14 flex items-center">
-        <Button @click="goToPreviousStep()" class="mr-3">
+        <Button variant="ghost" size="icon-sm" @click="goToPreviousStep()" class="mr-3">
           <ArrowLeft class="w-6 h-6 text-[#1e3a5f]" />
         </Button>
         <h1 class="font-semibold text-[#1e3a5f] text-base">리뷰 상세</h1>
@@ -331,7 +332,7 @@ onMounted(() => {
             <span
               v-for="(tag, idx) in review.tags"
               :key="idx"
-              class="inline-block px-3 py-1.5 text-sm rounded-full bg-gradient-to-r from-[#ff6b4a] to-[#ffc4b8] text-white font-medium"
+              class="inline-flex items-center px-3 py-1.5 text-sm rounded-full bg-gradient-to-r from-[#ff6b4a] to-[#ff8e72] text-white font-semibold shadow-sm"
             >
               {{ tag }}
             </span>
