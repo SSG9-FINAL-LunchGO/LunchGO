@@ -8,7 +8,7 @@ import { Calendar, Home, User } from 'lucide-vue-next';
     <div class="max-w-[500px] mx-auto flex items-center justify-around h-16 px-4">
       <RouterLink
         to="/my-reservations"
-        class="flex items-center justify-center text-[#ff6b4a] hover:text-[#FF8A6D] transition-colors min-w-[60px]"
+        class="flex items-center justify-center -mt-4 text-[#ff6b4a] hover:text-[#FF8A6D] transition-colors min-w-[60px]"
       >
         <Calendar class="w-6 h-6" />
       </RouterLink>
@@ -29,7 +29,7 @@ import { Calendar, Home, User } from 'lucide-vue-next';
 
       <RouterLink
         to="/mypage"
-        class="flex items-center justify-center text-[#ff6b4a] hover:text-[#FF8A6D] transition-colors min-w-[60px]"
+        class="flex items-center justify-center -mt-4 text-[#ff6b4a] hover:text-[#FF8A6D] transition-colors min-w-[60px]"
       >
         <User class="w-6 h-6" />
       </RouterLink>

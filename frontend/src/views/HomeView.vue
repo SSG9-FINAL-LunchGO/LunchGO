@@ -33,8 +33,13 @@ import RestaurantCardList from "@/components/ui/RestaurantCardList.vue";
 import { useCafeteriaRecommendation } from "@/composables/useCafeteriaRecommendation";
 import TrendingRecommendationSection from "@/components/ui/TrendingRecommendationSection.vue";
 import { useTrendingRestaurants } from "@/composables/useTrendingRestaurants";
+import { useAccountStore } from "@/stores/account";
 import axios from "axios";
 
+const accountStore = useAccountStore();
+const isLoggedIn = computed(() =>
+  Boolean(accountStore.accessToken || localStorage.getItem("accessToken"))
+);
 const DEFAULT_USER_ID = 2;
 
 // State management (React's useState -> Vue's ref)
@@ -119,6 +124,14 @@ const applyReviewSummary = (restaurant) => {
     reviews: summary.reviews ?? restaurant.reviews,
   };
 };
+const getRestaurantRating = (restaurant) => {
+  const summary = reviewSummaryCache.value[String(restaurant.id)];
+  return summary?.rating ?? restaurant.rating ?? 0;
+};
+const getRestaurantReviewCount = (restaurant) => {
+  const summary = reviewSummaryCache.value[String(restaurant.id)];
+  return summary?.reviews ?? restaurant.reviews ?? 0;
+};
 const processedRestaurants = computed(() => {
   let result = restaurants.slice();
 
@@ -134,7 +147,7 @@ const processedRestaurants = computed(() => {
     const range = priceRangeMap[activeRange];
     if (range) {
       result = result.filter((restaurant) => {
-        const priceValue = extractPriceValue(restaurant.price);
+        const priceValue = resolveRestaurantPriceValue(restaurant);
         if (priceValue == null) return false;
         return priceValue >= range.min && priceValue <= range.max;
       });
@@ -147,15 +160,24 @@ const processedRestaurants = computed(() => {
 
   const sorters = {
     추천순: (a, b) => {
-      const ratingDiff = (b.rating ?? 0) - (a.rating ?? 0);
+      const ratingDiff = getRestaurantRating(b) - getRestaurantRating(a);
       if (ratingDiff !== 0) return ratingDiff;
-      return (b.reviews ?? 0) - (a.reviews ?? 0);
+      return getRestaurantReviewCount(b) - getRestaurantReviewCount(a);
     },
     거리순: (a, b) => getDistance(a) - getDistance(b),
-    평점순: (a, b) => (b.rating ?? 0) - (a.rating ?? 0),
+    평점순: (a, b) => getRestaurantRating(b) - getRestaurantRating(a),
     가격순: (a, b) => {
-      const priceA = extractPriceValue(a.price) ?? Number.POSITIVE_INFINITY;
-      const priceB = extractPriceValue(b.price) ?? Number.POSITIVE_INFINITY;
+      const priceA =
+        resolveRestaurantPriceValue(a) ?? Number.POSITIVE_INFINITY;
+      const priceB =
+        resolveRestaurantPriceValue(b) ?? Number.POSITIVE_INFINITY;
+      return priceA - priceB;
+    },
+    "낮은 가격순": (a, b) => {
+      const priceA =
+        resolveRestaurantPriceValue(a) ?? Number.POSITIVE_INFINITY;
+      const priceB =
+        resolveRestaurantPriceValue(b) ?? Number.POSITIVE_INFINITY;
       return priceA - priceB;
     },
   };
@@ -408,6 +430,17 @@ watch(selectedSort, () => {
   currentPage.value = 1;
 });
 
+watch(
+  [selectedSort, availableRestaurants],
+  ([sortValue, list]) => {
+    if (sortValue !== "평점순") return;
+    list.forEach((restaurant) => {
+      fetchReviewSummary(restaurant.id);
+    });
+  },
+  { immediate: true }
+);
+
 watch(selectedPriceRange, () => {
   currentPage.value = 1;
 });
@@ -450,6 +483,28 @@ const fetchReviewSummary = async (restaurantId) => {
     // ignore summary failures for list rendering
   } finally {
     reviewSummaryInFlight.delete(key);
+  }
+};
+
+const updateSelectedMapRestaurant = (restaurant) => {
+  const key = String(restaurant.id);
+  const summary = reviewSummaryCache.value[key];
+  selectedMapRestaurant.value = {
+    ...restaurant,
+    image:
+      restaurantImageOverrides.value[String(restaurant.id)] ?? restaurant.image,
+    rating: summary?.rating ?? restaurant.rating,
+    reviews: summary?.reviews ?? restaurant.reviews,
+  };
+};
+
+const ensureReviewSummary = async (restaurant) => {
+  const key = String(restaurant.id);
+  if (!reviewSummaryCache.value[key]) {
+    await fetchReviewSummary(restaurant.id);
+  }
+  if (selectedMapRestaurant.value?.id === restaurant.id) {
+    updateSelectedMapRestaurant(restaurant);
   }
 };
 
@@ -575,6 +630,18 @@ const renderMapMarkers = async (kakaoMaps) => {
   mapMarkers.forEach((marker) => marker.setMap(null));
   mapMarkers.length = 0;
 
+  const markerSvg =
+    "data:image/svg+xml;utf8," +
+    "<svg xmlns='http://www.w3.org/2000/svg' width='32' height='46' viewBox='0 0 32 46'>" +
+    "<path d='M16 1C8.8 1 3 6.8 3 14c0 9.3 13 30 13 30s13-20.7 13-30C29 6.8 23.2 1 16 1z' fill='%23ff6b4a' stroke='white' stroke-width='2'/>" +
+    "<circle cx='16' cy='14' r='5' fill='white'/>" +
+    "</svg>";
+  const markerImage = new kakaoMaps.MarkerImage(
+    markerSvg,
+    new kakaoMaps.Size(32, 46),
+    { offset: new kakaoMaps.Point(16, 46) }
+  );
+
   const distanceLimit = selectedDistanceKm.value;
 
   for (const restaurant of restaurants) {
@@ -587,20 +654,14 @@ const renderMapMarkers = async (kakaoMaps) => {
     const marker = new kakaoMaps.Marker({
       position: new kakaoMaps.LatLng(coords.lat, coords.lng),
       title: restaurant.name,
+      image: markerImage,
     });
 
     try {
       marker.setMap(mapInstance.value);
       kakaoMaps.event.addListener(marker, "click", () => {
-        const summary = reviewSummaryCache.value[String(restaurant.id)];
-        selectedMapRestaurant.value = {
-          ...restaurant,
-          image:
-            restaurantImageOverrides.value[String(restaurant.id)] ??
-            restaurant.image,
-          rating: summary?.rating ?? restaurant.rating,
-          reviews: summary?.reviews ?? restaurant.reviews,
-        };
+        updateSelectedMapRestaurant(restaurant);
+        ensureReviewSummary(restaurant);
       });
       mapMarkers.push(marker);
     } catch (error) {
@@ -850,6 +911,16 @@ const extractPriceValue = (priceText = "") => {
   const digits = target.replace(/[^0-9]/g, "");
   if (!digits) return null;
   return Number(digits);
+};
+const resolveRestaurantPriceValue = (restaurant) => {
+  const directPrice = extractPriceValue(restaurant?.price ?? "");
+  if (directPrice != null) return directPrice;
+  const menuPrices = (restaurant?.menus || [])
+    .map((menu) => extractPriceValue(menu?.price ?? ""))
+    .filter((value) => Number.isFinite(value));
+  if (!menuPrices.length) return null;
+  const total = menuPrices.reduce((sum, value) => sum + value, 0);
+  return Math.round(total / menuPrices.length);
 };
 
 const haversineDistance = (coordsA = {}, coordsB = {}) => {
@@ -1196,23 +1267,31 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="px-4 py-5">
-        <CafeteriaRecommendationSection
-          :recommendations="cafeteriaRecommendations"
-          :favoriteRestaurantIds="favoriteRestaurantIds"
-          :onToggleFavorite="toggleRestaurantFavorite"
-          :onOpenSearch="() => (isSearchOpen = true)"
-          :onClearRecommendations="clearCafeteriaRecommendations"
-          :isModalOpen="isCafeteriaModalOpen"
-          :isProcessing="isCafeteriaOcrLoading"
-          :ocrResult="cafeteriaOcrResult"
-          :days="cafeteriaDaysDraft"
-          :errorMessage="cafeteriaOcrError"
-          :initialImageUrl="cafeteriaImageUrl"
-          :onModalClose="() => (isCafeteriaModalOpen = false)"
-          :onFileChange="handleCafeteriaFileChange"
-          :onRunOcr="() => handleCafeteriaOcr(resolveCafeteriaBaseDate())"
-          :onConfirm="handleCafeteriaConfirmAndClose"
-        />
+        <div v-if="isLoggedIn">
+          <CafeteriaRecommendationSection
+            :recommendations="cafeteriaRecommendations"
+            :favoriteRestaurantIds="favoriteRestaurantIds"
+            :onToggleFavorite="toggleRestaurantFavorite"
+            :onOpenSearch="() => (isSearchOpen = true)"
+            :onClearRecommendations="clearCafeteriaRecommendations"
+            :isModalOpen="isCafeteriaModalOpen"
+            :isProcessing="isCafeteriaOcrLoading"
+            :ocrResult="cafeteriaOcrResult"
+            :days="cafeteriaDaysDraft"
+            :errorMessage="cafeteriaOcrError"
+            :initialImageUrl="cafeteriaImageUrl"
+            :onModalClose="() => (isCafeteriaModalOpen = false)"
+            :onFileChange="handleCafeteriaFileChange"
+            :onRunOcr="() => handleCafeteriaOcr(resolveCafeteriaBaseDate())"
+            :onConfirm="handleCafeteriaConfirmAndClose"
+          />
+        </div>
+        <div
+          v-else
+          class="mb-6 rounded-2xl border border-[#e9ecef] bg-white p-4 text-sm text-[#6c757d]"
+        >
+          로그인하면 구내식당 대체 추천을 받을 수 있어요.
+        </div>
 
         <div
           v-if="!cafeteriaRecommendations.length"
@@ -1308,7 +1387,7 @@ onBeforeUnmount(() => {
               />
               <div class="flex-1 min-w-0">
                 <div class="flex items-start justify-between gap-2 mb-1">
-                  <div>
+                  <div class="min-w-0 flex-1">
                     <p class="text-sm font-semibold text-[#1e3a5f]">
                       {{ selectedMapRestaurant.name }}
                     </p>
@@ -1408,8 +1487,8 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <!-- TODO: 로그인 사용자만 노출 (백엔드 연동 후 v-if 적용) -->
-          <div>
+          <!-- 로그인 사용자만 노출 -->
+          <div v-if="isLoggedIn">
             <h4 class="text-sm font-semibold text-[#1e3a5f] mb-3">추천옵션</h4>
             <div class="flex flex-wrap gap-2">
               <button
@@ -1450,6 +1529,9 @@ onBeforeUnmount(() => {
                 </button>
               </div>
             </div>
+          </div>
+          <div v-else class="mt-2 text-xs text-[#6c757d]">
+            로그인 후 추천 옵션을 사용할 수 있습니다.
           </div>
         </div>
 
