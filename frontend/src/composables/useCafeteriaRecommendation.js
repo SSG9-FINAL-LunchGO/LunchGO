@@ -1,5 +1,5 @@
 import { ref } from "vue";
-import axios from "axios";
+import httpRequest from "@/router/httpRequest";
 
 const defaultStorageKey = "cafeteriaRecommendations";
 
@@ -54,15 +54,18 @@ export const useCafeteriaRecommendation = ({ userId, storageKey } = {}) => {
   };
 
   const fetchCafeteriaWeekMenus = async (baseDate) => {
-    const response = await axios.get("/api/cafeteria/menus/week", {
-      params: { userId, baseDate },
+    const response = await httpRequest.get("/api/cafeteria/menus/week", {
+      userId,
+      baseDate,
     });
     return response.data;
   };
 
   const fetchCafeteriaRecommendations = async (baseDate, limit = 2) => {
-    const response = await axios.get("/api/cafeteria/recommendations", {
-      params: { userId, baseDate, limit },
+    const response = await httpRequest.get("/api/cafeteria/recommendations", {
+      userId,
+      baseDate,
+      limit,
     });
     storeRecommendations(response.data?.recommendations ?? []);
   };
@@ -87,7 +90,7 @@ export const useCafeteriaRecommendation = ({ userId, storageKey } = {}) => {
     cafeteriaOcrError.value = "";
 
     try {
-      const response = await axios.post("/api/cafeteria/menus/ocr", formData, {
+      const response = await httpRequest.post("/api/cafeteria/menus/ocr", formData, {
         params: { userId, baseDate },
         headers: { "Content-Type": "multipart/form-data" },
       });
@@ -110,7 +113,7 @@ export const useCafeteriaRecommendation = ({ userId, storageKey } = {}) => {
     }
 
     try {
-      await axios.post("/api/cafeteria/menus/confirm", {
+      await httpRequest.post("/api/cafeteria/menus/confirm", {
         userId,
         imageUrl: cafeteriaImageUrl.value,
         rawText: cafeteriaRawText.value,

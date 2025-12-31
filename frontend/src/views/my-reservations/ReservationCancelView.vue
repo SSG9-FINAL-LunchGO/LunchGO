@@ -2,7 +2,7 @@
 import { computed, ref, onMounted } from "vue";
 import { useRoute, useRouter, RouterLink } from "vue-router";
 import { ArrowLeft, Check } from "lucide-vue-next";
-import axios from "axios";
+import httpRequest from "@/router/httpRequest";
 import Button from "@/components/ui/Button.vue";
 import Card from "@/components/ui/Card.vue";
 
@@ -47,7 +47,7 @@ const isSummaryLoading = ref(false);
 const fetchReservationSummary = async () => {
   isSummaryLoading.value = true;
   try {
-    const response = await axios.get(`/api/reservations/${reservationId.value}/summary`);
+    const response = await httpRequest.get(`/api/reservations/${reservationId.value}/summary`);
     const data = response?.data || {};
     reservationSummary.value = {
       restaurantName: data.restaurant?.name || "",
@@ -187,7 +187,7 @@ const canSubmit = computed(() => {
 });
 
 async function cancelReservation(id, payload) {
-  const response = await axios.post(`/api/reservations/${id}/cancel`, payload);
+  const response = await httpRequest.post(`/api/reservations/${id}/cancel`, payload);
   return response?.data;
 }
 

@@ -118,7 +118,8 @@ public class AccountController {
             return new ResponseEntity<>(HttpStatus.UNAUTHORIZED); //401
         }
 
-        return new ResponseEntity<>(newAccessToken, HttpStatus.OK);
+        Map<String, String> responseBody = Collections.singletonMap("accessToken", newAccessToken);
+        return new ResponseEntity<>(responseBody, HttpStatus.OK);
     }
 
     @PostMapping("/login")

@@ -4,7 +4,7 @@ import { useRoute, useRouter } from "vue-router";
 import { ArrowLeft, X, Upload, Plus, Star } from "lucide-vue-next";
 import Button from "@/components/ui/Button.vue";
 import Card from "@/components/ui/Card.vue";
-import axios from "axios";
+import httpRequest from "@/router/httpRequest";
 
 const route = useRoute();
 const router = useRouter();
@@ -210,7 +210,7 @@ const existingReviews = {
 const loadExistingReview = async () => {
   if (isEditMode.value && reviewId) {
     try {
-      const response = await axios.get(
+      const response = await httpRequest.get(
         `/api/restaurants/${restaurantId}/reviews/${reviewId}/edit`
       );
       const data = response.data;
@@ -371,7 +371,7 @@ const uploadReviewPhotos = async () => {
       const formData = new FormData();
       formData.append("file", photo.file);
 
-      const response = await axios.post(
+      const response = await httpRequest.post(
         "/api/v1/images/upload/reviews",
         formData,
         {
@@ -410,7 +410,7 @@ const submitReview = async () => {
 
   if (isEditMode.value) {
     try {
-      const response = await axios.put(
+      const response = await httpRequest.put(
         `/api/restaurants/${restaurantId}/reviews/${reviewId}`,
         {
           receiptId: receiptId.value,
@@ -428,7 +428,7 @@ const submitReview = async () => {
     }
   } else {
     try {
-      const response = await axios.post(
+      const response = await httpRequest.post(
         `/api/restaurants/${restaurantId}/reviews`,
         {
           userId: DEFAULT_USER_ID,
@@ -501,7 +501,7 @@ const handleReceiptUpload = async (event) => {
   formData.append("file", file);
 
   try {
-    const response = await axios.post("/api/ocr/receipt", formData, {
+    const response = await httpRequest.post("/api/ocr/receipt", formData, {
       params: { reservationId: reservationId.value },
       headers: { "Content-Type": "multipart/form-data" },
     });

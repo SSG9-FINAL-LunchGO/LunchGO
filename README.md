@@ -251,17 +251,17 @@
 
 ---
 
-## 📁 프로젝트 구조
+## 📁 프로젝트 구조 (현재 코드 기준)
 
 ### 전체 디렉토리 구조
 
 ```
-/webapp/
+/LunchGO/
 ├── frontend/              # Vue3 프론트엔드
 ├── src/                   # Spring Boot 백엔드
+├── docs/                  # 기술 문서
+├── scripts/               # 유틸리티 스크립트
 ├── gradle/                # Gradle 빌드 설정
-├── .git/                  # Git 저장소
-├── .husky/                # Git Hooks 설정
 ├── README.md              # 프로젝트 문서
 ├── package.json           # 루트 패키지 (commitlint, husky)
 ├── build.gradle           # Gradle 빌드 파일
@@ -300,8 +300,6 @@ frontend/
 │   └── main.js                   # 앱 엔트리 포인트
 │
 ├── public/                       # 정적 파일
-│   └── images/                   # 이미지 파일
-│
 ├── package.json                  # 프론트엔드 의존성
 ├── vite.config.js                # Vite 빌드 설정
 ├── tailwind.config.js            # Tailwind CSS 설정
@@ -315,11 +313,11 @@ frontend/
 src/
 ├── main/
 │   ├── java/com/example/LunchGo/
-│   │   ├── account/              # 계정 찾기/가입 보조 로직
-│   │   ├── bookmark/             # 즐겨찾기
+│   │   ├── account/              # 로그인/JWT/계정 보조
+│   │   ├── block/                # 차단 관련 로직
+│   │   ├── bookmark/             # 즐겨찾기/공유
 │   │   ├── cafeteria/            # 구내식당 메뉴/추천
-│   │   ├── common/               # 공통 설정/유틸
-│   │   ├── config/               # MyBatis 설정
+│   │   ├── common/               # 공통 설정/유틸/보안 설정
 │   │   ├── email/                # 이메일 인증/프로모션
 │   │   ├── image/                # 이미지 업로드/오브젝트 스토리지
 │   │   ├── member/               # 회원/사업자/직원
@@ -413,8 +411,8 @@ src/
 
 | 모듈 | 컨트롤러 | 설명 |
 | ---- | -------- | ---- |
-| account | AccountController | 아이디/비밀번호 찾기 등 계정 보조 기능 |
-| bookmark | BookmarkController | 즐겨찾기 CRUD |
+| account | AccountController | 로그인/토큰/계정 보조 기능 |
+| bookmark | BookmarkController, BookmarkLinkController | 즐겨찾기 CRUD, 즐겨찾기 공유/링크 |
 | cafeteria | CafeteriaMenuController | 구내식당 메뉴 조회/추천 |
 | email | EmailController | 이메일 인증/프로모션 발송 |
 | image | ImageUploadController | 이미지 업로드/프리사인 URL |
@@ -426,6 +424,14 @@ src/
 | tag | SearchTagController | 검색 태그 조회 |
 
 ---
+
+## 🔐 보안 구성 요소 (Spring Security/JWT)
+
+- Security 설정: `src/main/java/com/example/LunchGo/common/config/SecurityConfig.java`
+- JWT 필터: `src/main/java/com/example/LunchGo/account/helper/JwtFilter.java`
+- 인증 진입점/핸들러: `src/main/java/com/example/LunchGo/common/exception/JwtAuthenticationEntryPoint.java`, `src/main/java/com/example/LunchGo/common/exception/JwtAccessDeniedHandler.java`
+- UserDetails/서비스: `src/main/java/com/example/LunchGo/account/dto/CustomUserDetails.java`, `src/main/java/com/example/LunchGo/account/service/CustomUserDetailsService.java`
+- 토큰 유틸: `src/main/java/com/example/LunchGo/common/util/TokenUtils.java`
 
 ## 🔀 Git 브랜치 전략
 

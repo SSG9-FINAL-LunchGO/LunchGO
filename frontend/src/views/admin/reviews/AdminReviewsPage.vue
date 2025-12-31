@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch, onMounted } from "vue";
-import axios from "axios";
+import httpRequest from "@/router/httpRequest";
 import AdminSidebar from "@/components/ui/AdminSideBar.vue";
 import AdminHeader from "@/components/ui/AdminHeader.vue";
 import Pagination from "@/components/ui/Pagination.vue";
@@ -110,7 +110,7 @@ const allReviews = ref([]);
 
 const loadAdminReviews = async () => {
   try {
-    const response = await axios.get("/api/admin/reviews");
+    const response = await httpRequest.get("/api/admin/reviews");
     const data = response.data?.data ?? response.data;
     const items = Array.isArray(data) ? data : [];
     allReviews.value = items.map((item) => ({
@@ -403,7 +403,7 @@ const submitReportProcess = async (decision) => {
   if (!selectedReview.value) return;
 
   try {
-    const response = await axios.patch(
+    const response = await httpRequest.patch(
       `/api/admin/reviews/${selectedReview.value.id}/blind-requests`,
       {
         decision: decision === "approve" ? "APPROVE" : "REJECT",

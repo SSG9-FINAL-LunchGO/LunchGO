@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { CheckCircle2, MapPin, Calendar, Clock, Users, Download, Share2 } from 'lucide-vue-next'; // Import Lucide icons for Vue
 import { RouterLink, useRoute } from 'vue-router'; // Import Vue RouterLink
-import axios from 'axios';
+import httpRequest from '@/router/httpRequest';
 import Button from '@/components/ui/Button.vue'; // Import custom Button
 import Card from '@/components/ui/Card.vue';
 
@@ -38,7 +38,7 @@ const fetchReservationDetail = async () => {
   errorMessage.value = '';
   try {
     // TODO: 백엔드 스펙 확정 후 엔드포인트/필드 매핑 조정
-    const response = await axios.get(`/api/reservations/${reservationId}/confirmation`);
+    const response = await httpRequest.get(`/api/reservations/${reservationId}/confirmation`);
     const data = response?.data || {};
 
     reservation.value = {
@@ -89,7 +89,7 @@ const completePaymentFromRedirect = async () => {
   }
 
   try {
-    await axios.post('/api/payments/portone/complete', {
+    await httpRequest.post('/api/payments/portone/complete', {
       merchantUid: String(merchantUid),
       impUid: impUid ? String(impUid) : null,
       paidAmount,
