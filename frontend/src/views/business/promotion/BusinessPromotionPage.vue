@@ -1,8 +1,30 @@
 <script setup>
-import { ref, TrackOpTypes } from 'vue';
+import { ref, computed } from 'vue';
 import BusinessSidebar from '@/components/ui/BusinessSideBar.vue';
 import BusinessHeader from '@/components/ui/BusinessHeader.vue';
-import axios from 'axios';
+import httpRequest from '@/router/httpRequest';
+import { useAccountStore } from '@/stores/account';
+
+const accountStore = useAccountStore();
+
+const getStoredMember = () => {
+  if (typeof window === 'undefined') return null;
+  const raw = localStorage.getItem('member');
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    return null;
+  }
+};
+
+const member = computed(() => accountStore.member || getStoredMember());
+const ownerId = computed(() => {
+  const rawId = member.value?.id;
+  if (rawId === null || rawId === undefined) return null;
+  const parsed = Number(rawId);
+  return Number.isNaN(parsed) ? null : parsed;
+});
 
 // --- 상태 관리 변수 ---
 const isPromotionOn = ref(false); // 프로모션 여부 (기본값 끄기)
@@ -29,12 +51,16 @@ const handleRegister = async () => {
     return;
   }
 
-  const ownerId = 1; //pinia 사용하기
+  const resolvedOwnerId = ownerId.value;
+  if (!resolvedOwnerId) {
+    alert('로그인 정보를 찾을 수 없습니다. 다시 로그인해주세요.');
+    return;
+  }
 
   //백엔드 전송 로직
   try {
-    await axios.post("/api/business/promotion", {
-      ownerId: ownerId,
+    await httpRequest.post('/api/business/promotion', {
+      ownerId: resolvedOwnerId,
       title: promotionTitle.value,
       content: promotionContent.value
     });
@@ -43,8 +69,8 @@ const handleRegister = async () => {
     errorMsg.value = '';
     showSuccessMessage.value = true;
     setTimeout(() => (showSuccessMessage.value = false), 3000);
-  }catch(error){
-    const status = error.response.status;
+  } catch (error) {
+    const status = error?.response?.status;
 
     switch(status){
       case 400:

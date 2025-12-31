@@ -937,7 +937,7 @@ const handleWithdraw = () => {
 
       <UserFavorites
         v-else-if="activeNav === 'favorite'"
-        :user-id="currentUserId"
+        :user-id="memberId"
       />
     </main>
 

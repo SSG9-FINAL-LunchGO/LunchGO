@@ -1,29 +1,56 @@
-<script setup>
-import { ref, computed, watch, onMounted} from 'vue';
+﻿<script setup>
+import { ref, computed, watch, onMounted } from 'vue';
 import BusinessSidebar from '@/components/ui/BusinessSideBar.vue';
 import BusinessHeader from '@/components/ui/BusinessHeader.vue';
-import axios from 'axios';
+import httpRequest from '@/router/httpRequest';
+import { useAccountStore } from '@/stores/account';
 
-const ownerId = 1; //pinia 사용하기
+const accountStore = useAccountStore();
+
+const getStoredMember = () => {
+  if (typeof window === 'undefined') return null;
+  const raw = localStorage.getItem('member');
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    return null;
+  }
+};
+
+const member = computed(() => accountStore.member || getStoredMember());
+const ownerId = computed(() => {
+  const rawId =
+    member.value?.ownerId ?? member.value?.id ?? member.value?.memberId;
+  if (rawId === null || rawId === undefined) return null;
+  const parsed = Number(rawId);
+  return Number.isNaN(parsed) ? null : parsed;
+});
 
 const emailInput = ref('');
 const emailFormatMsg = ref('');
 const showSuccessMessage = ref(false);
 const currentPage = ref(1);
 const itemsPerPage = 7;
-const maxPageButtons = 5; // 최대 보여질 페이지 번호 개수
+const maxPageButtons = 5; // 최대 보여줄 페이지 번호 개수
 
-//중복 클릭 방지용 로딩 상태
+//중복 클릭 방지를 위한 로딩 상태
 const isRegistering = ref(false);
 
-// 데이터 20명으로 늘림 (페이지네이션 테스트 용)
-const staffList = ref([
-]);
+// 데이터 목록
+const staffList = ref([]);
 
-const fetchStaffInfo = async() => {
+const fetchStaffInfo = async () => {
+  const resolvedOwnerId = ownerId.value;
+  if (!resolvedOwnerId) {
+    return alert('로그인 정보를 찾을 수 없습니다. 다시 로그인해주세요.');
+  }
+
   try {
-    const response = await axios.get(`/api/business/staff/${ownerId}`);
-    
+    const response = await httpRequest.get(
+      `/api/business/staff/${resolvedOwnerId}`
+    );
+
     if (response.data) {
       staffList.value = response.data.map((item) => ({
         id: item.staffId,   // 백엔드 staffId -> 프론트 id
@@ -31,14 +58,13 @@ const fetchStaffInfo = async() => {
         email: item.email   // 이메일
       }));
     }
-    
-  }catch(error){
-    console.error("에러 상세 내용:", error);
-    alert(`오류가 발생했습니다. (Code: ${error.response.status})`);
+  } catch (error) {
+    console.error('에러 상세 내용:', error);
+    alert(`오류가 발생했습니다. (Code: ${error?.response?.status ?? 'unknown'})`);
   }
 };
 
-onMounted(()=> {
+onMounted(() => {
   fetchStaffInfo();
 });
 
@@ -52,7 +78,7 @@ const visiblePages = computed(() => {
   const total = totalPages.value;
 
   if (total <= maxPageButtons) {
-    // 전체 페이지가 5개 이하면 전체 표시
+    // 전체 페이지가 5개 이하이면 전체 표시
     return Array.from({ length: total }, (_, i) => i + 1);
   }
 
@@ -60,13 +86,13 @@ const visiblePages = computed(() => {
   let start = current - Math.floor(maxPageButtons / 2);
   let end = start + maxPageButtons - 1;
 
-  //시작점이 1보다 작을 경우
+  //시작값이 1보다 작을 경우
   if (start < 1) {
     start = 1;
     end = maxPageButtons;
   }
 
-  //끝점이 전체 페이지를 넘을 경우
+  //끝값이 전체 페이지를 넘을 경우
   if (end > total) {
     end = total;
     start = end - maxPageButtons + 1;
@@ -99,7 +125,7 @@ const handleInputChange = () => {
 };
 
 const handleAddStaff = async () => {
-  if(isRegistering.value) return;
+  if (isRegistering.value) return;
 
   if (!emailInput.value) {
     emailFormatMsg.value = '이메일을 입력해주세요.';
@@ -114,9 +140,16 @@ const handleAddStaff = async () => {
 
   isRegistering.value = true;
 
-  try{
-    await axios.post(`/api/business/staff`, {
-      ownerId: ownerId,
+  const resolvedOwnerId = ownerId.value;
+  if (!resolvedOwnerId) {
+    alert('로그인 정보를 찾을 수 없습니다. 다시 로그인해주세요.');
+    isRegistering.value = false;
+    return;
+  }
+
+  try {
+    await httpRequest.post('/api/business/staff', {
+      ownerId: resolvedOwnerId,
       email: emailInput.value
     });
 
@@ -125,53 +158,62 @@ const handleAddStaff = async () => {
     emailInput.value = '';
     showSuccessMessage.value = true;
     setTimeout(() => (showSuccessMessage.value = false), 3000);
-  }catch(error){
-    const status = error.response.status;
+  } catch (error) {
+    const status = error?.response?.status;
 
-    switch(status){
-       case 400:
-        alert("[400 Bad Request] 잘못된 요청입니다. 입력값을 확인해주세요.");
+    switch (status) {
+      case 400:
+        alert('[400 Bad Request] 잘못된 요청입니다. 입력값을 확인해주세요.');
         break;
       case 404:
-        alert("[404 Not Found] 해당 사용자는 존재하지 않습니다.");
+        alert('[404 Not Found] 해당 사용자는 존재하지 않습니다.');
         break;
       case 409:
-        alert("[409 Conflict] 이미 등록된 임직원입니다.");
+        alert('[409 Conflict] 이미 등록된 직원입니다.');
+        break;
       default:
-        alert(`오류가 발생했습니다. (Code: ${status})`);
+        alert(`오류가 발생했습니다. (Code: ${status ?? 'unknown'})`);
     }
-  }finally {
+  } finally {
     isRegistering.value = false;
   }
 };
 
 const handleDeleteStaff = async (targetId) => {
-  try{
-    if (!confirm("정말 삭제하시겠습니까?")) return;
+  try {
+    if (!confirm('정말 삭제하시겠습니까?')) return;
 
-    await axios.delete("/api/business/staff", {data: {
-      staffId: targetId,
-      ownerId: ownerId
-    }})
+    const resolvedOwnerId = ownerId.value;
+    if (!resolvedOwnerId) {
+      alert('로그인 정보를 찾을 수 없습니다. 다시 로그인해주세요.');
+      return;
+    }
+
+    await httpRequest.delete('/api/business/staff', {
+      data: {
+        staffId: targetId,
+        ownerId: resolvedOwnerId
+      }
+    });
 
     staffList.value = staffList.value.filter((staff) => staff.id !== targetId);
-  }catch(error){
-     const status = error.response.status;
+  } catch (error) {
+    const status = error?.response?.status;
 
-    switch(status){
-       case 400:
-        alert("[400 Bad Request] 잘못된 요청입니다. 입력값을 확인해주세요.");
+    switch (status) {
+      case 400:
+        alert('[400 Bad Request] 잘못된 요청입니다. 입력값을 확인해주세요.');
         break;
       case 404:
-        alert("[404 Not Found] 해당 사업자/임직원은 존재하지 않습니다.");
+        alert('[404 Not Found] 해당 사업자의 직원이 존재하지 않습니다.');
         break;
       default:
-        alert(`오류가 발생했습니다. (Code: ${status})`);
+        alert(`오류가 발생했습니다. (Code: ${status ?? 'unknown'})`);
     }
   }
 };
 
-// [추가됨] 이전, 다음 페이지 이동 함수
+// [추가] 이전, 다음 페이지 이동 함수
 const prevPage = () => {
   if (currentPage.value > 1) currentPage.value--;
 };
@@ -190,7 +232,7 @@ const nextPage = () => {
 
       <main class="flex-1 overflow-auto p-8">
         <div class="max-w-6xl mx-auto">
-          <h2 class="text-3xl font-bold text-[#1E3A5F] mb-8">임직원 현황</h2>
+          <h2 class="text-3xl font-bold text-[#1E3A5F] mb-8">직원 관리</h2>
 
           <div class="bg-white rounded-xl border border-gray-200 p-6 pb-9 mb-6">
             <div class="flex items-start gap-4">
@@ -199,7 +241,7 @@ const nextPage = () => {
                   type="email"
                   v-model="emailInput"
                   @input="handleInputChange"
-                  placeholder="임직원 이메일을 입력하세요."
+                  placeholder="직원 이메일을 입력하세요"
                   class="w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 transition-colors"
                   :class="[
                     emailFormatMsg
@@ -225,7 +267,7 @@ const nextPage = () => {
                     : 'bg-gradient-to-r from-[#FF6B4A] to-[#FFC4B8] hover:opacity-90'"
             >
                 <span v-if="isRegistering">등록 중...</span>
-                <span v-else>임직원 추가</span>
+                <span v-else>직원 추가</span>
             </button>
             </div>
           </div>
@@ -364,7 +406,7 @@ const nextPage = () => {
               </svg>
             </div>
             <span class="text-sm font-medium text-blue-900"
-              >임직원이 등록되었습니다.</span
+              >직원이 등록되었습니다.</span
             >
           </div>
         </div>

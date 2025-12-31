@@ -1,39 +1,52 @@
-<script setup>
-import { ref } from 'vue'; // 상태 관리를 위해 ref 임포트
-import { useRouter } from 'vue-router'; // 페이지 이동을 위해 router 임포트
-import { User, Bell, LogOut } from 'lucide-vue-next';
-import { RouterLink } from 'vue-router';
-
-// --- Pinia 연동 부분 (예시) ---
-// const authStore = useAuthStore();
-// const userName = computed(() => authStore.user?.name || 'OOO');
-const userName = ref('김사장'); // 임시 데이터
+﻿<script setup>
+import { computed } from 'vue';
+import { useRouter, RouterLink } from 'vue-router';
+import { Bell, LogOut } from 'lucide-vue-next';
+import httpRequest from '@/router/httpRequest';
+import { useAccountStore } from '@/stores/account';
 
 const router = useRouter();
-const isMenuOpen = ref(false); // 메뉴 열림/닫힘 상태
+const accountStore = useAccountStore();
 
-// --- 메소드 ---
-
-// 1. 메뉴 토글 기능
-const toggleMenu = () => {
-  isMenuOpen.value = !isMenuOpen.value;
+const getStoredMember = () => {
+  if (typeof window === 'undefined') return null;
+  const raw = localStorage.getItem('member');
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    return null;
+  }
 };
 
-// 2. 로그아웃 기능
+const member = computed(() => accountStore.member || getStoredMember());
+const userName = computed(() => {
+  if(member.value?.role === 'ROLE_OWNER' || member.value?.role === 'ROLE_STAFF'){
+    return member.value.email;
+  }
+  return '사용자';
+});
+const greetingSuffix = computed(() => {
+  if(member.value?.role === 'ROLE_OWNER'){
+    return '님, 안녕하세요'
+  }else if(member.value?.role === 'ROLE_STAFF'){
+    return '님, 안녕하세요(직원용)';
+  }
+});
+
 const handleLogout = async () => {
   const confirmLogout = confirm('정말 로그아웃 하시겠습니까?');
+  if (!confirmLogout) return;
 
-  if (confirmLogout) {
-    try {
-      // 여기에 실제 로그아웃 로직 작성 (예: Pinia action 호출, 토큰 삭제 등)
-      // await authStore.logout();
-      console.log('로그아웃 로직 실행됨');
+  try {
+    await httpRequest.post('/api/logout', {});
 
-      // 로그아웃 후 첫 페이지로 이동
-      router.push('/');
-    } catch (error) {
-      console.error('로그아웃 실패:', error);
-    }
+    alert("로그아웃 되었습니다.");
+  } catch (error) {
+    console.warn('로그아웃 요청 실패:', error);
+  } finally {
+    accountStore.clearAccount();
+    router.push('/');
   }
 };
 </script>
@@ -57,8 +70,8 @@ const handleLogout = async () => {
 
       <div class="flex items-center gap-4">
         <span class="text-sm text-gray-600">
-          <span class="text-[#1e3a5f] font-bold">{{ userName }}</span
-          >님 안녕하세요!
+          <span class="text-[#1e3a5f] font-bold">{{ userName }}</span>
+          <span>{{ greetingSuffix }}</span>
         </span>
 
         <button

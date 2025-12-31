@@ -115,7 +115,7 @@ public class ObjectStorageService {
             case "cafeteria" -> String.format("cafeteria/%s/%s/%s/%s.%s", year, month, day, uuid, extension);
             case "restaurants" -> String.format("restaurants/%s/%s/%s.%s", year, month, uuid, extension);
             case "menus" -> String.format("menus/%s/%s/%s.%s", year, month, uuid, extension);
-            case "profile" -> String.format("profile/%s/%s/%s.%s", year, month, uuid, extension);
+            case "profile" -> String.format("profile/%s/%s/%s/%s.%s", year, month, day, uuid, extension);
             default -> throw new IllegalArgumentException("unsupported domain: " + domain);
         };
     }

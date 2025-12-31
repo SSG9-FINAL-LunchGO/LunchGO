@@ -47,4 +47,8 @@ public interface OwnerRepository extends JpaRepository<Owner, Long> {
      * Spring Security
      * */
     Optional<Owner> findByLoginId(String loginId);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Owner o SET o.lastLoginAt = CURRENT_TIMESTAMP WHERE o.ownerId = :ownerId")
+    int updateLastLoginAt(@Param("ownerId") Long ownerId);
 }
