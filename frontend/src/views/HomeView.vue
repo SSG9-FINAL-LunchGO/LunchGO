@@ -34,6 +34,7 @@ import { useCafeteriaRecommendation } from "@/composables/useCafeteriaRecommenda
 import TrendingRecommendationSection from "@/components/ui/TrendingRecommendationSection.vue";
 import { useTrendingRestaurants } from "@/composables/useTrendingRestaurants";
 import { useAccountStore } from "@/stores/account";
+import axios from "axios";
 
 const accountStore = useAccountStore();
 const isLoggedIn = computed(() =>
@@ -109,6 +110,28 @@ const isTrendingSort = computed(() => selectedRecommendation.value === "인기�
 const restaurantIndexById = new Map(
   restaurants.map((restaurant) => [String(restaurant.id), restaurant])
 );
+const restaurantImageCache = new Map();
+const restaurantImageOverrides = ref({});
+const reviewSummaryCache = ref({});
+const reviewSummaryInFlight = new Set();
+
+const applyReviewSummary = (restaurant) => {
+  const summary = reviewSummaryCache.value[String(restaurant.id)];
+  if (!summary) return restaurant;
+  return {
+    ...restaurant,
+    rating: summary.rating ?? restaurant.rating,
+    reviews: summary.reviews ?? restaurant.reviews,
+  };
+};
+const getRestaurantRating = (restaurant) => {
+  const summary = reviewSummaryCache.value[String(restaurant.id)];
+  return summary?.rating ?? restaurant.rating ?? 0;
+};
+const getRestaurantReviewCount = (restaurant) => {
+  const summary = reviewSummaryCache.value[String(restaurant.id)];
+  return summary?.reviews ?? restaurant.reviews ?? 0;
+};
 const processedRestaurants = computed(() => {
   let result = restaurants.slice();
 
@@ -124,7 +147,7 @@ const processedRestaurants = computed(() => {
     const range = priceRangeMap[activeRange];
     if (range) {
       result = result.filter((restaurant) => {
-        const priceValue = extractPriceValue(restaurant.price);
+        const priceValue = resolveRestaurantPriceValue(restaurant);
         if (priceValue == null) return false;
         return priceValue >= range.min && priceValue <= range.max;
       });
@@ -137,15 +160,24 @@ const processedRestaurants = computed(() => {
 
   const sorters = {
     추천순: (a, b) => {
-      const ratingDiff = (b.rating ?? 0) - (a.rating ?? 0);
+      const ratingDiff = getRestaurantRating(b) - getRestaurantRating(a);
       if (ratingDiff !== 0) return ratingDiff;
-      return (b.reviews ?? 0) - (a.reviews ?? 0);
+      return getRestaurantReviewCount(b) - getRestaurantReviewCount(a);
     },
     거리순: (a, b) => getDistance(a) - getDistance(b),
-    평점순: (a, b) => (b.rating ?? 0) - (a.rating ?? 0),
+    평점순: (a, b) => getRestaurantRating(b) - getRestaurantRating(a),
     가격순: (a, b) => {
-      const priceA = extractPriceValue(a.price) ?? Number.POSITIVE_INFINITY;
-      const priceB = extractPriceValue(b.price) ?? Number.POSITIVE_INFINITY;
+      const priceA =
+        resolveRestaurantPriceValue(a) ?? Number.POSITIVE_INFINITY;
+      const priceB =
+        resolveRestaurantPriceValue(b) ?? Number.POSITIVE_INFINITY;
+      return priceA - priceB;
+    },
+    "낮은 가격순": (a, b) => {
+      const priceA =
+        resolveRestaurantPriceValue(a) ?? Number.POSITIVE_INFINITY;
+      const priceB =
+        resolveRestaurantPriceValue(b) ?? Number.POSITIVE_INFINITY;
       return priceA - priceB;
     },
   };
@@ -153,7 +185,11 @@ const processedRestaurants = computed(() => {
   const sorter = sorters[selectedSort.value] || sorters.추천순;
   result.sort(sorter);
 
-  return result;
+  const overrides = restaurantImageOverrides.value;
+  return result.map((restaurant) => ({
+    ...restaurant,
+    image: overrides[restaurant.id] ?? restaurant.image,
+  }));
 });
 const trendingCards = computed(() => {
   return trendingRestaurants.value.map((restaurant) => {
@@ -197,15 +233,28 @@ const displayRestaurants = computed(() => availableRestaurants.value);
 const totalPages = computed(() =>
   Math.max(1, Math.ceil(displayRestaurants.value.length / restaurantsPerPage))
 );
-const paginatedRestaurants = computed(() => {
+const paginatedRestaurantsRaw = computed(() => {
   const start = (currentPage.value - 1) * restaurantsPerPage;
   return displayRestaurants.value.slice(start, start + restaurantsPerPage);
 });
-const pageNumbers = computed(() =>
-  Array.from({ length: totalPages.value }, (_, index) => index + 1)
+const paginatedRestaurants = computed(() =>
+  paginatedRestaurantsRaw.value.map((restaurant) =>
+    applyReviewSummary(restaurant)
+  )
 );
-const canGoPrevious = computed(() => currentPage.value > 1);
-const canGoNext = computed(() => currentPage.value < totalPages.value);
+const pageGroupSize = 5;
+const currentPageGroupStart = computed(
+  () => Math.floor((currentPage.value - 1) / pageGroupSize) * pageGroupSize + 1
+);
+const currentPageGroupEnd = computed(() =>
+  Math.min(totalPages.value, currentPageGroupStart.value + pageGroupSize - 1)
+);
+const pageNumbers = computed(() => {
+  const length = currentPageGroupEnd.value - currentPageGroupStart.value + 1;
+  return Array.from({ length }, (_, index) => currentPageGroupStart.value + index);
+});
+const canGoPrevious = computed(() => currentPageGroupStart.value > 1);
+const canGoNext = computed(() => currentPageGroupEnd.value < totalPages.value);
 const restaurantGeocodeCache = new Map();
 
 const mapContainer = ref(null);
@@ -381,6 +430,17 @@ watch(selectedSort, () => {
   currentPage.value = 1;
 });
 
+watch(
+  [selectedSort, availableRestaurants],
+  ([sortValue, list]) => {
+    if (sortValue !== "평점순") return;
+    list.forEach((restaurant) => {
+      fetchReviewSummary(restaurant.id);
+    });
+  },
+  { immediate: true }
+);
+
 watch(selectedPriceRange, () => {
   currentPage.value = 1;
 });
@@ -388,20 +448,75 @@ watch(selectedPriceRange, () => {
 const goToPage = (page) => {
   if (page < 1 || page > totalPages.value) return;
   currentPage.value = page;
-  if (typeof window !== "undefined") {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
 };
 
 const goToPreviousPage = () => {
   if (!canGoPrevious.value) return;
-  goToPage(currentPage.value - 1);
+  goToPage(Math.max(1, currentPageGroupStart.value - pageGroupSize));
 };
 
 const goToNextPage = () => {
   if (!canGoNext.value) return;
-  goToPage(currentPage.value + 1);
+  goToPage(currentPageGroupStart.value + pageGroupSize);
 };
+
+const fetchReviewSummary = async (restaurantId) => {
+  const key = String(restaurantId);
+  if (reviewSummaryCache.value[key] || reviewSummaryInFlight.has(key)) return;
+  reviewSummaryInFlight.add(key);
+  try {
+    const response = await axios.get(`/api/restaurants/${restaurantId}/reviews`, {
+      params: { page: 1, size: 1, sort: "RECOMMEND" },
+    });
+    const data = response.data?.data ?? response.data;
+    const summary = data?.summary;
+    if (summary) {
+      reviewSummaryCache.value = {
+        ...reviewSummaryCache.value,
+        [key]: {
+          rating: summary.avgRating ?? 0,
+          reviews: summary.reviewCount ?? 0,
+        },
+      };
+    }
+  } catch (error) {
+    // ignore summary failures for list rendering
+  } finally {
+    reviewSummaryInFlight.delete(key);
+  }
+};
+
+const updateSelectedMapRestaurant = (restaurant) => {
+  const key = String(restaurant.id);
+  const summary = reviewSummaryCache.value[key];
+  selectedMapRestaurant.value = {
+    ...restaurant,
+    image:
+      restaurantImageOverrides.value[String(restaurant.id)] ?? restaurant.image,
+    rating: summary?.rating ?? restaurant.rating,
+    reviews: summary?.reviews ?? restaurant.reviews,
+  };
+};
+
+const ensureReviewSummary = async (restaurant) => {
+  const key = String(restaurant.id);
+  if (!reviewSummaryCache.value[key]) {
+    await fetchReviewSummary(restaurant.id);
+  }
+  if (selectedMapRestaurant.value?.id === restaurant.id) {
+    updateSelectedMapRestaurant(restaurant);
+  }
+};
+
+watch(
+  paginatedRestaurantsRaw,
+  (restaurants) => {
+    restaurants.forEach((restaurant) => {
+      fetchReviewSummary(restaurant.id);
+    });
+  },
+  { immediate: true }
+);
 
 const resolveRestaurantCoords = async (restaurant) => {
   if (restaurant.coords?.lat && restaurant.coords?.lng) {
@@ -515,6 +630,18 @@ const renderMapMarkers = async (kakaoMaps) => {
   mapMarkers.forEach((marker) => marker.setMap(null));
   mapMarkers.length = 0;
 
+  const markerSvg =
+    "data:image/svg+xml;utf8," +
+    "<svg xmlns='http://www.w3.org/2000/svg' width='32' height='46' viewBox='0 0 32 46'>" +
+    "<path d='M16 1C8.8 1 3 6.8 3 14c0 9.3 13 30 13 30s13-20.7 13-30C29 6.8 23.2 1 16 1z' fill='%23ff6b4a' stroke='white' stroke-width='2'/>" +
+    "<circle cx='16' cy='14' r='5' fill='white'/>" +
+    "</svg>";
+  const markerImage = new kakaoMaps.MarkerImage(
+    markerSvg,
+    new kakaoMaps.Size(32, 46),
+    { offset: new kakaoMaps.Point(16, 46) }
+  );
+
   const distanceLimit = selectedDistanceKm.value;
 
   for (const restaurant of restaurants) {
@@ -527,17 +654,40 @@ const renderMapMarkers = async (kakaoMaps) => {
     const marker = new kakaoMaps.Marker({
       position: new kakaoMaps.LatLng(coords.lat, coords.lng),
       title: restaurant.name,
+      image: markerImage,
     });
 
     try {
       marker.setMap(mapInstance.value);
       kakaoMaps.event.addListener(marker, "click", () => {
-        selectedMapRestaurant.value = restaurant;
+        updateSelectedMapRestaurant(restaurant);
+        ensureReviewSummary(restaurant);
       });
       mapMarkers.push(marker);
     } catch (error) {
       console.error("지도 마커 표시 실패:", restaurant?.name, error);
     }
+  }
+};
+
+const fetchRestaurantImage = async (restaurantId) => {
+  const key = String(restaurantId);
+  if (restaurantImageCache.has(key)) return;
+  restaurantImageCache.set(key, null);
+  try {
+    const response = await axios.get(
+      `/api/business/restaurants/${restaurantId}/images`
+    );
+    const imageUrl = response.data?.[0]?.imageUrl;
+    if (imageUrl) {
+      restaurantImageCache.set(key, imageUrl);
+      restaurantImageOverrides.value = {
+        ...restaurantImageOverrides.value,
+        [key]: imageUrl,
+      };
+    }
+  } catch (error) {
+    restaurantImageCache.set(key, null);
   }
 };
 
@@ -761,6 +911,16 @@ const extractPriceValue = (priceText = "") => {
   const digits = target.replace(/[^0-9]/g, "");
   if (!digits) return null;
   return Number(digits);
+};
+const resolveRestaurantPriceValue = (restaurant) => {
+  const directPrice = extractPriceValue(restaurant?.price ?? "");
+  if (directPrice != null) return directPrice;
+  const menuPrices = (restaurant?.menus || [])
+    .map((menu) => extractPriceValue(menu?.price ?? ""))
+    .filter((value) => Number.isFinite(value));
+  if (!menuPrices.length) return null;
+  const total = menuPrices.reduce((sum, value) => sum + value, 0);
+  return Math.round(total / menuPrices.length);
 };
 
 const haversineDistance = (coordsA = {}, coordsB = {}) => {
@@ -1018,6 +1178,14 @@ watch(currentPage, () => {
   persistHomeListState();
 });
 
+watch(
+  paginatedRestaurants,
+  (list) => {
+    list.forEach((restaurant) => fetchRestaurantImage(restaurant.id));
+  },
+  { immediate: true }
+);
+
 onBeforeUnmount(() => {
   persistHomeListState();
 });
@@ -1219,7 +1387,7 @@ onBeforeUnmount(() => {
               />
               <div class="flex-1 min-w-0">
                 <div class="flex items-start justify-between gap-2 mb-1">
-                  <div>
+                  <div class="min-w-0 flex-1">
                     <p class="text-sm font-semibold text-[#1e3a5f]">
                       {{ selectedMapRestaurant.name }}
                     </p>

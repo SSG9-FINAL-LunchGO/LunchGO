@@ -1,14 +1,18 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { RouterLink, useRoute } from 'vue-router';
+import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { ArrowLeft, CalendarIcon, Users } from 'lucide-vue-next';
 import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
+import axios from 'axios';
 
 const route = useRoute();
+const router = useRouter();
 const bookingType = route.query.type || 'reservation';
 const isPreorder = computed(() => bookingType === 'preorder');
 const restaurantId = route.params.id;
+
+const DEFAULT_USER_ID = 2;
 
 const selectedDateIndex = ref(null);
 const selectedTime = ref(null);
@@ -39,29 +43,92 @@ const timeSlots = ref(['11:00', '12:00', '13:00', '14:00']);
 
 const canProceed = computed(() => selectedDateIndex.value !== null && selectedTime.value !== null);
 
-const nextPage = computed(() => {
-  if (isPreorder.value) {
-    return {
-      path: `/restaurant/${restaurantId}/menu`,
-      query: {
-        type: 'preorder',
-        partySize: partySize.value,
-        requestNote: requestNote.value,
-        dateIndex: selectedDateIndex.value,
-        time: selectedTime.value,
-      },
-    };
-  }
+const isCreatingReservation = ref(false);
+const createErrorMessage = ref('');
 
-  return {
-    path: `/restaurant/${restaurantId}/payment`,
-    query: {
-      type: 'deposit',
-      partySize: partySize.value,
-      requestNote: requestNote.value,
-    },
-  };
+const selectedSlotDate = computed(() => {
+  if (selectedDateIndex.value === null) return null;
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + Number(selectedDateIndex.value));
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 });
+
+const selectedSlotTime = computed(() => {
+  if (!selectedTime.value) return null;
+  return String(selectedTime.value);
+});
+
+const reservationTypeValue = computed(() => (isPreorder.value ? 'PREORDER_PREPAY' : 'RESERVATION_DEPOSIT'));
+
+const createReservation = async () => {
+  if (!selectedSlotDate.value || !selectedSlotTime.value) return null;
+
+  const normalizeTime = (t) => (t && t.length === 5 ? `${t}:00` : t);
+
+  const payload = {
+    userId: DEFAULT_USER_ID,
+    restaurantId: Number(restaurantId),
+    slotDate: selectedSlotDate.value,      // "YYYY-MM-DD"
+    slotTime: normalizeTime(selectedTime.value), // "11:00:00"
+    partySize: Number(partySize.value),
+    reservationType: reservationTypeValue.value, // "RESERVATION_DEPOSIT" or "PREORDER_PREPAY"
+    requestMessage: requestNote.value?.trim() || null,
+  };
+
+  const res = await axios.post('/api/reservations', payload);
+  return res.data;
+};
+
+const handleProceed = async () => {
+  if (!canProceed.value) return;
+
+  isCreatingReservation.value = true;
+  createErrorMessage.value = '';
+
+  try {
+    const created = await createReservation();
+    const reservationId = created?.reservationId;
+
+    if (!reservationId) {
+      throw new Error('예약 생성에 실패했습니다. 다시 시도해 주세요.');
+    }
+
+    if (isPreorder.value) {
+      router.push({
+        path: `/restaurant/${restaurantId}/menu`,
+        query: {
+          type: 'preorder',
+          partySize: String(partySize.value),
+          requestNote: String(requestNote.value || ''),
+          dateIndex: String(selectedDateIndex.value),
+          time: String(selectedTime.value),
+          reservationId: String(reservationId),
+        },
+      });
+      return;
+    }
+
+    router.push({
+      path: `/restaurant/${restaurantId}/payment`,
+      query: {
+        type: 'deposit',
+        partySize: String(partySize.value),
+        requestNote: String(requestNote.value || ''),
+        dateIndex: String(selectedDateIndex.value),
+        time: String(selectedTime.value),
+        reservationId: String(reservationId),
+      },
+    });
+  } catch (e) {
+    createErrorMessage.value = e?.message || '예약 생성 중 오류가 발생했습니다.';
+  } finally {
+    isCreatingReservation.value = false;
+  }
+};
 
 const selectDate = (idx) => {
   selectedDateIndex.value = idx;
@@ -91,10 +158,10 @@ const selectDate = (idx) => {
         <div class="overflow-x-auto -mx-4 px-4">
           <div class="flex gap-2 pb-2">
             <button
-              v-for="(date, idx) in dates"
-              :key="idx"
-              @click="selectDate(idx)"
-              :class="`flex-shrink-0 w-16 h-20 rounded-lg border-2 flex flex-col items-center justify-center gap-1 transition-all ${
+                v-for="(date, idx) in dates"
+                :key="idx"
+                @click="selectDate(idx)"
+                :class="`flex-shrink-0 w-16 h-20 rounded-lg border-2 flex flex-col items-center justify-center gap-1 transition-all ${
                 selectedDateIndex === idx
                   ? 'border-[#ff6b4a] bg-[#fff5f3]'
                   : 'border-[#dee2e6] bg-white hover:border-[#ffc4b8]'
@@ -119,10 +186,10 @@ const selectDate = (idx) => {
 
         <div class="grid grid-cols-4 gap-2">
           <button
-            v-for="time in timeSlots"
-            :key="time"
-            @click="selectedTime = time"
-            :class="`h-11 rounded-lg border-2 text-sm font-medium transition-all ${
+              v-for="time in timeSlots"
+              :key="time"
+              @click="selectedTime = time"
+              :class="`h-11 rounded-lg border-2 text-sm font-medium transition-all ${
               selectedTime === time
                 ? 'border-[#ff6b4a] bg-[#fff5f3] text-[#ff6b4a]'
                 : 'border-[#dee2e6] bg-white text-[#495057] hover:border-[#ffc4b8]'
@@ -141,9 +208,9 @@ const selectDate = (idx) => {
 
         <div class="flex items-center justify-between max-w-xs mx-auto">
           <button
-            @click="partySize = Math.max(4, partySize - 1)"
-            :disabled="partySize <= 4"
-            class="w-12 h-12 rounded-full border-2 border-[#dee2e6] bg-white text-[#1e3a5f] font-bold text-xl disabled:opacity-30 disabled:cursor-not-allowed hover:border-[#ff6b4a] hover:text-[#ff6b4a] transition-colors"
+              @click="partySize = Math.max(4, partySize - 1)"
+              :disabled="partySize <= 4"
+              class="w-12 h-12 rounded-full border-2 border-[#dee2e6] bg-white text-[#1e3a5f] font-bold text-xl disabled:opacity-30 disabled:cursor-not-allowed hover:border-[#ff6b4a] hover:text-[#ff6b4a] transition-colors"
           >
             -
           </button>
@@ -154,9 +221,9 @@ const selectDate = (idx) => {
           </div>
 
           <button
-            @click="partySize = Math.min(12, partySize + 1)"
-            :disabled="partySize >= 12"
-            class="w-12 h-12 rounded-full border-2 border-[#dee2e6] bg-white text-[#1e3a5f] font-bold text-xl disabled:opacity-30 disabled:cursor-not-allowed hover:border-[#ff6b4a] hover:text-[#ff6b4a] transition-colors"
+              @click="partySize = Math.min(12, partySize + 1)"
+              :disabled="partySize >= 12"
+              class="w-12 h-12 rounded-full border-2 border-[#dee2e6] bg-white text-[#1e3a5f] font-bold text-xl disabled:opacity-30 disabled:cursor-not-allowed hover:border-[#ff6b4a] hover:text-[#ff6b4a] transition-colors"
           >
             +
           </button>
@@ -171,13 +238,13 @@ const selectDate = (idx) => {
         <h2 class="text-base font-semibold text-[#1e3a5f] mb-4">요청사항 (선택)</h2>
 
         <textarea
-          v-model="requestNote"
-          :maxlength="50"
-          @input="onInputRequestNote"
-          placeholder="요청사항이 있다면 입력해주세요 (최대 50자)"
-          class="w-full border-2 border-[#dee2e6] rounded-lg p-3 text-sm text-[#495057] resize-none bg-white
+            v-model="requestNote"
+            :maxlength="50"
+            @input="onInputRequestNote"
+            placeholder="요청사항이 있다면 입력해주세요 (최대 50자)"
+            class="w-full border-2 border-[#dee2e6] rounded-lg p-3 text-sm text-[#495057] resize-none bg-white
                 focus:outline-none focus:border-[#ffc4b8] transition-all"
-          rows="3"
+            rows="3"
         ></textarea>
 
         <div class="mt-2 text-xs text-right text-[#6c757d]">
@@ -216,18 +283,21 @@ const selectDate = (idx) => {
           </div>
         </Card>
       </div>
+
+      <div v-if="createErrorMessage" class="mx-4 mt-3">
+        <div class="text-sm text-[#e03131]">{{ createErrorMessage }}</div>
+      </div>
     </main>
 
     <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e9ecef] z-50 shadow-lg">
       <div class="max-w-[500px] mx-auto px-4 py-3">
-        <RouterLink :to="canProceed ? nextPage : '#'">
-          <Button
-            :disabled="!canProceed"
+        <Button
+            :disabled="!canProceed || isCreatingReservation"
+            @click="handleProceed"
             class="w-full h-12 gradient-primary text-white font-semibold text-base rounded-xl shadow-button-hover hover:shadow-button-pressed disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {{ isPreorder ? '메뉴 선택하기' : '예약금 결제하기' }}
-          </Button>
-        </RouterLink>
+        >
+          {{ isCreatingReservation ? '처리 중...' : isPreorder ? '메뉴 선택하기' : '예약금 결제하기' }}
+        </Button>
       </div>
     </div>
   </div>

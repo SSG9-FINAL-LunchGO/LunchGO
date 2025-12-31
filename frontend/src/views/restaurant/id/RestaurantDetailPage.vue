@@ -94,11 +94,10 @@ const highlightTags = computed(() => {
 const restaurantName = computed(() => restaurantInfo.value?.name || '식당명');
 
 const ratingDisplay = computed(() => {
-  const rating = restaurantInfo.value?.rating;
-  if (typeof rating === 'number') {
-    return rating.toFixed(1);
-  }
-  return '0.0';
+  const summaryRating = restaurantReviewSummary.value?.avgRating;
+  const rawRating = summaryRating ?? restaurantInfo.value?.rating;
+  const value = Number(rawRating);
+  return Number.isFinite(value) ? value.toFixed(1) : '0.0';
 });
 
 const reviewCountDisplay = computed(() => restaurantReviewSummary.value?.reviewCount ?? restaurantInfo.value?.reviews ?? 0);
@@ -189,6 +188,33 @@ const openImageModal = (images, index) => {
 
 const toggleRestaurantFavorite = () => {
   isRestaurantFavorite.value = !isRestaurantFavorite.value;
+};
+
+const applyRestaurantImages = (imageUrls = []) => {
+  if (!Array.isArray(imageUrls) || imageUrls.length === 0) return;
+  restaurantImages.value = imageUrls.map((url, index) => ({
+    url,
+    alt: `${restaurantInfo.value?.name || '식당'} 이미지 ${index + 1}`,
+  }));
+  restaurantInfo.value = {
+    ...restaurantInfo.value,
+    image: imageUrls[0],
+    gallery: imageUrls,
+  };
+};
+
+const loadRestaurantImages = async () => {
+  try {
+    const response = await axios.get(
+      `/api/business/restaurants/${restaurantId}/images`,
+    );
+    const imageUrls = (response.data || [])
+      .map((item) => item?.imageUrl)
+      .filter(Boolean);
+    applyRestaurantImages(imageUrls);
+  } catch (error) {
+    console.error('식당 이미지 데이터를 불러오지 못했습니다:', error);
+  }
 };
 
 const loadRepresentativeReviews = async () => {
@@ -292,6 +318,18 @@ const initializeDetailMap = async () => {
       restaurantInfo.value.coords.lng,
     );
 
+    const markerSvg =
+      "data:image/svg+xml;utf8," +
+      "<svg xmlns='http://www.w3.org/2000/svg' width='32' height='46' viewBox='0 0 32 46'>" +
+      "<path d='M16 1C8.8 1 3 6.8 3 14c0 9.3 13 30 13 30s13-20.7 13-30C29 6.8 23.2 1 16 1z' fill='%23ff6b4a' stroke='white' stroke-width='2'/>" +
+      "<circle cx='16' cy='14' r='5' fill='white'/>" +
+      "</svg>";
+    const markerImage = new kakaoMaps.MarkerImage(
+      markerSvg,
+      new kakaoMaps.Size(32, 46),
+      { offset: new kakaoMaps.Point(16, 46) },
+    );
+
     detailMapInstance = new kakaoMaps.Map(detailMapContainer.value, {
       center,
       level: detailLevelForDistance(detailMapDistanceStepIndex.value),
@@ -301,6 +339,7 @@ const initializeDetailMap = async () => {
     detailMarker = new kakaoMaps.Marker({
       position: center,
       title: restaurantName.value,
+      image: markerImage,
     });
 
     detailMarker.setMap(detailMapInstance);
@@ -332,12 +371,16 @@ const changeDetailMapDistance = (delta) => {
 
 // 컴포넌트 마운트 후 드래그 스크롤 및 지도 설정
 onMounted(() => {
+  if (typeof window !== 'undefined') {
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }
   const scrollContainers = document.querySelectorAll('.review-image-scroll');
   scrollContainers.forEach((container) => {
     setupDragScroll(container);
   });
   initializeDetailMap();
   loadRepresentativeReviews();
+  loadRestaurantImages();
 });
 
 onBeforeUnmount(() => {

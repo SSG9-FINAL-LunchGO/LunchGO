@@ -26,10 +26,22 @@ public class Bookmark {
     @Column(name = "promotion_agree")
     private Boolean promotionAgree;
 
+    @Column(name = "is_public", nullable = false)
+    private Boolean isPublic;
+
     @Builder
-    public Bookmark(Long userId, Long restaurantId, Boolean promotionAgree) {
+    public Bookmark(Long userId, Long restaurantId, Boolean promotionAgree, Boolean isPublic) {
         this.userId = userId;
         this.restaurantId = restaurantId;
         this.promotionAgree = promotionAgree;
+        this.isPublic = isPublic != null ? isPublic : false;
+    }
+
+    public void updatePublic(Boolean isPublic) {
+        this.isPublic = isPublic != null && isPublic;
+    }
+
+    public void updatePromotionAgree(Boolean promotionAgree) {
+        this.promotionAgree = promotionAgree != null && promotionAgree;
     }
 }

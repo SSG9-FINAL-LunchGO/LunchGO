@@ -62,19 +62,19 @@ const handleLogout = async () => {
           alt="런치고"
           width="56"
           height="56"
-          class="w-14 h-14 object-contain"
+          class="w-14 h-14 object-contain -ml-2"
         />
-        <RouterLink
-          to="/intro"
-          class="font-semibold text-[#1e3a5f] text-base hover:text-[#ff6b4a] transition-colors"
-        >
-          서비스 소개
-        </RouterLink>
+      </div>
+      <div class="flex-1 px-4">
+        <input
+          type="text"
+          placeholder="검색"
+          class="w-full h-9 px-3 rounded-full border border-[#ced4da] bg-[#e9ecef] text-sm text-[#495057] focus:outline-none focus:ring-2 focus:ring-[#ff6b4a]"
+        />
       </div>
 
       <div class="flex items-center gap-4">
         <template v-if="isLoggedIn">
-
           <div class="relative">
             <button
               @click="toggleMenu"

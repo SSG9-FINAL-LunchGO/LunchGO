@@ -869,7 +869,10 @@ const handleWithdraw = () => {
 
       <UsageHistory v-else-if="activeNav === 'usage'" />
 
-      <UserFavorites v-else-if="activeNav === 'favorite'" />
+      <UserFavorites
+        v-else-if="activeNav === 'favorite'"
+        :user-id="currentUserId"
+      />
     </main>
 
     <Transition name="fade">

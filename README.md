@@ -275,55 +275,27 @@ frontend/
 ├── src/
 │   ├── views/                    # 페이지 컴포넌트
 │   │   ├── HomeView.vue          # 메인 홈페이지
+│   │   ├── AboutView.vue         # 소개 페이지
+│   │   ├── intro/                # 서비스 소개
 │   │   ├── login/                # 로그인
 │   │   ├── signup/               # 회원가입
-│   │   ├── intro/                # 서비스 소개
-│   │   ├── mypage/               # 마이페이지
-│   │   │   └── favorites/        # 즐겨찾기
 │   │   ├── my-reservations/      # 내 예약 목록
-│   │   ├── restaurant/           # 식당 관련
-│   │   │   └── id/
-│   │   │       ├── RestaurantDetailPage.vue      # 식당 상세
-│   │   │       ├── booking/      # 예약하기
-│   │   │       ├── menu/         # 메뉴 선택
-│   │   │       ├── menus/        # 메뉴 전체보기
-│   │   │       ├── payment/      # 결제
-│   │   │       ├── confirmation/ # 예약 확인
-│   │   │       ├── summary/      # 요약
-│   │   │       └── reviews/      # 리뷰 목록 및 상세
+│   │   ├── mypage/               # 마이페이지
 │   │   ├── partner/              # 파트너(식당) 관련
-│   │   │   ├── PartnerPage.vue
-│   │   │   └── signup/           # 파트너 회원가입
-│   │   └── business/             # 사업자 페이지
-│   │       ├── dashboard/        # 대시보드
-│   │       ├── reservations/     # 예약 관리
-│   │       ├── restaurant-info/  # 식당 정보 관리
-│   │       │   ├── edit/         # 식당 정보 수정
-│   │       │   └── menu/
-│   │       │       ├── add/      # 메뉴 추가
-│   │       │       └── edit/id/  # 메뉴 수정
-│   │       └── staff/            # 직원 관리
+│   │   ├── restaurant/           # 식당 상세/예약/결제/리뷰
+│   │   ├── business/             # 사업자 페이지
+│   │   ├── admin/                # 관리자 페이지
+│   │   └── staff/                # 직원 관리 페이지
 │   │
 │   ├── components/
 │   │   └── ui/                   # UI 재사용 컴포넌트
-│   │       ├── Button.vue
-│   │       ├── Card.vue
-│   │       ├── Input.vue
-│   │       └── Modal 관련 컴포넌트들
 │   │
-│   ├── router/
-│   │   └── index.js              # Vue Router 설정
-│   │
-│   ├── stores/
-│   │   └── counter.js            # Pinia 상태관리
-│   │
-│   ├── assets/
-│   │   ├── main.css              # 전역 스타일
-│   │   └── base.css
-│   │
-│   ├── utils/
-│   │   └── index.js              # 유틸리티 함수
-│   │
+│   ├── composables/              # Vue composables
+│   ├── data/                     # 더미 데이터
+│   ├── router/                   # Vue Router 설정
+│   ├── stores/                   # Pinia 상태관리
+│   ├── utils/                    # 유틸리티 함수
+│   ├── assets/                   # 전역 스타일/이미지
 │   ├── App.vue                   # 루트 컴포넌트
 │   └── main.js                   # 앱 엔트리 포인트
 │
@@ -337,26 +309,84 @@ frontend/
 └── index.html                    # HTML 엔트리
 ```
 
+### 백엔드 구조 (`/src`)
+
+```
+src/
+├── main/
+│   ├── java/com/example/LunchGo/
+│   │   ├── account/              # 계정 찾기/가입 보조 로직
+│   │   ├── bookmark/             # 즐겨찾기
+│   │   ├── cafeteria/            # 구내식당 메뉴/추천
+│   │   ├── common/               # 공통 설정/유틸
+│   │   ├── config/               # MyBatis 설정
+│   │   ├── email/                # 이메일 인증/프로모션
+│   │   ├── image/                # 이미지 업로드/오브젝트 스토리지
+│   │   ├── member/               # 회원/사업자/직원
+│   │   ├── reservation/          # 예약/결제
+│   │   ├── restaurant/           # 식당/메뉴/통계
+│   │   ├── review/               # 리뷰/댓글/영수증 OCR
+│   │   ├── sms/                  # SMS 인증
+│   │   ├── tag/                  # 태그/검색어
+│   │   └── LunchGoApplication.java
+│   └── resources/
+│       ├── mapper/               # MyBatis XML 매퍼
+│       ├── sql/                  # 테이블/마이그레이션/시드 SQL
+│       ├── templates/            # 메일 템플릿
+│       ├── application.yml
+│       └── application.properties
+└── test/
+    └── java/com/example/LunchGo/ # 테스트 코드
+```
+
 ### 주요 라우트
 
-| 경로                        | 컴포넌트                 | 설명                     |
-| --------------------------- | ------------------------ | ------------------------ |
-| `/`                         | HomeView                 | 메인 홈 (식당 추천 목록) |
-| `/intro`                    | ServiceIntroPage         | 서비스 소개              |
-| `/login`                    | LoginPage                | 로그인                   |
-| `/signup`                   | SignupPage               | 회원가입                 |
-| `/mypage`                   | MyPage                   | 마이페이지               |
-| `/mypage/favorites`         | FavoritesPage            | 즐겨찾기                 |
-| `/my-reservations`          | MyReservationsPage       | 내 예약 목록             |
-| `/restaurant/:id`           | RestaurantDetailPage     | 식당 상세                |
-| `/restaurant/:id/booking`   | RestaurantBookingPage    | 예약하기                 |
-| `/restaurant/:id/menu`      | MenuSelectionPage        | 메뉴 선택                |
-| `/restaurant/:id/payment`   | RestaurantPaymentPage    | 결제                     |
-| `/restaurant/:id/reviews`   | RestaurantReviewsPage    | 리뷰 목록                |
-| `/partner`                  | PartnerPage              | 파트너 입점 문의         |
-| `/business/dashboard`       | BusinessDashboardPage    | 사업자 대시보드          |
-| `/business/reservations`    | BusinessReservationsPage | 예약 관리                |
-| `/business/restaurant-info` | RestaurantInfoPage       | 식당 정보                |
+| 경로                                     | 컴포넌트                  | 설명                       |
+| ---------------------------------------- | ------------------------- | -------------------------- |
+| `/`                                      | HomeView                  | 메인 홈 (식당 추천 목록)   |
+| `/intro`                                 | ServiceIntroPage          | 서비스 소개                |
+| `/login`                                 | LoginPage                 | 로그인                     |
+| `/signup`                                | SignupChoicePage          | 회원가입 유형 선택         |
+| `/signup/user`                           | UserSignupPage            | 사용자 회원가입            |
+| `/signup/owner`                          | OwnerSignupPage           | 사업자 회원가입            |
+| `/mypage`                                | UserMyPage                | 마이페이지                 |
+| `/business/mypage`                       | OwnerMyPage               | 사업자 마이페이지          |
+| `/mypage/reviews`                        | ReviewsPage               | 내 리뷰 관리               |
+| `/my-reservations`                       | MyReservationsPage        | 내 예약 목록               |
+| `/my-reservations/:id/cancel`            | ReservationCancelView     | 예약 취소                  |
+| `/partner`                               | PartnerPage               | 파트너 입점 문의           |
+| `/restaurant/:id`                        | RestaurantDetailPage      | 식당 상세                  |
+| `/restaurant/:id/booking`                | RestaurantBookingPage     | 예약하기                   |
+| `/restaurant/:id/menu`                   | MenuSelectionPage         | 메뉴 선택                  |
+| `/restaurant/:id/menus`                  | RestaurantMenusPage       | 메뉴 전체보기              |
+| `/restaurant/:id/payment`                | RestaurantPaymentPage     | 결제                       |
+| `/restaurant/:id/confirmation`           | RestaurantConfirmationPage | 예약 확인                  |
+| `/restaurant/:id/summary`                | RestaurantSummaryPage     | 예약 요약                  |
+| `/restaurant/:id/reviews`                | RestaurantReviewsPage     | 리뷰 목록                  |
+| `/restaurant/:id/reviews/write`          | WriteReviewPage           | 리뷰 작성                  |
+| `/restaurant/:id/reviews/:reviewId`      | ReviewDetailPage          | 리뷰 상세                  |
+| `/restaurant/:id/reviews/:reviewId/edit` | WriteReviewPage           | 리뷰 수정                  |
+| `/business/dashboard`                    | BusinessDashboardPage     | 사업자 대시보드            |
+| `/business/reservations`                 | BusinessReservationsPage  | 사업자 예약 관리           |
+| `/business/reservations/:id`             | ReservationDetailPage     | 예약 상세                  |
+| `/business/restaurant-info/:id`          | RestaurantInfoPage        | 식당 정보                  |
+| `/business/restaurant-info/:id/menus`    | MenusInfoPage             | 메뉴 리스트                |
+| `/business/restaurant-info/add`          | RestaurantInfoEditPage    | 식당 등록                  |
+| `/business/restaurant-info/edit/:id`     | RestaurantInfoEditPage    | 식당 정보 수정             |
+| `/business/restaurant-info/menu/add`     | MenuEditPage              | 메뉴 추가                  |
+| `/business/restaurant-info/menu/edit/:id` | MenuEditPage             | 메뉴 수정                  |
+| `/business/staff`                        | BusinessStaffPage         | 직원 관리                  |
+| `/business/reviews`                      | BusinessReviewsPage       | 리뷰 관리                  |
+| `/business/promotion`                    | BusinessPromotionPage     | 프로모션 관리              |
+| `/business/notifications`                | BusinessNotificationsPage | 방문/알림 관리             |
+| `/admin/dashboard`                       | AdminDashboardPage        | 관리자 대시보드            |
+| `/admin/reservations`                    | AdminReservationsPage     | 예약 관리                  |
+| `/admin/franchises`                      | AdminFranchisesPage       | 프랜차이즈 관리            |
+| `/admin/reviews`                         | AdminReviewsPage          | 리뷰 관리                  |
+| `/admin/members`                         | AdminMembersPage          | 회원 관리                  |
+| `/admin/finance`                         | AdminFinancePage          | 정산 관리                  |
+| `/admin/owners`                          | AdminOwnerApprovalPage    | 사업자 승인                |
+| `/staff/list`                            | StaffListPage             | 직원 리스트                |
 
 ### 디자인 시스템
 
@@ -376,6 +406,24 @@ frontend/
 - **Card**: 식당 카드, 정보 표시
 - **Modal**: 필터, 검색, 계정 찾기
 - **Input**: 폼 입력
+
+---
+
+## 🧩 백엔드 주요 API 목록 (모듈별)
+
+| 모듈 | 컨트롤러 | 설명 |
+| ---- | -------- | ---- |
+| account | AccountController | 아이디/비밀번호 찾기 등 계정 보조 기능 |
+| bookmark | BookmarkController | 즐겨찾기 CRUD |
+| cafeteria | CafeteriaMenuController | 구내식당 메뉴 조회/추천 |
+| email | EmailController | 이메일 인증/프로모션 발송 |
+| image | ImageUploadController | 이미지 업로드/프리사인 URL |
+| member | MemberController | 회원/사업자/직원 관리 |
+| reservation | ReservationController, ReservationPaymentController, PaymentController | 예약/결제 생성 및 웹훅 처리 |
+| restaurant | BusinessRestaurantController, MenuController, RestaurantTrendController, BusinessRestaurantImageController, BusinessMenuImageController | 식당/메뉴 관리, 트렌딩 조회, 이미지 관리 |
+| review | ReviewController, ReviewCommentController, ReviewBlindController, AdminReviewController, OcrController | 리뷰/댓글/블라인드/관리자 처리, OCR |
+| sms | SmsController | SMS 인증 |
+| tag | SearchTagController | 검색 태그 조회 |
 
 ---
 
