@@ -4,8 +4,8 @@ import BusinessSidebar from '@/components/ui/BusinessSideBar.vue';
 import BusinessHeader from '@/components/ui/BusinessHeader.vue';
 import { ArrowLeft } from 'lucide-vue-next';
 import { useRouter } from 'vue-router';
-import axios from 'axios';
 import RestaurantMenuList from '@/components/ui/RestaurantMenuList.vue';
+import httpRequest from "@/router/httpRequest.js";
 
 const props = defineProps({
   id: {
@@ -48,7 +48,7 @@ const menuCategories = computed(() => {
 
 onMounted(async () => {
   try {
-    const response = await axios.get(`/api/restaurants/${props.id}/menus`);
+    const response = await httpRequest.get(`/api/restaurants/${props.id}/menus`);
     fetchedMenus.value = response.data;
   } catch (error) {
     console.error('Failed to fetch menus:', error);

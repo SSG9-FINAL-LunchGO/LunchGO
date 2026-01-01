@@ -1,7 +1,5 @@
 <script setup>
 import { RouterLink } from 'vue-router';
-import { computed } from 'vue';
-import { useRestaurantStore } from '@/stores/restaurant';
 
 // 'activeMenu' 라는 이름의 prop을 정의합니다.
 defineProps({
@@ -10,11 +8,6 @@ defineProps({
     required: true,
   },
 });
-
-const restaurantStore = useRestaurantStore();
-const restaurantId = computed(
-  () => restaurantStore.restaurantInfo?.restaurantId || 1
-); // 스토어에 ID가 없을 경우 임시로 1을 사용
 </script>
 
 <template>
@@ -74,7 +67,7 @@ const restaurantId = computed(
         </li>
         <li>
           <RouterLink
-            :to="`/business/restaurant-info/${restaurantId}`"
+            to="/business/restaurant-info/resolve"
             :class="[
               'block px-4 py-3 rounded-lg transition-colors',
               activeMenu === 'restaurant-info'

@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import axios from 'axios';
 import HomeView from '../views/HomeView.vue';
+import httpRequest from './httpRequest';
 
 import { useRestaurantStore } from '@/stores/restaurant';
 import { useAccountStore } from '@/stores/account';
@@ -30,6 +31,43 @@ const router = createRouter({
       name: 'business-reservations',
       component: () =>
         import('../views/business/reservations/BusinessReservationsPage.vue'),
+    },
+    {
+      path: '/business/restaurant-info/resolve',
+      name: 'resolve-restaurant-info',
+      meta: { requiredAuth: true, roles: ['ROLE_OWNER'] },
+      beforeEnter: async (to, from, next) => {
+        const accountStore = useAccountStore();
+        const member = accountStore.member || JSON.parse(localStorage.getItem('member'));
+
+        if (!member?.id) {
+          window.alert("로그인 정보가 유효하지 않습니다. 다시 로그인해주세요.");
+          return next({ name: 'login' });
+        }
+        
+        try {
+          const response = await httpRequest.get('/api/business/owner/restaurant');
+          const restaurantId = response.data?.restaurantId;
+
+          if (restaurantId) {
+            next({ name: 'business-restaurant-info', params: { id: restaurantId } });
+          } else {
+            next({ name: 'business-restaurant-info-add' });
+          }
+        } catch (error) {
+          if (error.response && error.response.status === 404) {
+            next({ name: 'business-restaurant-info-add' });
+          } else {
+            console.error('식당 정보 확인 중 오류:', error);
+            window.alert('식당 정보를 확인하는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+            if (from.path !== '/' && from.name) {
+              next(false);
+            } else {
+              next({ name: 'business-dashboard' });
+            }
+          }
+        }
+      }
     },
     {
       path: '/business/restaurant-info/add',
