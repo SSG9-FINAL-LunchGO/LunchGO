@@ -7,6 +7,7 @@ import com.example.LunchGo.common.util.TokenUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
@@ -49,6 +50,55 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorizeRequests -> authorizeRequests
                         //각자 권한 걸어주면 됨니다
                         .requestMatchers("/api/join/**", "/api/auth/**", "/api/sms/**", "/api/login").permitAll()
+                        .requestMatchers("/api/refresh").permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/restaurants/*/reviews",
+                                "/api/restaurants/*/reviews/*",
+                                "/api/restaurants/trending"
+                        ).permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/payments/portone/webhook").permitAll()
+
+                        .requestMatchers(HttpMethod.POST, "/api/restaurants/*/reviews").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.GET, "/api/restaurants/*/reviews/*/edit").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.PUT, "/api/restaurants/*/reviews/*").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/restaurants/*/reviews/*").hasAuthority("ROLE_USER")
+
+                        .requestMatchers(HttpMethod.POST, "/api/v1/images/upload/*").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/images/presign").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.POST, "/api/ocr/receipt").hasAuthority("ROLE_USER")
+
+                        .requestMatchers(HttpMethod.POST, "/api/reservations/*/payments").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.POST, "/api/payments/portone/complete").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.POST, "/api/payments/portone/fail").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.POST, "/api/payments/portone/requested").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.POST, "/api/reservations/*/payments/expire").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.GET, "/api/reservations/*/confirmation").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.GET, "/api/reservations/*/summary").hasAuthority("ROLE_USER")
+
+                        .requestMatchers(HttpMethod.POST, "/api/cafeteria/menus/ocr").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.POST, "/api/cafeteria/menus/confirm").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.GET, "/api/cafeteria/menus/week").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.GET, "/api/cafeteria/recommendations").hasAuthority("ROLE_USER")
+
+                        .requestMatchers(HttpMethod.POST, "/api/bookmark-links").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.PATCH, "/api/bookmark-links/*").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.GET, "/api/bookmark-links/sent").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.GET, "/api/bookmark-links/received").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.GET, "/api/bookmark-links/search").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.GET, "/api/bookmark-links/search/list").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/bookmark-links").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.PATCH, "/api/bookmark/visibility").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.PATCH, "/api/bookmark/promotion").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.GET, "/api/bookmark/shared").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.GET, "/api/bookmark/list").hasAuthority("ROLE_USER")
+
+                        .requestMatchers(HttpMethod.POST, "/api/owners/restaurants/*/reviews/*/comments").hasAuthority("ROLE_OWNER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/owners/restaurants/*/reviews/*/comments/*").hasAuthority("ROLE_OWNER")
+                        .requestMatchers(HttpMethod.POST, "/api/owners/restaurants/*/reviews/*/blind-requests").hasAuthority("ROLE_OWNER")
+                        .requestMatchers(HttpMethod.GET, "/api/business/restaurants/*").hasAuthority("ROLE_OWNER")
+
+                        .requestMatchers(HttpMethod.GET, "/api/admin/reviews").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/admin/reviews/*/blind-requests").hasAuthority("ROLE_ADMIN")
                         .anyRequest().authenticated()
                 )
 

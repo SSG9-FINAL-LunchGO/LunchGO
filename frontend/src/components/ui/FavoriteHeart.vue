@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { Heart } from 'lucide-vue-next';
-import axios from 'axios'; 
+import httpRequest from '@/router/httpRequest';
 
 const props = defineProps<{
   restaurantId: number;
@@ -39,9 +39,9 @@ const toggleFavorite = async () => {
     isActive.value = false;
     
     try {
-      await axios.delete(`/api/bookmark`,{ 
-      data: { userId: props.userId, restaurantId: props.restaurantId }
-    });
+      await httpRequest.delete(`/api/bookmark`,{
+        data: { userId: props.userId, restaurantId: props.restaurantId }
+      });
       
       emit('update:favorite', false);
       emit('remove'); // 부모에게 삭제 알림 (목록에서 제거)
@@ -68,7 +68,7 @@ const toggleFavorite = async () => {
     isActive.value = true;
     
     try {
-      await axios.post('/api/bookmark', {
+      await httpRequest.post('/api/bookmark', {
         userId: props.userId, restaurantId: props.restaurantId 
       });
       

@@ -41,7 +41,7 @@ instance.interceptors.response.use((res) => {
                 return Promise.reject(err);
             }
 
-            const res = await axios.get('/api/refresh', {withCredentials: true});
+            const res = await axios.post('/api/refresh', {}, {withCredentials: true});
 
             const {accessToken} = res.data || {};
             if (!accessToken) throw new Error('토큰 리프레시 에러');
@@ -89,6 +89,9 @@ export default {
     },
     put(url, params, options = {}) {
         return instance.put(url, params, generateConfig(options));
+    },
+    patch(url, params, options = {}) {
+        return instance.patch(url, params, generateConfig(options));
     },
     delete(url, options = {}) {
         return instance.delete(url, generateConfig(options));

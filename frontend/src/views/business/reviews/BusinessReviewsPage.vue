@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from "vue";
 import { RouterLink } from "vue-router";
 import axios from "axios";
+import httpRequest from "@/router/httpRequest";
 import {
   Star,
   MessageSquare,
@@ -373,7 +374,7 @@ const addComment = async (reviewId) => {
   if (!review) return;
 
   try {
-    const response = await axios.post(
+    const response = await httpRequest.post(
       `/api/owners/restaurants/${restaurantId.value}/reviews/${reviewId}/comments`,
       { content }
     );
@@ -398,7 +399,7 @@ const deleteComment = async (reviewId, commentId) => {
   if (!review) return;
 
   try {
-    await axios.delete(
+    await httpRequest.delete(
       `/api/owners/restaurants/${restaurantId.value}/reviews/${reviewId}/comments/${commentId}`
     );
     review.comments = review.comments.filter((c) => c.id !== commentId);
@@ -444,7 +445,7 @@ const submitReport = async () => {
       alert("신고 태그를 다시 선택해주세요.");
       return;
     }
-    const response = await axios.post(
+    const response = await httpRequest.post(
       `/api/owners/restaurants/${restaurantId.value}/reviews/${reportReviewId.value}/blind-requests`,
       {
         tagId: tag.id,

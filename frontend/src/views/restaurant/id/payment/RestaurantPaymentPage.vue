@@ -8,7 +8,7 @@ import {
   Building2,
   Check,
 } from "lucide-vue-next";
-import axios from "axios";
+import httpRequest from "@/router/httpRequest";
 import Button from "@/components/ui/Button.vue";
 import Card from "@/components/ui/Card.vue";
 
@@ -70,7 +70,7 @@ const fetchBookingSummary = async () => {
       return;
     }
 
-    const res = await axios.get(`/api/reservations/${reservationId.value}/summary`);
+    const res = await httpRequest.get(`/api/reservations/${reservationId.value}/summary`);
     bookingSummary.value.requestNote =
         res.data?.requestNote ?? res.data?.booking?.requestNote ?? "";
   } catch (e) {
@@ -389,7 +389,7 @@ const handlePayment = async () => {
     // (임시 예약 생성/슬롯 락은 다른 담당에서 구현)
 
     const paymentTypeValue = isDepositOnly.value ? "DEPOSIT" : "PREPAID_FOOD";
-    const paymentRes = await axios.post(
+    const paymentRes = await httpRequest.post(
       `/api/reservations/${currentReservationId}/payments`,
       {
         paymentType: paymentTypeValue,
@@ -402,7 +402,7 @@ const handlePayment = async () => {
     const { merchantUid, amount } = paymentRes.data;
 
     try {
-      await axios.post("/api/payments/portone/requested", {
+      await httpRequest.post("/api/payments/portone/requested", {
         merchantUid,
       });
     } catch (requestError) {
@@ -424,7 +424,7 @@ const handlePayment = async () => {
 
     const portoneResult = await Promise.race([paymentPromise, timeoutPromise]);
 
-    await axios.post("/api/payments/portone/complete", {
+    await httpRequest.post("/api/payments/portone/complete", {
       merchantUid,
       impUid:
         portoneResult.imp_uid ||
@@ -452,11 +452,11 @@ const handlePayment = async () => {
 
     try {
       if (message.includes("초과")) {
-        await axios.post(
+        await httpRequest.post(
           `/api/reservations/${reservationId.value}/payments/expire`
         );
       } else {
-        await axios.post("/api/payments/portone/fail", {
+        await httpRequest.post("/api/payments/portone/fail", {
           reservationId: reservationId.value,
           reason: message,
         });
