@@ -33,6 +33,7 @@ import RestaurantCardList from "@/components/ui/RestaurantCardList.vue";
 import { useCafeteriaRecommendation } from "@/composables/useCafeteriaRecommendation";
 import TrendingRecommendationSection from "@/components/ui/TrendingRecommendationSection.vue";
 import { useTrendingRestaurants } from "@/composables/useTrendingRestaurants";
+import { useBudgetRecommendation, extractPriceValue } from "@/composables/useBudgetRecommendation";
 import { useAccountStore } from "@/stores/account";
 import axios from "axios";
 
@@ -74,6 +75,40 @@ const filterForm = reactive({
   priceRange: selectedPriceRange.value,
   recommendation: null,
 });
+const filterBudget = ref(60000);
+const filterPartySize = ref(4);
+const filterBudgetMin = 0;
+const filterBudgetMax = 500000;
+const filterBudgetStep = 10000;
+const filterBudgetPercent = computed(() => {
+  if (filterBudgetMax <= filterBudgetMin) return 0;
+  const clamped = Math.min(
+    Math.max(filterBudget.value, filterBudgetMin),
+    filterBudgetMax
+  );
+  return ((clamped - filterBudgetMin) / (filterBudgetMax - filterBudgetMin)) * 100;
+});
+const filterBudgetDisplay = computed(() => {
+  if (filterBudget.value >= filterBudgetMax) {
+    return "50만원 이상";
+  }
+  if (filterBudget.value <= 0) {
+    return "0원";
+  }
+  return `${Math.round(filterBudget.value / 10000)}만원`;
+});
+const filterPerPersonBudget = computed(() => {
+  if (!filterPartySize.value || filterPartySize.value <= 0) {
+    return 0;
+  }
+  return Math.floor(filterBudget.value / filterPartySize.value);
+});
+const filterPerPersonBudgetDisplay = computed(() => {
+  if (!filterPerPersonBudget.value) {
+    return "0원";
+  }
+  return `${filterPerPersonBudget.value.toLocaleString()}원`;
+});
 
 const isSearchOpen = ref(false);
 const searchDate = ref("");
@@ -91,6 +126,8 @@ const {
   fetchTrendingRestaurants,
   clearTrendingRestaurants,
 } = useTrendingRestaurants();
+const { budgetRecommendations, fetchBudgetRecommendations, clearBudgetRecommendations } =
+  useBudgetRecommendation();
 const isGeocodeExportMode = ref(false);
 const isGeocodeExporting = ref(false);
 const geocodeExportProgress = ref({ done: 0, total: 0 });
@@ -104,6 +141,12 @@ const selectedDistanceKm = computed(() => {
 });
 
 const restaurants = restaurantData;
+const baseRestaurants = computed(() => {
+  if (selectedRecommendation.value === "예산 맞춤") {
+    return budgetRecommendations.value;
+  }
+  return restaurants;
+});
 const restaurantsPerPage = 10;
 const currentPage = ref(1);
 const isTrendingSort = computed(() => selectedRecommendation.value === "인기순");
@@ -133,7 +176,7 @@ const getRestaurantReviewCount = (restaurant) => {
   return summary?.reviews ?? restaurant.reviews ?? 0;
 };
 const processedRestaurants = computed(() => {
-  let result = restaurants.slice();
+  let result = baseRestaurants.value.slice();
 
   const distanceLimit = selectedDistanceKm.value;
   if (distanceLimit) {
@@ -869,7 +912,7 @@ const priceRangeMap = Object.freeze({
   "2만원~3만원": { min: 20000, max: 30000 },
   "3만원 이상": { min: 30000, max: Number.POSITIVE_INFINITY },
 });
-const recommendationOptions = [
+const recommendationOptions = [ 
   "구내식당 대체 추천",
   "예산 맞춤",
   "취향 맞춤",
@@ -905,13 +948,6 @@ const ingredients = [
   "당근",
 ];
 
-const extractPriceValue = (priceText = "") => {
-  const match = priceText.match(/([\d.,]+)\s*원/);
-  const target = match?.[1] ?? priceText;
-  const digits = target.replace(/[^0-9]/g, "");
-  if (!digits) return null;
-  return Number(digits);
-};
 const resolveRestaurantPriceValue = (restaurant) => {
   const directPrice = extractPriceValue(restaurant?.price ?? "");
   if (directPrice != null) return directPrice;
@@ -1014,12 +1050,31 @@ const resetFilters = () => {
   filterForm.sort = "추천순";
   filterForm.priceRange = null;
   filterForm.recommendation = null;
+  filterBudget.value = 60000;
+  filterPartySize.value = 4;
+  clearBudgetRecommendations();
 };
 
 const applyFilters = () => {
   selectedSort.value = filterForm.sort || "추천순";
   selectedPriceRange.value = filterForm.priceRange || null;
   selectedRecommendation.value = filterForm.recommendation || null;
+  if (selectedRecommendation.value === "예산 맞춤") {
+    fetchBudgetRecommendations(filterPerPersonBudget.value);
+  } else {
+    clearBudgetRecommendations();
+  }
+  currentPage.value = 1;
+  isFilterOpen.value = false;
+  persistHomeListState();
+};
+
+const closeFilterModal = () => {
+  resetFilters();
+  selectedSort.value = "추천순";
+  selectedPriceRange.value = null;
+  selectedRecommendation.value = null;
+  clearTrendingRestaurants();
   currentPage.value = 1;
   isFilterOpen.value = false;
   persistHomeListState();
@@ -1137,6 +1192,10 @@ onMounted(() => {
       selectedRecommendation.value =
         parsed.selectedRecommendation ?? selectedRecommendation.value;
       currentPage.value = parsed.currentPage ?? currentPage.value;
+      if (selectedRecommendation.value === "예산 맞춤") {
+        selectedRecommendation.value = null;
+        clearBudgetRecommendations();
+      }
       nextTick(() => {
         if (Number.isFinite(parsed.scrollY)) {
           window.scrollTo(0, parsed.scrollY);
@@ -1317,7 +1376,14 @@ onBeforeUnmount(() => {
             :onClear="clearTrendingRecommendation"
           />
 
+          <div
+            v-if="!paginatedRestaurants.length"
+            class="w-full px-4 py-10 text-center text-sm text-[#6c757d]"
+          >
+            해당 검색 결과가 없습니다.
+          </div>
           <RestaurantCardList
+            v-else
             :restaurants="paginatedRestaurants"
             :favoriteRestaurantIds="favoriteRestaurantIds"
             :onToggleFavorite="toggleRestaurantFavorite"
@@ -1439,7 +1505,7 @@ onBeforeUnmount(() => {
         >
           <h3 class="text-lg font-semibold text-[#1e3a5f]">필터 및 정렬</h3>
           <button
-            @click="isFilterOpen = false"
+            @click="closeFilterModal"
             class="text-[#6c757d] hover:text-[#1e3a5f]"
           >
             <X class="w-6 h-6" />
@@ -1504,6 +1570,52 @@ onBeforeUnmount(() => {
               >
                 {{ option }}
               </button>
+            </div>
+            <div
+              v-if="filterForm.recommendation === '예산 맞춤'"
+              class="mt-4 rounded-xl border border-[#e9ecef] bg-[#f8f9fa] p-4 space-y-4"
+            >
+              <div class="flex items-center justify-between">
+                <p class="text-sm font-semibold text-[#1e3a5f]">총 예산</p>
+                <p class="text-sm font-semibold text-[#ff6b4a]">
+                  {{ filterBudgetDisplay }}
+                </p>
+              </div>
+              <div class="space-y-2">
+                <input
+                  type="range"
+                  :min="filterBudgetMin"
+                  :max="filterBudgetMax"
+                  :step="filterBudgetStep"
+                  v-model.number="filterBudget"
+                  :style="{
+                    background: `linear-gradient(to right, #ff6b4a 0%, #ff6b4a ${filterBudgetPercent}%, #e9ecef ${filterBudgetPercent}%, #e9ecef 100%)`,
+                  }"
+                  class="w-full h-2 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#ff6b4a] [&::-webkit-slider-thumb]:cursor-pointer"
+                />
+                <div class="flex justify-between text-xs text-[#6c757d]">
+                  <span>0원</span>
+                  <span>50만원 이상</span>
+                </div>
+              </div>
+              <div class="flex items-center justify-between gap-3">
+                <label class="text-sm font-semibold text-[#1e3a5f]">
+                  인원수
+                </label>
+                <div class="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    max="20"
+                    v-model.number="filterPartySize"
+                    class="w-20 px-3 py-2 rounded-lg border border-[#dee2e6] text-sm text-[#1e3a5f] bg-white focus:outline-none focus:ring-2 focus:ring-[#ff6b4a] focus:border-transparent"
+                  />
+                  <span class="text-sm text-[#6c757d]">명</span>
+                </div>
+              </div>
+              <div class="text-xs text-[#6c757d] text-right">
+                1인당 {{ filterPerPersonBudgetDisplay }}
+              </div>
             </div>
             <div
               v-if="filterForm.recommendation === '구내식당 대체 추천'"
