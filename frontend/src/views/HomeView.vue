@@ -36,6 +36,7 @@ import { useTrendingRestaurants } from "@/composables/useTrendingRestaurants";
 import { useBudgetRecommendation, extractPriceValue } from "@/composables/useBudgetRecommendation";
 import { useAccountStore } from "@/stores/account";
 import axios from "axios";
+import httpRequest from "@/router/httpRequest.js";
 
 const accountStore = useAccountStore();
 const isLoggedIn = computed(() =>
@@ -119,6 +120,36 @@ const searchTags = ref([]);
 const avoidIngredients = ref([]);
 const searchDistance = ref("");
 const budget = ref(500000);
+const categories = ref([]);
+const restaurantTags = ref([]);
+const ingredients = ref([]);
+
+const fetchSearchTags = async () => {
+  try {
+    const response = await httpRequest.get("/api/tags/search?categories=MENUTYPE,TABLETYPE,ATMOSPHERE,FACILITY,INGREDIENT");
+    const data = response.data;
+    if (data && data.MENUTYPE) {
+      categories.value = data.MENUTYPE.map((tag) => tag.content);
+    }
+    const newRestaurantTags = [];
+    if (data && data.TABLETYPE) {
+      newRestaurantTags.push(...data.TABLETYPE.map((tag) => tag.content));
+    }
+    if (data && data.ATMOSPHERE) {
+      newRestaurantTags.push(...data.ATMOSPHERE.map((tag) => tag.content));
+    }
+    if (data && data.FACILITY) {
+      newRestaurantTags.push(...data.FACILITY.map((tag) => tag.content));
+    }
+    restaurantTags.value = newRestaurantTags;
+    if (data && data.INGREDIENT) {
+      ingredients.value = data.INGREDIENT.map((tag) => tag.content);
+    }
+  } catch (error) {
+    console.error("태그를 불러오는 데 실패했습니다:", error);
+  }
+};
+
 const {
   isTrendingLoading,
   trendingRestaurants,
@@ -849,6 +880,7 @@ const initializeMap = async () => {
   }
 };
 
+
 onMounted(() => {
   initializeMap();
   if (typeof window !== "undefined") {
@@ -856,6 +888,33 @@ onMounted(() => {
     if (params.get("geocode") === "1") {
       isGeocodeExportMode.value = true;
       startGeocodeExport();
+    }
+  }
+  fetchSearchTags();
+  loadRecommendationsFromStorage();
+
+  const storedHomeState = sessionStorage.getItem(homeListStateStorageKey);
+  if (storedHomeState) {
+    try {
+      const parsed = JSON.parse(storedHomeState);
+      selectedSort.value = parsed.selectedSort ?? selectedSort.value;
+      selectedPriceRange.value =
+        parsed.selectedPriceRange ?? selectedPriceRange.value;
+      selectedRecommendation.value =
+        parsed.selectedRecommendation ?? selectedRecommendation.value;
+      currentPage.value = parsed.currentPage ?? currentPage.value;
+      if (selectedRecommendation.value === "예산 맞춤") {
+        selectedRecommendation.value = null;
+        clearBudgetRecommendations();
+      }
+      nextTick(() => {
+        if (Number.isFinite(parsed.scrollY)) {
+          window.scrollTo(0, parsed.scrollY);
+        }
+      });
+    } catch (error) {
+      console.error("홈 리스트 상태 복원 실패:", error);
+      sessionStorage.removeItem(homeListStateStorageKey);
     }
   }
 });
@@ -894,7 +953,6 @@ watch(isSearchOpen, (isOpen) => {
 });
 
 // Static data (constants)
-const categories = ["한식", "중식", "일식", "양식"];
 const timeSlots = ["11:00", "12:00", "13:00", "14:00"];
 const priceRanges = [
   "전체",
@@ -921,32 +979,7 @@ const recommendationOptions = [
 ];
 const distances = ["1km 이내", "2km 이내", "3km 이내"];
 const sortOptions = ["추천순", "거리순", "평점순", "낮은 가격순"];
-const restaurantTags = [
-  "조용한",
-  "깔끔한",
-  "셀프바",
-  "주차장 제공",
-  "이국적/이색적",
-  "칸막이",
-  "룸",
-  "단체",
-];
-const ingredients = [
-  "견과류",
-  "우유",
-  "계란",
-  "밀",
-  "대두",
-  "갑각류",
-  "조개류",
-  "생선",
-  "메밀",
-  "고수",
-  "오이",
-  "파프리카",
-  "미나리",
-  "당근",
-];
+
 
 const resolveRestaurantPriceValue = (restaurant) => {
   const directPrice = extractPriceValue(restaurant?.price ?? "");
