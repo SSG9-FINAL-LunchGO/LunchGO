@@ -252,7 +252,18 @@ onMounted(async () => {
     const restaurantId = Number(route.params.id);
     // 스토어에 정보가 없거나 다른 식당 정보가 들어있으면 새로 API 호출
     if (!store.restaurantInfo || store.restaurantInfo.restaurantId !== restaurantId) {
-      await store.fetchRestaurantDetail(restaurantId);
+      try {
+        await store.fetchRestaurantDetail(restaurantId);
+      } catch (error) {
+        if (error.response && (error.response.status === 403 || error.response.status === 404)) {
+          alert('해당 식당 정보에 접근할 권한이 없습니다.');
+          router.push('/business/dashboard');
+        } else {
+          alert('식당 정보를 불러오는 중 오류가 발생했습니다.');
+          router.push('/business/dashboard');
+        }
+        return; // Exit onMounted if error, to prevent further rendering with invalid data
+      }
     }
   }
 

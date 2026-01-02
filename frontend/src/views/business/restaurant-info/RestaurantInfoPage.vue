@@ -1,12 +1,13 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { RouterLink } from 'vue-router';
+import { RouterLink, useRouter } from 'vue-router'; // useRouter import 추가
 import BusinessSidebar from '@/components/ui/BusinessSideBar.vue';
 import BusinessHeader from '@/components/ui/BusinessHeader.vue';
 import { useRestaurantStore } from '@/stores/restaurant'; // Pinia 스토어 임포트
 
 // Pinia 스토어 초기화
 const store = useRestaurantStore();
+const router = useRouter(); // router 인스턴스 생성
 
 // Define props to receive the restaurant ID from the route
 const props = defineProps({
@@ -50,8 +51,18 @@ const mainImageUrl = computed(() => {
 
 // 5. 라이프사이클 훅
 // API로부터 데이터를 받아오는 로직을 처리할 함수
-onMounted(async () => { // async 추가
-  await store.fetchRestaurantDetail(props.id); // API 호출 로직으로 변경
+onMounted(async () => {
+  try {
+    await store.fetchRestaurantDetail(props.id);
+  } catch (error) {
+    if (error.response && (error.response.status === 403 || error.response.status === 404)) {
+      alert('해당 식당 정보에 접근할 권한이 없습니다.');
+      router.push('/business/dashboard');
+    } else {
+      alert('식당 정보를 불러오는 중 오류가 발생했습니다.');
+      router.push('/business/dashboard');
+    }
+  }
 });
 </script>
 

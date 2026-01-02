@@ -1,6 +1,6 @@
 package com.example.LunchGo.restaurant.controller;
 
-import jakarta.servlet.http.HttpServletRequest;
+import com.example.LunchGo.account.dto.CustomUserDetails;
 import com.example.LunchGo.restaurant.dto.RestaurantCreateRequest;
 import com.example.LunchGo.restaurant.dto.RestaurantDetailResponse;
 import com.example.LunchGo.restaurant.dto.RestaurantUpdateRequest;
@@ -8,81 +8,79 @@ import com.example.LunchGo.restaurant.service.BusinessRestaurantService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+import java.util.Optional;
+
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/business")
 @RequiredArgsConstructor
 public class BusinessRestaurantController {
 
     private final BusinessRestaurantService businessRestaurantService;
 
-    /**
-     * 사업자용 식당 상세 정보 조회 API
-     *
-     * @param id 식당 ID
-     * @return RestaurantDetailResponse DTO를 포함하는 ResponseEntity
-     */
-    @GetMapping("/business/restaurants/{id}")
-    public ResponseEntity<RestaurantDetailResponse> getRestaurantDetail(
-            @PathVariable("id") Long id,
-            HttpServletRequest request
+    @GetMapping("/owner/restaurant")
+    public ResponseEntity<?> getRestaurantIdByOwner(
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        String userKey = resolveUserKey(request);
-        // TODO(restaurant): 이 조회수 증가는 현재 사업자 상세 조회에 임시 적용됨. 사용자용 상세 API 구현 시 이동 필요.
-        RestaurantDetailResponse response = businessRestaurantService.getRestaurantDetail(id, userKey);
-
-        return ResponseEntity.ok(response);
+        if (userDetails == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        Optional<Long> restaurantIdOpt = businessRestaurantService.findRestaurantIdByOwnerId(userDetails.getId());
+        return restaurantIdOpt
+                .map(id -> ResponseEntity.ok(Map.of("restaurantId", id)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    /**
-     * 사업자용 식당 정보 등록 API
-     *
-     * @param request RestaurantCreateRequest DTO
-     * @return 생성된 식당 ID를 포함하는 ResponseEntity
-     */
-    @PostMapping("/business/restaurants")
-    public ResponseEntity<Long> createRestaurant(
-            @RequestBody RestaurantCreateRequest request
+    @GetMapping("/restaurants/{id}")
+    public ResponseEntity<RestaurantDetailResponse> getRestaurantDetail(
+            @PathVariable("id") Long id,
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        Long newRestaurantId = businessRestaurantService.createRestaurant(request);
+        if (userDetails == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        Optional<Long> restaurantId = businessRestaurantService.findRestaurantIdByOwnerId(userDetails.getId());
+        if (restaurantId.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+        // userKey는 사업자 전용 조회 기능에서 사용하지 않음. 현재는 ownerId로 대체하거나 다른 식별자 사용 가능
+        RestaurantDetailResponse response = businessRestaurantService.getRestaurantDetail(id, userDetails.getId());
+        return restaurantId.get().equals(id)
+                ? ResponseEntity.ok(response)
+                : ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+    }
 
+    @PostMapping("/restaurants")
+    public ResponseEntity<Long> createRestaurant(
+            @RequestBody RestaurantCreateRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        if (userDetails == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        Long newRestaurantId = businessRestaurantService.createRestaurant(userDetails.getId(), request);
         return ResponseEntity.status(HttpStatus.CREATED).body(newRestaurantId);
     }
 
-
-    /**
-     * 사업자용 식당 정보 수정 API
-     *
-     * @param id      식당 ID
-     * @param request RestaurantUpdateRequest DTO
-     * @return 수정된 RestaurantDetailResponse DTO를 포함하는 ResponseEntity
-     */
-    @PutMapping("/business/restaurants/{id}")
+    @PutMapping("/restaurants/{id}")
     public ResponseEntity<RestaurantDetailResponse> updateRestaurant(
             @PathVariable("id") Long id,
-            @RequestBody RestaurantUpdateRequest request
+            @RequestBody RestaurantUpdateRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        RestaurantDetailResponse updatedRestaurant = businessRestaurantService.updateRestaurant(id, request);
-
-        return ResponseEntity.ok(updatedRestaurant);
-    }
-
-    private String resolveUserKey(HttpServletRequest request) {
-        String userId = request.getHeader("X-User-Id");
-        if (userId != null && !userId.isBlank()) {
-            return "user-" + userId.trim();
+        if (userDetails == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        if (request.getSession(false) != null) {
-            String sessionId = request.getSession(false).getId();
-            if (sessionId != null && !sessionId.isBlank()) {
-                return "session-" + sessionId;
-            }
+        Optional<Long> restaurantId = businessRestaurantService.findRestaurantIdByOwnerId(userDetails.getId());
+        if (restaurantId.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
-        String forwarded = request.getHeader("X-Forwarded-For");
-        if (forwarded != null && !forwarded.isBlank()) {
-            return "ip-" + forwarded.split(",")[0].trim();
-        }
-        return "ip-" + request.getRemoteAddr();
+        RestaurantDetailResponse updatedRestaurant = businessRestaurantService.updateRestaurant(id, userDetails.getId(), request);
+        return restaurantId.get().equals(id)
+                ? ResponseEntity.ok(updatedRestaurant)
+                : ResponseEntity.status(HttpStatus.FORBIDDEN).build();
     }
 }
