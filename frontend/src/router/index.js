@@ -50,8 +50,10 @@ const router = createRouter({
           const restaurantId = response.data?.restaurantId;
 
           if (restaurantId) {
+            // 현재 사업자가 등록한 식당이 존재 -> 조회 페이지 이동
             next({ name: 'business-restaurant-info', params: { id: restaurantId } });
           } else {
+            // 현재 사업자가 등록한 식당이 없음 -> 등록 페이지 이동
             next({ name: 'business-restaurant-info-add' });
           }
         } catch (error) {
@@ -72,6 +74,7 @@ const router = createRouter({
     {
       path: '/business/restaurant-info/add',
       name: 'business-restaurant-info-add',
+      meta: { requiredAuth: true, roles: ['ROLE_OWNER'] },
       component: () =>
         import(
           '../views/business/restaurant-info/edit/RestaurantInfoEditPage.vue'
@@ -80,6 +83,7 @@ const router = createRouter({
     {
       path: '/business/restaurant-info/edit/:id',
       name: 'business-restaurant-info-edit',
+      meta: { requiredAuth: true, roles: ['ROLE_OWNER'] },
       component: () =>
         import(
           '../views/business/restaurant-info/edit/RestaurantInfoEditPage.vue'
@@ -88,12 +92,14 @@ const router = createRouter({
     {
       path: '/business/restaurant-info/menu/add',
       name: 'business-restaurant-menu-add',
+      meta: { requiredAuth: true, roles: ['ROLE_OWNER'] },
       component: () =>
         import('../views/business/restaurant-info/menu/MenuEditPage.vue'),
     },
     {
       path: '/business/restaurant-info/menu/edit/:id',
       name: 'business-restaurant-menu-edit',
+      meta: { requiredAuth: true, roles: ['ROLE_OWNER'] },
       component: () =>
         import('../views/business/restaurant-info/menu/MenuEditPage.vue'),
       props: true,
@@ -101,6 +107,7 @@ const router = createRouter({
     {
       path: '/business/restaurant-info/:id',
       name: 'business-restaurant-info',
+      meta: { requiredAuth: true, roles: ['ROLE_OWNER'] },
       component: () =>
         import('../views/business/restaurant-info/RestaurantInfoPage.vue'),
       props: true,
@@ -108,6 +115,7 @@ const router = createRouter({
     {
       path: '/business/restaurant-info/:id/menus',
       name: 'business-restaurant-menus',
+      meta: { requiredAuth: true, roles: ['ROLE_OWNER'] },
       component: () =>
         import('../views/business/restaurant-info/menu/MenusInfoPage.vue'),
       props: true,
