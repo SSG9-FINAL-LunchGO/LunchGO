@@ -406,6 +406,30 @@ Workflow에서 사용하는 Secrets 목록
 - 원인: Security CORS 설정에 Object Storage 도메인 누락
 - 대응: `WebConfig`와 `SecurityConfig` 모두에 도메인 추가 후 재배포
 
+### 7) GitHub Actions SSH 인증 실패
+- 증상: `ssh: unable to authenticate` 또는 `no key found`
+- 원인:
+  - `SSH_KEY`에 pem 원문이 아닌 비밀번호 문자열 입력
+  - root 계정의 `authorized_keys`에 공개키 미등록 또는 권한 문제
+  - `PubkeyAuthentication` 비활성화
+- 대응:
+  - pem 파일 전체를 `SSH_KEY`로 등록하고 줄바꿈 유지
+  - `ssh-keygen -y -f lunchgo.pem`으로 공개키 생성 후 `/root/.ssh/authorized_keys`에 등록
+  - 권한 설정: `/root/.ssh`는 `700`, `/root/.ssh/authorized_keys`는 `600`으로 설정
+  - 설정 확인: `grep -E "PermitRootLogin|PubkeyAuthentication" /etc/ssh/sshd_config`
+  - 설정 적용: `sed -i 's/^#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config`
+  - 적용 후 `systemctl restart ssh`
+
+### 8) Bastion → Private SSH 실패
+- 증상: `Permission denied (publickey,password)`
+- 원인: bastion에서 사용하는 pem의 공개키가 private 서버 root에 등록되지 않음
+- 대응: bastion의 `/home/ncp-user/lunchgo.pem` 공개키를 private 서버 `/root/.ssh/authorized_keys`에 등록
+
+### 9) DataSource 설정 누락 (CI 빌드)
+- 증상: `Failed to configure a DataSource: 'url' attribute is not specified`
+- 원인: `application-prod.properties`가 레포에 포함되지 않아 CI 빌드 산출물에 누락됨
+- 대응: `application-prod.properties`를 git에 포함하고, 값은 환경변수로 주입되도록 유지
+
 ## 프론트 업로드 스크립트 (Object Storage)
 스크립트: `scripts/upload_frontend_object_storage.sh`
 
