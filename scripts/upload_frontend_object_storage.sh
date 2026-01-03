@@ -7,7 +7,7 @@ set -euo pipefail
 DIST_DIR="${DIST_DIR:-frontend/dist}"
 BUCKET="${BUCKET:-lunchgo-test-bucket}"
 REGION="${REGION:-kr-standard}"
-ENDPOINT_URL="${ENDPOINT_URL:-https://kr.object.ncloudstorage.com}"
+ENDPOINT_URL="${ENDPOINT_URL:-http://kr.object.ncloudstorage.com}"
 ACL="${ACL:-}"
 DRY_RUN="${DRY_RUN:-0}"
 
