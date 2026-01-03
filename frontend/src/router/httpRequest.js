@@ -1,9 +1,13 @@
 ﻿import axios from "axios";
 import { useAccountStore } from "@/stores/account";
 
-const instance = axios.create(
-    {withCredentials: true} // refresh token cookie attach
-);
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+axios.defaults.baseURL = API_BASE_URL;
+
+const instance = axios.create({
+    withCredentials: true, // refresh token cookie attach
+    baseURL: API_BASE_URL,
+});
 
 // response interceptor
 instance.interceptors.response.use((res) => {
