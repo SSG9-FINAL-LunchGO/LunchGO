@@ -188,7 +188,7 @@ ENTRYPOINT ["java", "-jar", "/app/app.jar"]
 DIST_DIR="${DIST_DIR:-frontend/dist}"
 BUCKET="${BUCKET:-lunchgo-test-bucket}"
 REGION="${REGION:-kr-standard}"
-ENDPOINT_URL="${ENDPOINT_URL:-https://kr.object.ncloudstorage.com}"
+ENDPOINT_URL="${ENDPOINT_URL:-http://kr.object.ncloudstorage.com}"
 ACL="${ACL:-}"
 DRY_RUN="${DRY_RUN:-0}"
 
@@ -224,6 +224,30 @@ jobs:
           push: true
           tags: pgw10243/lunchgo-backend:dev
       - uses: appleboy/ssh-action@master
+```
+
+`.github/workflows/frontend-deploy.yml` 핵심 흐름
+
+```yaml
+on:
+  push:
+    branches: ["dev"]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend-deploy.yml"
+
+jobs:
+  build-and-deploy:
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+      - run: |
+          aws --endpoint-url=http://kr.object.ncloudstorage.com s3 sync \
+            frontend/dist s3://$BUCKET --delete
 ```
 
 ## 배포 체크리스트
@@ -357,6 +381,10 @@ Workflow에서 사용하는 Secrets 목록
 - `SERVER_IP`: Bastion 공인 IP (예: `101.79.9.218`)
 - `SSH_USER`: Bastion 접속 계정 (예: `root` 또는 `ncp-user`)
 - `SSH_KEY`: Bastion SSH private key (pem 내용)
+- `NCP_ACCESS_KEY`: Object Storage Access Key (기존 NCP 키 재사용)
+- `NCP_SECRET_KEY`: Object Storage Secret Key (기존 NCP 키 재사용)
+- `NCP_BUCKET_NAME`: 업로드 대상 버킷명 (예: `lunchgo-test-bucket`)
+- `SERVER_IP`: 프론트 빌드용 API 베이스 URL에 사용 (예: `101.79.9.218`)
 
 배포 전제 조건
 - Bastion에 `/home/ncp-user/lunchgo.pem` 존재
@@ -371,6 +399,8 @@ Workflow에서 사용하는 Secrets 목록
 - Nginx `/api` 프록시에서 `proxy_pass` 끝의 슬래시 유무에 따라 경로가 달라질 수 있다.
   - 잘못된 설정: `proxy_pass http://10.0.2.6:8080/;` (경로가 `/api` 없이 전달됨)
   - 올바른 설정: `proxy_pass http://10.0.2.6:8080;`
+- Object Storage CLI 업로드는 `https` 엔드포인트에서 `AccessDenied`가 발생할 수 있다.
+  - 대응: `http://kr.object.ncloudstorage.com`으로 호출
 - 프론트에서 API 호출 시 403이 발생하면 CORS 설정을 점검한다.
   - `WebConfig`와 `SecurityConfig` 모두에 Object Storage 도메인을 허용해야 한다.
   - 허용 도메인 예시: `http://lunchgo-test-bucket.s3-website.kr.object.ncloudstorage.com`
@@ -381,6 +411,7 @@ Workflow에서 사용하는 Secrets 목록
 - 증상: `PutObject`에서 `AccessDenied`
 - 원인: CLI가 권한 없는 키를 사용하거나 버킷 정책에 의해 차단됨
 - 대응: Cyberduck 수동 동기화로 우선 배포, CLI는 키 권한 정리 후 재시도
+  - 추가: `https` 엔드포인트에서 실패할 수 있으므로 `http` 엔드포인트로 재시도
 
 ### 2) Docker Hub push credential helper 오류
 - 증상: `error getting credentials ... (-50)`
@@ -437,7 +468,7 @@ Workflow에서 사용하는 Secrets 목록
 export AWS_ACCESS_KEY_ID=...
 export AWS_SECRET_ACCESS_KEY=...
 export BUCKET=lunchgo-test-bucket
-export ENDPOINT_URL=https://kr.object.ncloudstorage.com
+export ENDPOINT_URL=http://kr.object.ncloudstorage.com
 export REGION=kr-standard
 
 bash scripts/upload_frontend_object_storage.sh
@@ -452,6 +483,10 @@ DRY_RUN=1 bash scripts/upload_frontend_object_storage.sh
 ## 프론트 업로드(수동, Cyberduck)
 현재 Object Storage CLI 업로드는 권한 문제로 실패하여, Cyberduck으로 로컬 파일을 수동 동기화했다.
 CLI 업로드는 권한 정리 후 재시도한다.
+
+## Object Storage CORS 적용 여부
+브라우저에서 Object Storage 버킷을 다른 Origin에서 직접 호출하는 경우에만 CORS 설정이 필요하다.
+정적 호스팅으로 프론트만 제공하고, API는 별도 서버로 호출한다면 CORS 설정은 필수가 아니다.
 
 ## 프로덕션 설정 적용 방식
 `application-prod.properties`는 민감 정보를 직접 넣지 않고 환경변수로만 받도록 구성한다.
