@@ -34,7 +34,7 @@ public class ReservationServiceImpl implements ReservationService {
         validate(request);
 
         // 이 메소드가 끝난 후에도 @Transactional 범위 내에 있으므로 락은 계속 유지(트랜잭션 전파)
-        // 지정한 날짜+시간대의 예약슬롯을 불러오는 서비스 로직
+        // 지정한 날짜+시간대의 예약슬롯을 불러오는 서비스 로직(없으면 신규 생성)
         ReservationSlot slot = reservationSlotService.getValidatedSlot(
                 request.getRestaurantId(),
                 request.getSlotDate(),

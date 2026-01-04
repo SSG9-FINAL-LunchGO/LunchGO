@@ -50,12 +50,12 @@ public class ReservationSlotService {
         // 예약석을 점유하는 예약상태, 즉 TEMPORARY(임시예약), CONFIRMED(예약비 결제완료), PREPAID_CONFIRMED(선결제/선주문 결제완료)인 경우에만 예약한 인원수를 합산
         int currentTotal = reservationMapper.sumPartySizeBySlotId(slot.getSlotId());
 
-        // 4. 용량 검증
-        if (currentTotal + requestedPartySize > slot.getMaxCapacity()) {
+        // 4. 잔여석 검증: 이미 해당 시간대에 예약한 사람이 있거나, 사용자가 지정한 인원수가 잔여석 개수를 초과할 경우 예약 불가
+        if (currentTotal > 0 || currentTotal + requestedPartySize > slot.getMaxCapacity()) {
             log.info("잔여석이 부족합니다.");
             throw new IllegalStateException("잔여석이 부족합니다. (남은 좌석: " + (slot.getMaxCapacity() - currentTotal) + ")");
         }
-        log.info("선택한 인원수만큼 잔여석을 차감합니다. 현재 잔여석은 {}석입니다.", slot.getMaxCapacity() - (currentTotal+requestedPartySize));
+        log.info("선택한 인원수: {}명, 현재 잔여석: {}석", requestedPartySize, slot.getMaxCapacity() - (currentTotal+requestedPartySize));
 
         return slot;
     }
