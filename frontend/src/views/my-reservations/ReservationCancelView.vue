@@ -47,7 +47,13 @@ const isSummaryLoading = ref(false);
 const fetchReservationSummary = async () => {
   isSummaryLoading.value = true;
   try {
+<<<<<<< Updated upstream
     const response = await httpRequest.get(`/api/reservations/${reservationId.value}/summary`);
+=======
+    const response = await httpRequest.get(
+      `/api/reservations/${reservationId.value}/summary`
+    );
+>>>>>>> Stashed changes
     const data = response?.data || {};
     reservationSummary.value = {
       restaurantName: data.restaurant?.name || "",

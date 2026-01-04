@@ -38,4 +38,11 @@ public interface ReservationMapper {
             @Param("maxCapacity") Integer maxCapacity
     );
 
+    java.util.List<com.example.LunchGo.reservation.mapper.row.BusinessReservationListRow>
+    selectBusinessReservationList(
+            @org.apache.ibatis.annotations.Param("restaurantId") java.lang.Long restaurantId
+    );
+
+    java.util.List<com.example.LunchGo.reservation.mapper.row.AdminReservationListRow>
+    selectAdminReservationList();
 }

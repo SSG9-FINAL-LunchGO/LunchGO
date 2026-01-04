@@ -19,31 +19,44 @@ instance.interceptors.response.use((res) => {
         return Promise.reject(err);
     }
 
-    switch (err.response.status) {
-        case 401: {
-            const isLoginRequest =
-                err.config?.skipAuth ||
-                err.config?.url?.includes('/api/login') ||
-                err.config?.url?.endsWith('/login');
-            if (isLoginRequest) {
-                return Promise.reject(err);
+    if (err.response.status === 401) {
+        const originalRequest = err.config || {};
+        const isAuthBypass =
+            originalRequest.skipAuth ||
+            originalRequest.url?.includes('/api/login') ||
+            originalRequest.url?.includes('/api/refresh');
+        if (isAuthBypass) {
+            return Promise.reject(refreshError);
+        }
+
+        if (originalRequest._retry) {
+            return Promise.reject(err);
+        }
+        originalRequest._retry = true;
+
+        try {
+            const refreshRes = await axios.post('/api/refresh', null, { withCredentials: true });
+            const newToken = refreshRes.data?.accessToken ?? refreshRes.data;
+            if (!newToken || typeof newToken !== 'string') {
+                throw new Error('invalid refresh token response');
             }
 
-            const config = err.config || {};
-            const currentToken = accountStore.accessToken || localStorage.getItem('accessToken');
+            accountStore.setAccessToken(newToken);
+            localStorage.setItem('accessToken', newToken);
 
-            if (!currentToken) {
-                return Promise.reject(err);
-            }
+            originalRequest.headers = originalRequest.headers || {};
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
 
-            if (config.retried) {
-                window.alert('로그인 세션이 만료되었습니다.');
-                accountStore.clearAccount();
+            return instance(originalRequest);
+        } catch (refreshError) {
+            const status = refreshError?.response?.status;
+            if (status === 401 || status === 403) {
+                accountStore.clearAccount?.();
                 localStorage.removeItem('accessToken');
                 localStorage.removeItem('member');
-                window.location.replace('/');
-                return Promise.reject(err);
+                window.location.replace('/login');
             }
+<<<<<<< Updated upstream
 
             const res = await axios.post('/api/refresh', {}, {withCredentials: true});
 
@@ -60,8 +73,13 @@ instance.interceptors.response.use((res) => {
             return instance(config);
         }
         default:
+=======
+>>>>>>> Stashed changes
             return Promise.reject(err);
+        }
     }
+
+    return Promise.reject(err);
 });
 
 const generateConfig = (options = {}) => {
