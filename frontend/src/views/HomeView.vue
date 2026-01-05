@@ -72,6 +72,7 @@ const {
 } = useCafeteriaRecommendation({ userId: DEFAULT_USER_ID });
 const cafeteriaImageUrl = computed(() => cafeteriaImageUrlRef.value);
 const homeListStateStorageKey = "homeListState";
+const searchQuery = ref("");
 const filterForm = reactive({
   sort: selectedSort.value,
   priceRange: selectedPriceRange.value,
@@ -239,15 +240,20 @@ const applyReviewSummary = (restaurant) => {
     reviews: summary.reviews ?? restaurant.reviews,
   };
 };
-const getRestaurantRating = (restaurant) => {
-  const summary = reviewSummaryCache.value[String(restaurant.id)];
-  return summary?.rating ?? restaurant.rating ?? 0;
-};
-const getRestaurantReviewCount = (restaurant) => {
-  const summary = reviewSummaryCache.value[String(restaurant.id)];
-  return summary?.reviews ?? restaurant.reviews ?? 0;
+const getSortRating = (restaurant) => restaurant?.rating ?? 0;
+const getSortReviewCount = (restaurant) => restaurant?.reviews ?? 0;
+const getSortId = (restaurant) => {
+  const value = Number(restaurant?.id);
+  return Number.isFinite(value) ? value : 0;
 };
 const processedRestaurants = computed(() => {
+  let result = baseRestaurants.value.slice();
+  const normalizedQuery = searchQuery.value.trim().toLowerCase();
+  if (normalizedQuery) {
+    result = result.filter((restaurant) =>
+      String(restaurant.name || "").toLowerCase().includes(normalizedQuery)
+    );
+  }
   let result = (selectedRecommendation.value === RECOMMEND_TASTE
     ? tagMappingRecommendations.value
     : baseRestaurants.value).slice();
@@ -277,25 +283,39 @@ const processedRestaurants = computed(() => {
 
   const sorters = {
     추천순: (a, b) => {
-      const ratingDiff = getRestaurantRating(b) - getRestaurantRating(a);
+      const ratingDiff = getSortRating(b) - getSortRating(a);
       if (ratingDiff !== 0) return ratingDiff;
-      return getRestaurantReviewCount(b) - getRestaurantReviewCount(a);
+      const reviewDiff = getSortReviewCount(b) - getSortReviewCount(a);
+      if (reviewDiff !== 0) return reviewDiff;
+      return getSortId(a) - getSortId(b);
     },
-    거리순: (a, b) => getDistance(a) - getDistance(b),
-    평점순: (a, b) => getRestaurantRating(b) - getRestaurantRating(a),
+    거리순: (a, b) => {
+      const distanceDiff = getDistance(a) - getDistance(b);
+      if (distanceDiff !== 0) return distanceDiff;
+      return getSortId(a) - getSortId(b);
+    },
+    평점순: (a, b) => {
+      const ratingDiff = getSortRating(b) - getSortRating(a);
+      if (ratingDiff !== 0) return ratingDiff;
+      return getSortId(a) - getSortId(b);
+    },
     가격순: (a, b) => {
       const priceA =
         resolveRestaurantPriceValue(a) ?? Number.POSITIVE_INFINITY;
       const priceB =
         resolveRestaurantPriceValue(b) ?? Number.POSITIVE_INFINITY;
-      return priceA - priceB;
+      const priceDiff = priceA - priceB;
+      if (priceDiff !== 0) return priceDiff;
+      return getSortId(a) - getSortId(b);
     },
     "낮은 가격순": (a, b) => {
       const priceA =
         resolveRestaurantPriceValue(a) ?? Number.POSITIVE_INFINITY;
       const priceB =
         resolveRestaurantPriceValue(b) ?? Number.POSITIVE_INFINITY;
-      return priceA - priceB;
+      const priceDiff = priceA - priceB;
+      if (priceDiff !== 0) return priceDiff;
+      return getSortId(a) - getSortId(b);
     },
   };
 
@@ -1325,7 +1345,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="min-h-screen bg-[#f8f9fa]">
-    <AppHeader />
+    <AppHeader v-model:searchQuery="searchQuery" />
     <div
       v-if="isGeocodeExportMode"
       class="bg-white border-b border-[#e9ecef]"
