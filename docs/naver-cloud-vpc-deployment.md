@@ -77,6 +77,46 @@ Nginx가 SSL을 종료하므로, Spring Boot가 프록시 헤더를 인식해야
 - 예시 설정: `server.forward-headers-strategy=framework`
 - 필요한 경우 `X-Forwarded-*` 헤더 처리
 
+### 3-1) Nginx CORS 프리플라이트 처리(운영 안정성)
+운영 환경에서 프론트는 Object Storage 정적 호스팅, API는 Nginx를 통해 `/api`로 프록시되므로
+Nginx에서 `OPTIONS` 프리플라이트를 처리하면 백엔드 부하를 줄이고 장애 시에도 CORS 응답을 안정적으로 보장할 수 있다.
+
+- 적용 파일(예시): `/root/nginx-default.conf` (bastion host, bind mount)
+- 허용 Origin은 현재 서비스 도메인으로 제한
+- 프리플라이트는 `204`로 종료, 실제 요청은 백엔드로 프록시
+
+예시 설정:
+```nginx
+    # CORS 허용 Origin 제한
+    set $cors_origin "";
+    if ($http_origin ~* "^https?://lunchgo-test-bucket\\.s3-website\\.kr\\.object\\.ncloudstorage\\.com$") {
+        set $cors_origin $http_origin;
+    }
+
+    location /api/ {
+        # preflight
+        if ($request_method = OPTIONS) {
+            add_header Access-Control-Allow-Origin $cors_origin always;
+            add_header Access-Control-Allow-Credentials "true" always;
+            add_header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS" always;
+            add_header Access-Control-Allow-Headers "Authorization, Content-Type, X-Requested-With" always;
+            add_header Content-Length 0;
+            return 204;
+        }
+
+        add_header Access-Control-Allow-Origin $cors_origin always;
+        add_header Access-Control-Allow-Credentials "true" always;
+        add_header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS" always;
+        add_header Access-Control-Allow-Headers "Authorization, Content-Type, X-Requested-With" always;
+
+        proxy_pass http://10.0.2.6:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+```
+
 ### 4) 정적 리소스/라우팅 처리
 SPA 라우팅 대응을 위해 Object Storage 에러 문서를 `index.html`로 설정한다.
 
