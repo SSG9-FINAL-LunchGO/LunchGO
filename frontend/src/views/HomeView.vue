@@ -211,6 +211,12 @@ const getSortId = (restaurant) => {
   const value = Number(restaurant?.id);
   return Number.isFinite(value) ? value : 0;
 };
+const getSortRating = (restaurant) => restaurant?.rating ?? 0;
+const getSortReviewCount = (restaurant) => restaurant?.reviews ?? 0;
+const getSortId = (restaurant) => {
+  const value = Number(restaurant?.id);
+  return Number.isFinite(value) ? value : 0;
+};
 const processedRestaurants = computed(() => {
   let result = baseRestaurants.value.slice();
 
