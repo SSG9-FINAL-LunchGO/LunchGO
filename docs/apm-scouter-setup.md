@@ -396,6 +396,62 @@ docker exec my-nginx nginx -t
 - `http://<bastion-ip>/scouter`
 - `http://<bastion-ip>/scouter/extweb/index.html`
 
+## 트러블슈팅 (운영)
+
+### 1) WAS 컨테이너가 즉시 종료됨 (Scouter Agent 경로 누락)
+**증상**
+- 컨테이너가 `Exited (1)`로 바로 종료
+- 로그: `Error opening zip file or JAR manifest missing : /app/scouter/agent.java/scouter.agent.jar`
+
+**원인**
+- `entrypoint.sh`가 `-javaagent`를 필수로 로드하는데, 이미지/마운트에 Agent JAR이 없음
+
+**해결**
+- Agent/Conf 마운트 후 재실행
+```bash
+docker rm -f lunchgo-backend || true
+docker run --env-file /opt/lunchgo/.env \
+  -e SCOUTER_OBJ_NAME=lunchgo-prod-$(hostname) \
+  -p 8080:8080 --name lunchgo-backend -d \
+  -v /opt/scouter/scouter/agent.java:/app/scouter/agent.java:ro \
+  -v /opt/scouter/scouter/agent.java/conf/scouter.conf:/app/scouter/conf/scouter.conf:ro \
+  pgw10243/lunchgo-backend:dev
+```
+
+### 2) Collector UI에 객체가 보이지 않음
+**증상**
+- Agent 로그는 찍히는데 UI에 객체가 표시되지 않음
+
+**원인**
+- Collector가 UDP 6100 포트를 열지 않음 (컨테이너 포트/설정 누락)
+- Agent `net_collector_ip` 미설정
+
+**해결**
+1) Agent 설정
+```
+net_collector_ip=10.0.2.6
+net_collector_tcp_port=6100
+net_collector_udp_port=6100
+```
+
+2) Collector 설정
+```
+net_tcp_listen_port=6100
+net_udp_listen_port=6100
+net_http_port=6180
+```
+
+3) Collector 컨테이너 재실행 (UDP 6100 포함, 6180은 webapp 컨테이너가 사용 중이면 제외)
+```bash
+docker rm -f scouter-server
+docker run -d --name scouter-server \
+  -p 6100:6100 -p 6100:6100/udp \
+  -v /opt/scouter/scouter/server:/opt/scouter/server \
+  -w /opt/scouter/server \
+  eclipse-temurin:11-jre \
+  bash -lc "nohup java -Dscouter.config=/opt/scouter/server/conf/scouter.conf -Xmx1024m -classpath ./scouter-server-boot.jar scouter.boot.Boot ./lib > nohup.out & tail -f nohup.out"
+```
+
 ## macOS Scouter Client 실행 이슈(압축 해제 문제)
 macOS에서 Scouter Client가 SIGSEGV로 종료되는 경우, 잘못된 압축 해제가 원인일 수 있다.
 
