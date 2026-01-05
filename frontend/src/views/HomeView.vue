@@ -197,14 +197,6 @@ const applyReviewSummary = (restaurant) => {
     reviews: summary.reviews ?? restaurant.reviews,
   };
 };
-const getRestaurantRating = (restaurant) => {
-  const summary = reviewSummaryCache.value[String(restaurant.id)];
-  return summary?.rating ?? restaurant.rating ?? 0;
-};
-const getRestaurantReviewCount = (restaurant) => {
-  const summary = reviewSummaryCache.value[String(restaurant.id)];
-  return summary?.reviews ?? restaurant.reviews ?? 0;
-};
 const getSortRating = (restaurant) => restaurant?.rating ?? 0;
 const getSortReviewCount = (restaurant) => restaurant?.reviews ?? 0;
 const getSortId = (restaurant) => {
