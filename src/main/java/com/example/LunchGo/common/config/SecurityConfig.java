@@ -35,7 +35,7 @@ public class SecurityConfig {
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, CorsConfigurationSource corsConfigurationSource) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, CorsConfigurationSource corsConfigurationSource, JwtFilter jwtFilter) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -53,6 +53,8 @@ public class SecurityConfig {
                         //각자 권한 걸어주면 됨니다
                         .requestMatchers("/api/join/**", "/api/auth/**", "/api/sms/**", "/api/login").permitAll()
                         .requestMatchers("/api/refresh").permitAll()
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
                         .requestMatchers(HttpMethod.GET,
                                 "/api/restaurants/*/reviews",
                                 "/api/restaurants/*/reviews/*",
@@ -102,6 +104,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/owners/restaurants/*/reviews/*/blind-requests").hasAuthority("ROLE_OWNER")
                         .requestMatchers(HttpMethod.GET, "/api/business/restaurants/*").hasAuthority("ROLE_OWNER")
                         .requestMatchers(HttpMethod.GET, "/api/business/restaurants/*/images").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/business/staff/*").hasAuthority("ROLE_OWNER")
+                        .requestMatchers(HttpMethod.POST, "/api/business/promotion/*").hasAuthority("ROLE_OWNER")
 
                         .requestMatchers(HttpMethod.GET, "/api/admin/reviews").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/admin/forbidden-words").hasAuthority("ROLE_ADMIN")
@@ -112,7 +116,7 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
 
-                .addFilterBefore(new JwtFilter(tokenUtils), UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -123,7 +127,8 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(List.of(
                 "http://localhost:5173",
                 "http://localhost:8080",
-                "http://lunchgo-test-bucket.s3-website.kr.object.ncloudstorage.com"
+                "http://lunchgo-test-bucket.s3-website.kr.object.ncloudstorage.com",
+                "https://lunchgo-test-bucket.s3-website.kr.object.ncloudstorage.com"
         ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-type", "X-Requested-With"));
@@ -143,5 +148,10 @@ public class SecurityConfig {
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
         return authenticationConfiguration.getAuthenticationManager();
+    }
+
+    @Bean
+    public JwtFilter jwtFilter() {
+        return new JwtFilter(tokenUtils);
     }
 }

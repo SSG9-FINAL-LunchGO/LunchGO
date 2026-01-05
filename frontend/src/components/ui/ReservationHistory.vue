@@ -1,17 +1,11 @@
-<script setup>
+<script setup lang="ts">
 import { RouterLink, useRouter } from 'vue-router';
 import { Calendar, Clock, Users, MapPin } from 'lucide-vue-next';
 import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
 
 // 부모로부터 예약 데이터 받기
-defineProps({
-  reservations: {
-    type: Array,
-    required: true,
-    default: () => [],
-  },
-});
+const props = defineProps<{ reservations: any[] }>();
 
 // 상태에 따른 뱃지 스타일 (컴포넌트 내부 로직)
 const getStatusInfo = (reservationStatus) => {
@@ -34,6 +28,9 @@ const getStatusInfo = (reservationStatus) => {
 
 const router = useRouter();
 
+const getReservationId = (reservation) =>
+  reservation?.id ?? reservation?.reservationId ?? null;
+
 const goCancel = (id) => {
   router.push({ name: "reservation-cancel", params: { id: String(id) } });
 };
@@ -41,14 +38,14 @@ const goCancel = (id) => {
 
 <template>
   <div class="space-y-3">
-    <div v-if="reservations.length === 0" class="text-center py-12">
+    <div v-if="props.reservations.length === 0" class="text-center py-12">
       <p class="text-[#6c757d] text-sm">예정된 예약이 없습니다.</p>
     </div>
 
     <Card
       v-else
-      v-for="reservation in reservations"
-      :key="reservation.id"
+      v-for="reservation in props.reservations"
+      :key="reservation.reservationId || reservation.id"
       class="overflow-hidden border-[#e9ecef] rounded-xl bg-white shadow-sm"
     >
       <div class="p-4">
@@ -98,7 +95,10 @@ const goCancel = (id) => {
 
         <div class="flex gap-2">
           <RouterLink
-            :to="`/restaurant/${reservation.restaurant.id}/confirmation`"
+            :to="{
+              path: `/restaurant/${reservation.restaurant.id}/confirmation`,
+              query: { reservationId: getReservationId(reservation) },
+            }"
             class="flex-1"
           >
             <Button
