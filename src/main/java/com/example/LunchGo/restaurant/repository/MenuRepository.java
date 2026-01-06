@@ -51,4 +51,18 @@ public interface MenuRepository extends JpaRepository<Menu, Long> {
     List<Long> findRestaurantIdsByMenuTagIds(@Param("tagIds") List<Long> tagIds);
     @Query(value = "SELECT image_url FROM menu_images WHERE menu_id = :menuId", nativeQuery = true)
     List<String> findMenuImageUrls(@Param("menuId") Long menuId);
+
+    @Query(value = """
+            SELECT mi.menu_id, mi.image_url
+              FROM menu_images mi
+              JOIN (
+                    SELECT menu_id, MIN(menu_image_id) AS min_id
+                      FROM menu_images
+                     WHERE menu_id IN (:menuIds)
+                     GROUP BY menu_id
+                   ) first_images
+                ON mi.menu_id = first_images.menu_id
+               AND mi.menu_image_id = first_images.min_id
+            """, nativeQuery = true)
+    List<Object[]> findFirstMenuImageUrls(@Param("menuIds") List<Long> menuIds);
 }

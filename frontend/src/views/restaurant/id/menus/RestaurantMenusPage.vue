@@ -27,7 +27,19 @@ const fetchMenus = async () => {
   }
 };
 
-onMounted(fetchMenus);
+// flat으로 펴서 지금 UI 구조 유지
+const menuItems = computed(() =>
+    menuCategories.value.flatMap((cat) =>
+        cat.items.map((item) => ({
+          id: item.id,
+          name: item.name,
+          description: item.description,
+          category: cat.name,
+          price: parsePrice(item.price),
+          imageUrl: item.imageUrl || '',
+        })),
+    ),
+);
 
 const groupedMenus = computed(() => {
   if (!menus.value || menus.value.length === 0) {
@@ -87,28 +99,33 @@ const menuItemCount = computed(() => menus.value.length);
           </p>
         </div>
 
-        <div v-if="menuItemCount > 0">
-          <div v-for="category in groupedMenus" :key="category.name" class="px-4 py-5">
-            <h3 class="text-base font-semibold text-[#1e3a5f] mb-4">{{ category.name }}</h3>
-            <div class="space-y-3">
-              <Card
-                  v-for="item in category.items"
-                  :key="item.id"
-                  class="p-4 border-[#e9ecef] rounded-xl bg-white shadow-card hover:shadow-md transition-shadow"
+      <div v-for="category in categories" :key="category" class="px-4 py-5">
+        <h3 class="text-base font-semibold text-[#1e3a5f] mb-4">{{ category }}</h3>
+        <div class="space-y-3">
+          <Card
+              v-for="item in menuItems.filter((mItem) => mItem.category === category)"
+              :key="item.id"
+              class="p-4 border-[#e9ecef] rounded-xl bg-white shadow-card hover:shadow-md transition-shadow"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex-1">
+                <h4 class="font-semibold text-[#1e3a5f] mb-1">{{ item.name }}</h4>
+                <p v-if="item.description" class="text-xs text-[#6c757d] mb-2 leading-relaxed">
+                  {{ item.description }}
+                </p>
+                <p class="text-base font-semibold text-[#1e3a5f]">{{ item.price.toLocaleString() }}원</p>
+              </div>
+              <div
+                class="w-20 h-20 rounded-lg border border-[#e9ecef] bg-[#f1f3f5] overflow-hidden flex items-center justify-center text-[10px] text-[#adb5bd]"
               >
-                <div class="flex items-start justify-between gap-3">
-                  <div class="flex-1">
-                    <h4 class="font-semibold text-[#1e3a5f] mb-1">{{ item.name }}</h4>
-                    <p v-if="item.description" class="text-xs text-[#6c757d] mb-2 leading-relaxed">
-                      {{ item.description }}
-                    </p>
-                    <p class="text-base font-semibold text-[#1e3a5f]">{{ item.price.toLocaleString() }}원</p>
-                  </div>
-                  <div v-if="item.imageUrl" class="flex-shrink-0">
-                    <img :src="item.imageUrl" :alt="item.name" class="w-20 h-20 rounded-lg object-cover" />
-                  </div>
-                </div>
-              </Card>
+                <img
+                  v-if="item.imageUrl"
+                  :src="item.imageUrl"
+                  :alt="`${item.name} 이미지`"
+                  class="w-full h-full object-cover"
+                />
+                <span v-else>이미지</span>
+              </div>
             </div>
           </div>
         </div>
