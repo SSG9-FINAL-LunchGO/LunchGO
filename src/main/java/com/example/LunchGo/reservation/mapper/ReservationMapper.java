@@ -53,4 +53,10 @@ public interface ReservationMapper {
 
     java.util.List<com.example.LunchGo.reservation.mapper.row.AdminReservationListRow>
     selectAdminReservationList();
+
+    java.util.List<com.example.LunchGo.reservation.mapper.row.BusinessReservationListRow>
+    selectBusinessReservationListByDate(
+            @org.apache.ibatis.annotations.Param("restaurantId") java.lang.Long restaurantId,
+            @org.apache.ibatis.annotations.Param("slotDate") java.time.LocalDate slotDate
+    );
 }
