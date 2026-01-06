@@ -1,8 +1,7 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router'; // Import useRoute to get dynamic params
 import { ArrowLeft, Plus, Minus, ShoppingCart } from 'lucide-vue-next';
-import { getMenuCategoriesByRestaurant } from '@/data/restaurantMenus';
 import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
 import httpRequest from '@/router/httpRequest';
@@ -15,7 +14,45 @@ const accountStore = useAccountStore();
 
 const cart = ref([]); // Use ref for the cart array
 
-const menuCategories = ref(getMenuCategoriesByRestaurant(restaurantId));
+const menuCategories = ref([]);
+
+const loadMenus = async () => {
+  try {
+    const res = await httpRequest.get(`/api/restaurants/${restaurantId}/menus`);
+    const menus = res?.data ?? [];
+
+    const labelByCode = {
+      MAIN: '메인 메뉴',
+      SUB: '사이드 메뉴',
+      OTHER: '음료/기타',
+    };
+
+    const grouped = {};
+    menus.forEach((m) => {
+      const code = m?.category?.code || m?.category || 'OTHER';
+      const label = labelByCode[code] || '음료/기타';
+      if (!grouped[label]) grouped[label] = [];
+      grouped[label].push({
+        id: m.id,
+        name: m.name,
+        description: m.description,
+        price: m.price,
+      });
+    });
+
+    const orderedLabels = ['메인 메뉴', '사이드 메뉴', '음료/기타'];
+    menuCategories.value = orderedLabels
+        .filter((label) => Array.isArray(grouped[label]) && grouped[label].length)
+        .map((label) => ({ name: label, items: grouped[label] }));
+  } catch (e) {
+    console.error('메뉴 조회 실패:', e);
+    menuCategories.value = [];
+  }
+};
+
+onMounted(() => {
+  loadMenus();
+});
 
 // "35,000원" -> 35000
 const parsePrice = (price) => Number(String(price).replace(/[^\d]/g, ''));
@@ -123,6 +160,10 @@ const createReservation = async () => {
     reservationType: 'PREORDER_PREPAY',
     requestMessage: String(route.query.requestNote || '').trim() || null,
     totalAmount: totalAmount.value,
+    menuItems: cart.value.map((i) => ({
+      menuId: Number(i.id),
+      quantity: Number(i.quantity || 0),
+    })),
   };
 
   const res = await httpRequest.post('/api/reservations', payload);

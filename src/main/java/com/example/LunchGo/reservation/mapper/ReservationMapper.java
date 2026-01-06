@@ -7,6 +7,8 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import java.util.List;
+import com.example.LunchGo.reservation.mapper.row.ReservationMenuItemRow;
 
 @Mapper
 public interface ReservationMapper {
@@ -56,7 +58,18 @@ public interface ReservationMapper {
 
     java.util.List<com.example.LunchGo.reservation.mapper.row.BusinessReservationListRow>
     selectBusinessReservationListByDate(
-            @org.apache.ibatis.annotations.Param("restaurantId") java.lang.Long restaurantId,
-            @org.apache.ibatis.annotations.Param("slotDate") java.time.LocalDate slotDate
+            @Param("restaurantId") java.lang.Long restaurantId,
+            @Param("slotDate") java.time.LocalDate slotDate
     );
+
+    int insertReservationMenuItem(
+            @Param("reservationId") Long reservationId,
+            @Param("menuId") Long menuId,
+            @Param("menuName") String menuName,
+            @Param("unitPrice") Integer unitPrice,
+            @Param("quantity") Integer quantity,
+            @Param("lineAmount") Integer lineAmount
+    );
+
+    List<ReservationMenuItemRow> selectReservationMenuItems(@Param("reservationId") Long reservationId);
 }

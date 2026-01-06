@@ -260,6 +260,20 @@ public class ReservationPaymentService {
             .orElseGet(() -> paymentRepository.findTopByReservationIdOrderByCreatedAtDesc(reservationId)
                 .orElse(null));
 
+        List<ReservationMenuItemRow> menuRows = reservationSummaryMapper.selectReservationMenuItems(reservationId);
+        List<ReservationConfirmationResponse.MenuItem> menuItems = new ArrayList<>();
+
+        if (menuRows != null && !menuRows.isEmpty()) {
+            for (ReservationMenuItemRow row : menuRows) {
+                menuItems.add(ReservationConfirmationResponse.MenuItem.builder()
+                        .name(row.getName())
+                        .quantity(row.getQuantity())
+                        .unitPrice(row.getUnitPrice())
+                        .lineAmount(row.getLineAmount())
+                        .build());
+            }
+        }
+
         return ReservationConfirmationResponse.builder()
             .reservationCode(reservation.getReservationCode())
             .restaurant(ReservationConfirmationResponse.RestaurantInfo.builder()
@@ -278,6 +292,7 @@ public class ReservationPaymentService {
                 .method(formatMethod(payment != null ? payment.getMethod() : null))
                 .paidAt(formatPaidAt(payment != null ? payment.getApprovedAt() : null))
                 .build())
+            .menuItems(menuItems.isEmpty() ? null : menuItems)
             .build();
     }
 
