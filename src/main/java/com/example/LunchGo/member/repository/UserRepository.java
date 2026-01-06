@@ -41,6 +41,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("UPDATE User u SET u.lastLoginAt = CURRENT_TIMESTAMP WHERE u.userId = :userId")
     int updateLastLoginAt(@Param("userId") Long userId);
 
+    @Modifying(clearAutomatically = true)
+    @Query("DELETE FROM User u WHERE u.status='WITHDRAWAL' and u.withdrawalAt <= :current")
+    void deleteUserComplete(@Param("current") LocalDateTime current);
+
     /**
      * email로 사용자 정보 뽑아내기 (임직원 등록 시 사용)
      * */

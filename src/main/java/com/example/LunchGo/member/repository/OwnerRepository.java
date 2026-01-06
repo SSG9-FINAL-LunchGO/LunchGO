@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 public interface OwnerRepository extends JpaRepository<Owner, Long> {
@@ -51,4 +52,11 @@ public interface OwnerRepository extends JpaRepository<Owner, Long> {
     @Modifying(clearAutomatically = true)
     @Query("UPDATE Owner o SET o.lastLoginAt = CURRENT_TIMESTAMP WHERE o.ownerId = :ownerId")
     int updateLastLoginAt(@Param("ownerId") Long ownerId);
+
+    /**
+     * Scheduler
+     * */
+    @Modifying(clearAutomatically = true)
+    @Query("DELETE FROM Owner o WHERE o.status='WITHDRAWAL' AND o.withdrawalAt <=:current")
+    void deleteOwnerComplete(@Param("current") LocalDateTime current);
 }
