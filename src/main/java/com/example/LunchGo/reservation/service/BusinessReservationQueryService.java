@@ -13,6 +13,7 @@ import com.example.LunchGo.reservation.repository.ReservationSlotRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
 
@@ -27,6 +28,23 @@ public class BusinessReservationQueryService {
 
     public List<BusinessReservationItemResponse> getList(Long restaurantId) {
         List<BusinessReservationListRow> rows = reservationMapper.selectBusinessReservationList(restaurantId);
+        return rows.stream()
+                .map(row -> BusinessReservationItemResponse.builder()
+                        .id(row.getId())
+                        .name(row.getName())
+                        .phone(row.getPhone())
+                        .datetime(row.getDatetime())
+                        .guests(row.getGuests())
+                        .amount(row.getAmount())
+                        .status(row.getStatus())
+                        .build())
+                .toList();
+    }
+
+    public List<BusinessReservationItemResponse> getListByDate(Long restaurantId, LocalDate slotDate) {
+        List<BusinessReservationListRow> rows =
+                reservationMapper.selectBusinessReservationListByDate(restaurantId, slotDate);
+
         return rows.stream()
                 .map(row -> BusinessReservationItemResponse.builder()
                         .id(row.getId())
