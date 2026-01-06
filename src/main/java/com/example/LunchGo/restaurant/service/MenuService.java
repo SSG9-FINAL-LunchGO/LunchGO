@@ -195,10 +195,19 @@ public class MenuService {
         List<Long> menuIds = menus.stream().map(Menu::getMenuId).collect(Collectors.toList());
         // MenuTagService에서 태그 정보 조회
         Map<Long, List<MenuTagDTO>> tagsForMenus = menuTagService.getTagsForMenus(menuIds);
+        Map<Long, String> imageUrlForMenus = new HashMap<>();
+        for (Object[] row : menuRepository.findFirstMenuImageUrls(menuIds)) {
+            if (row != null && row.length >= 2) {
+                Long menuId = ((Number) row[0]).longValue();
+                String imageUrl = (String) row[1];
+                imageUrlForMenus.put(menuId, imageUrl);
+            }
+        }
 
         return menus.stream().map(menu -> {
             MenuDTO menuDto = modelMapper.map(menu, MenuDTO.class);
             menuDto.setTags(tagsForMenus.getOrDefault(menu.getMenuId(), Collections.emptyList()));
+            menuDto.setImageUrl(imageUrlForMenus.get(menu.getMenuId()));
             return menuDto;
         }).collect(Collectors.toList());
     }
@@ -217,9 +226,13 @@ public class MenuService {
 
         // MenuTagService에서 태그 정보 조회
         List<MenuTagDTO> menuTagDtos = menuTagService.getTagsForMenu(menuId);
+        List<String> imageUrls = menuRepository.findMenuImageUrls(menuId);
 
         MenuDTO menuDto = modelMapper.map(menu, MenuDTO.class);
         menuDto.setTags(menuTagDtos);
+        if (!imageUrls.isEmpty()) {
+            menuDto.setImageUrl(imageUrls.get(0));
+        }
         return menuDto;
     }
 

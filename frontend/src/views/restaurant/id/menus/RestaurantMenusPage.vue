@@ -22,6 +22,7 @@ const menuItems = computed(() =>
           description: item.description,
           category: cat.name,
           price: parsePrice(item.price),
+          imageUrl: item.imageUrl || '',
         })),
     ),
 );
@@ -68,6 +69,17 @@ const menuItemCount = computed(() => menuItems.value.length);
                   {{ item.description }}
                 </p>
                 <p class="text-base font-semibold text-[#1e3a5f]">{{ item.price.toLocaleString() }}원</p>
+              </div>
+              <div
+                class="w-20 h-20 rounded-lg border border-[#e9ecef] bg-[#f1f3f5] overflow-hidden flex items-center justify-center text-[10px] text-[#adb5bd]"
+              >
+                <img
+                  v-if="item.imageUrl"
+                  :src="item.imageUrl"
+                  :alt="`${item.name} 이미지`"
+                  class="w-full h-full object-cover"
+                />
+                <span v-else>이미지</span>
               </div>
             </div>
           </Card>
