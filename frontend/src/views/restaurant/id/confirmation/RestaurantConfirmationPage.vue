@@ -37,6 +37,7 @@ const reservation = ref({
     method: '신용카드',
     paidAt: '2024. 12. 10. 14:35',
   },
+  menuItems: [],
 });
 
 const fetchReservationDetail = async () => {
@@ -66,6 +67,7 @@ const fetchReservationDetail = async () => {
         method: data.payment?.method || reservation.value.payment.method,
         paidAt: data.payment?.paidAt || reservation.value.payment.paidAt,
       },
+      menuItems: Array.isArray(data.menuItems) ? data.menuItems : [],
     };
   } catch (error) {
     errorMessage.value = error?.message || '예약 정보를 불러오지 못했습니다.';
@@ -196,6 +198,43 @@ onMounted(async () => {
           <p class="mt-2 text-xs text-[#6c757d] leading-relaxed">
             요청사항은 매장 참고용이며, 예약 변경은 매장으로 직접 문의해 주세요.
           </p>
+        </div>
+      </div>
+
+      <!-- Order Info -->
+      <div
+          v-if="reservation.menuItems && reservation.menuItems.length"
+          class="bg-white px-4 py-5 border-b border-[#e9ecef] mt-2"
+      >
+        <h2 class="text-base font-semibold text-[#1e3a5f] mb-4">주문 내역</h2>
+
+        <div class="divide-y divide-[#e9ecef]">
+          <div
+              v-for="(item, idx) in reservation.menuItems"
+              :key="idx"
+              class="py-4 flex items-center justify-between"
+          >
+            <div class="text-base text-[#495057]">
+              <span class="font-semibold">{{ item.name }}</span>
+              <span class="text-[#6c757d] font-normal"> · {{ item.quantity }}개</span>
+            </div>
+
+            <div class="text-base font-semibold text-[#1e3a5f]">
+              {{ (item.lineAmount ?? (item.unitPrice * item.quantity)).toLocaleString() }}원
+            </div>
+          </div>
+        </div>
+
+        <div class="pt-4 mt-1 border-t border-[#e9ecef] flex items-center justify-between">
+          <span class="text-sm text-[#6c757d]">주문 합계</span>
+
+          <span class="text-lg font-bold text-[#1e3a5f]">
+      {{
+              reservation.menuItems
+                  .reduce((sum, it) => sum + (it.lineAmount ?? (it.unitPrice * it.quantity)), 0)
+                  .toLocaleString()
+            }}원
+    </span>
         </div>
       </div>
 
