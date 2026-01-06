@@ -18,11 +18,15 @@ import {
 import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
 import { loadKakaoMaps, geocodeAddress } from '@/utils/kakao';
+import { useAccountStore } from '@/stores/account';
 import httpRequest from "@/router/httpRequest.js";
 import axios from "axios";
 
+const accountStore = useAccountStore();
+const isLoggedIn = computed(() => accountStore.loggedIn);
+
 const route = useRoute();
-const restaurantId = route.params.id || '1'; // Default to '1' if id is not available
+const restaurantId = route.params.id || 1; // Default to '1' if id is not available
 const restaurantInfo = ref(null);
 const isLoading = ref(true);
 const error = ref(null);
@@ -178,6 +182,7 @@ const fetchRestaurantDetail = async () => {
       address: `${details.roadAddress} ${details.detailAddress || ''}`.trim(),
       hours: `${details.openTime} - ${details.closeTime}`,
       capacity: `최대 ${details.reservationLimit}인`,
+      preorderAvailable: details.preorderAvailable,
       tagline: details.description,
       tags: details.tags,
       coords: coords,
@@ -210,7 +215,7 @@ const fetchRestaurantDetail = async () => {
       restaurantImages.value = defaultGallery;
     }
   } catch (err) {
-    console.error('식당 상세 정보를 불러오는 데 실패했습니다:', err);
+    console.error('식당 상세 정보를 불러오는 데 실패했.l습니다:', err);
     error.value = '데이터를 불러올 수 없습니다.';
   } finally {
     isLoading.value = false;
@@ -773,7 +778,7 @@ watch(detailMapDistanceStepIndex, () => {
     </main>
 
     <!-- Fixed Bottom Buttons -->
-    <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e9ecef] z-50 shadow-lg">
+    <div v-if="!isLoading" class="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e9ecef] z-50 shadow-lg">
       <div class="relative max-w-[500px] mx-auto px-4 py-3">
         <RouterLink
           to="/"
@@ -784,6 +789,7 @@ watch(detailMapDistanceStepIndex, () => {
         </RouterLink>
         <div class="flex gap-3">
           <RouterLink
+            v-if="isLoggedIn && restaurantInfo?.preorderAvailable"
             :to="`/restaurant/${restaurantId}/booking?type=preorder`"
             class="flex-1"
           >
@@ -794,6 +800,7 @@ watch(detailMapDistanceStepIndex, () => {
             </Button>
           </RouterLink>
           <RouterLink
+            v-if="isLoggedIn"
             :to="`/restaurant/${restaurantId}/booking?type=reservation`"
             class="flex-1"
           >
