@@ -8,12 +8,14 @@ import com.example.LunchGo.reservation.entity.Reservation;
 import com.example.LunchGo.reservation.entity.ReservationSlot;
 import com.example.LunchGo.reservation.mapper.ReservationMapper;
 import com.example.LunchGo.reservation.mapper.row.BusinessReservationListRow;
+import com.example.LunchGo.reservation.mapper.row.ReservationMenuItemRow;
 import com.example.LunchGo.reservation.repository.ReservationRepository;
 import com.example.LunchGo.reservation.repository.ReservationSlotRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -69,18 +71,35 @@ public class BusinessReservationQueryService {
                 .orElseThrow(() -> new IllegalArgumentException("user not found: " + reservation.getUserId()));
 
         String status = mapStatus(reservation.getStatus());
-        String paymentType = "PREPAID_CONFIRMED".equals(String.valueOf(reservation.getStatus())) ? "prepaid" : "onsite";
 
+        // 선주문/선결제 여부는 "상태"가 아니라 reservation_type으로 판단해야 안전함
+        boolean isPreorderPrepay = "PREORDER_PREPAY".equalsIgnoreCase(reservation.getReservationType());
+        String paymentType = isPreorderPrepay ? "prepaid" : "onsite";
+
+        // 금액: totalAmount 우선, 없으면 prepayAmount / depositAmount로 fallback
         Integer amount = reservation.getTotalAmount();
         if (amount == null) {
-            // total_amount 없으면 prepay/deposit 중 있는 값으로 표시
-            amount = reservation.getPrepayAmount() != null ? reservation.getPrepayAmount() : reservation.getDepositAmount();
+            amount = (reservation.getPrepayAmount() != null) ? reservation.getPrepayAmount() : reservation.getDepositAmount();
         }
         if (amount == null) amount = 0;
 
+        // 선주문/선결제면 reservation_menu_items에서 가져와서 preorderItems 채우기
+        List<BusinessReservationDetailResponse.PreorderItem> preorderItems = java.util.Collections.emptyList();
+        if (isPreorderPrepay) {
+            List<ReservationMenuItemRow> rows = reservationMapper.selectReservationMenuItems(reservationId);
+            if (rows != null && !rows.isEmpty()) {
+                preorderItems = rows.stream()
+                        .map(r -> BusinessReservationDetailResponse.PreorderItem.builder()
+                                .name(r.getName())
+                                .qty(r.getQuantity())
+                                .price(r.getUnitPrice())
+                                .build())
+                        .toList();
+            }
+        }
+
         return BusinessReservationDetailResponse.builder()
                 .id(reservation.getReservationId())
-                .reservationCode(reservation.getReservationCode())
                 .name(user.getName())
                 .phone(user.getPhone())
                 .date(slot.getSlotDate().toString())
@@ -90,7 +109,7 @@ public class BusinessReservationQueryService {
                 .status(status)
                 .requestNote(reservation.getRequestMessage())
                 .paymentType(paymentType)
-                .preorderItems(Collections.emptyList())
+                .preorderItems(preorderItems)
                 .build();
     }
 
