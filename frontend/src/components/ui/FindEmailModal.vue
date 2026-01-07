@@ -167,7 +167,7 @@ const handleFindEmail = async () => {
   if(!isPhoneVerified.value) return alert("인증번호 확인은 필수입니다.");
 
   try {
-    const response = await axios.post('api/auth/search/email',{
+    const response = await axios.post('/api/auth/search/email',{
       name: name.value,
       phone: phone.value
     });
