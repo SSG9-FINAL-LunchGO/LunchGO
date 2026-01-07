@@ -9,5 +9,5 @@ public class RestaurantSearchParameter {
     private LocalDate date;
     private LocalTime time;
     private Integer partySize;
-    // TODO: 향후 태그 검색 기능 추가 시, 여기에 List<String> tags; 필드 추가
+    // TODO: 향후 태그 검색 기능 추가 시, 여기에 필드 추가
 }
