@@ -11,6 +11,9 @@
             <if test="date != null">
                 AND s.slot_date = #{date}
             </if>
+            <if test="date == null">
+                AND s.slot_date BETWEEN date_add(curdate(), interval -7 day) and date_add(curdate(), interval 7 day)
+            </if>
             <if test="time != null">
                 AND s.slot_time = #{time}
             </if>
@@ -30,6 +33,7 @@
                 -- Case 2: 예약 슬롯이 존재하지만 잔여석이 충분함
                 s.max_capacity >= (IFNULL(res.total_party_size, 0) + #{partySize})
             )
+            <!-- 검색 기능 확장 시 여기에 <if> 태그를 사용하여 추가 검색 조건을 작성하세요. -->
         </where>
     </select>
 
