@@ -8,15 +8,22 @@
         -- 지정한 날짜, 시간대, 식당ID로 생성된 예약 슬롯들을 확인(없으면 null)
         LEFT JOIN restaurant_reservation_slots s
             ON r.restaurant_id = s.restaurant_id
-            <if test="date != null">
-                AND s.slot_date = #{date}
-            </if>
-            <if test="date == null">
-                AND s.slot_date BETWEEN date_add(curdate(), interval -7 day) and date_add(curdate(), interval 7 day)
-            </if>
-            <if test="time != null">
-                AND s.slot_time = #{time}
-            </if>
+            <choose>
+                <when test="date != null">
+                    AND s.slot_date = #{date}
+                </when>
+                <otherwise>
+                    AND s.slot_date BETWEEN date_add(curdate(), interval -7 day) and date_add(curdate(), interval 7 day)
+                </otherwise>
+            </choose>
+            <choose>
+                <when test="time != null">
+                    AND s.slot_time = #{time} AND s.slot_time BETWEEN r.open_time and r.close_time
+                </when>
+                <otherwise>
+                    AND s.slot_time IN ('11:00:00', '12:00:00', '13:00:00', '14:00:00')
+                </otherwise>
+            </choose>
         -- 지정한 날짜, 시간대, 식당ID로 생성된 예약 슬롯들을 확인(없으면 null)
         LEFT JOIN (
             -- 지정한 날짜, 시간대에 특정 식당을 예약한 인원수 총합 계산
