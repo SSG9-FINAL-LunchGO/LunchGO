@@ -78,6 +78,8 @@ const mapReview = (item) => ({
   date: formatDate(item.createdAt ?? item.date),
   visitDate: formatDate(item.visitDate),
   content: item.content ?? "",
+  status: item.status ?? "PUBLIC",
+  isBlinded: item.status === "BLINDED",
   tags: Array.isArray(item.tags) ? item.tags : [],
   images: Array.isArray(item.images) ? item.images : [],
 });
@@ -353,7 +355,7 @@ watch(
             </div>
 
             <!-- 햄버거 메뉴 버튼 -->
-            <div class="relative ml-2">
+            <div v-if="!review.isBlinded" class="relative ml-2">
               <button
                 @click="toggleReviewMenu(review.id)"
                 class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors"
@@ -405,7 +407,7 @@ watch(
 
           <!-- 리뷰 이미지 (있는 경우) -->
           <div
-            v-if="review.images && review.images.length > 0"
+            v-if="!review.isBlinded && review.images && review.images.length > 0"
             class="mb-3 -mx-4"
           >
             <div class="flex gap-2 overflow-x-auto px-4 scrollbar-hide">
@@ -430,21 +432,35 @@ watch(
 
           <!-- 리뷰 내용 -->
           <div class="mb-3">
-            <p class="text-sm text-[#495057] leading-relaxed">
-              {{ truncateText(review.content, review.id) }}
-            </p>
-            <!-- 더보기/접기 버튼 -->
-            <button
-              v-if="shouldShowExpandButton(review.content)"
-              @click="toggleReviewExpand(review.id)"
-              class="text-xs text-[#6c757d] hover:text-[#ff6b4a] font-medium mt-1 transition-colors"
+            <div
+              v-if="review.isBlinded"
+              class="rounded-lg border border-[#e9ecef] bg-[#f8f9fa] px-3 py-2"
             >
-              {{ expandedReviews.has(review.id) ? '접기' : '더보기' }}
-            </button>
+              <p class="text-xs font-semibold text-[#dc3545] mb-1">
+                숨김 처리됨
+              </p>
+              <p class="text-sm text-[#6c757d]">
+                런치고 리뷰 정책에 의해 블라인드 처리되었습니다.
+              </p>
+            </div>
+            <template v-else>
+              <p class="text-sm text-[#495057] leading-relaxed">
+                {{ truncateText(review.content, review.id) }}
+              </p>
+              <!-- 더보기/접기 버튼 -->
+              <button
+                v-if="shouldShowExpandButton(review.content)"
+                @click="toggleReviewExpand(review.id)"
+                class="text-xs text-[#6c757d] hover:text-[#ff6b4a] font-medium mt-1 transition-colors"
+              >
+                {{ expandedReviews.has(review.id) ? '접기' : '더보기' }}
+              </button>
+            </template>
           </div>
 
           <!-- 태그 -->
           <RouterLink
+            v-if="!review.isBlinded"
             :to="`/restaurant/${getReviewRestaurantId(review)}/reviews/${getReviewId(review)}`"
             class="block"
           >
@@ -463,7 +479,10 @@ watch(
           </RouterLink>
 
           <!-- 리뷰 상세 보기 버튼 -->
-          <div class="mt-3 pt-3 border-t border-[#e9ecef]">
+          <div
+            v-if="!review.isBlinded"
+            class="mt-3 pt-3 border-t border-[#e9ecef]"
+          >
             <RouterLink
               :to="`/restaurant/${getReviewRestaurantId(review)}/reviews/${getReviewId(review)}`"
               class="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"

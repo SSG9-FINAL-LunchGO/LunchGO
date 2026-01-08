@@ -17,6 +17,7 @@ public class MyReviewItem {
     private LocalDateTime createdAt;
     private LocalDate visitDate;
     private String content;
+    private String status;
     private List<String> tags;
     private List<String> images;
 

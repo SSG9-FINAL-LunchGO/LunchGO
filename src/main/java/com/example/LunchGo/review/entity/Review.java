@@ -88,6 +88,10 @@ public class Review {
         this.status = approve ? "BLINDED" : "BLIND_REJECTED";
     }
 
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
     @PrePersist
     public void onCreate() {
         LocalDateTime now = LocalDateTime.now();

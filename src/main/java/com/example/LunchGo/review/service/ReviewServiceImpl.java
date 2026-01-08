@@ -125,17 +125,43 @@ public class ReviewServiceImpl implements ReviewService {
 
     @Override
     public RestaurantReviewListResponse getRestaurantReviews(Long restaurantId, int page, int size, ReviewSort sort, List<Long> tagIds) {
+        return getRestaurantReviewsInternal(restaurantId, page, size, sort, tagIds, false);
+    }
+
+    @Override
+    public ReviewDetailResponse getReviewDetail(Long restaurantId, Long reviewId) {
+        return getReviewDetailInternal(restaurantId, reviewId, false);
+    }
+
+    @Override
+    public RestaurantReviewListResponse getOwnerRestaurantReviews(Long restaurantId, int page, int size, ReviewSort sort, List<Long> tagIds) {
+        return getRestaurantReviewsInternal(restaurantId, page, size, sort, tagIds, true);
+    }
+
+    @Override
+    public ReviewDetailResponse getOwnerReviewDetail(Long restaurantId, Long reviewId) {
+        return getReviewDetailInternal(restaurantId, reviewId, true);
+    }
+
+    private RestaurantReviewListResponse getRestaurantReviewsInternal(
+        Long restaurantId,
+        int page,
+        int size,
+        ReviewSort sort,
+        List<Long> tagIds,
+        boolean includeBlinded
+    ) {
         int resolvedPage = Math.max(page, 1);
         int resolvedSize = Math.min(Math.max(size, 1), 50);
         int offset = (resolvedPage - 1) * resolvedSize;
 
-        ReviewListQuery query = new ReviewListQuery(restaurantId, resolvedSize, offset, sort, tagIds);
+        ReviewListQuery query = new ReviewListQuery(restaurantId, resolvedSize, offset, sort, tagIds, includeBlinded);
 
-        ReviewSummary summary = reviewReadMapper.selectReviewSummary(restaurantId);
+        ReviewSummary summary = reviewReadMapper.selectReviewSummary(restaurantId, includeBlinded);
         if (summary == null) {
             summary = new ReviewSummary(0.0, 0L, Collections.emptyList());
         } else {
-            summary.setTopTags(reviewReadMapper.selectTopTags(restaurantId));
+            summary.setTopTags(reviewReadMapper.selectTopTags(restaurantId, includeBlinded));
         }
 
         List<Long> reviewIds = reviewReadMapper.selectReviewPageIds(query);
@@ -180,13 +206,12 @@ public class ReviewServiceImpl implements ReviewService {
         return new RestaurantReviewListResponse(summary, items, pageInfo);
     }
 
-    @Override
-    public ReviewDetailResponse getReviewDetail(Long restaurantId, Long reviewId) {
+    private ReviewDetailResponse getReviewDetailInternal(Long restaurantId, Long reviewId, boolean includeBlinded) {
         if (!reviewRepository.existsByReviewIdAndRestaurantId(reviewId, restaurantId)) {
             return null;
         }
 
-        ReviewDetailResponse detail = reviewReadMapper.selectReviewDetail(reviewId);
+        ReviewDetailResponse detail = reviewReadMapper.selectReviewDetail(reviewId, includeBlinded);
         if (detail == null) {
             return null;
         }

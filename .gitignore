@@ -34,6 +34,7 @@ frontend/.env.*
 /ncloud-menu-image-sync.skill
 /menu_images_ids.csv
 *.skill
+skills/
 
 ## Scouter APM artifacts
 scouter-all-*.tar.gz
