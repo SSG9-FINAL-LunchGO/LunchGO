@@ -1,6 +1,7 @@
 package com.example.LunchGo.sms.service;
 
 import com.example.LunchGo.common.util.RedisUtil;
+import com.example.LunchGo.reservation.dto.OwnerReservationNotification;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import net.nurigo.sdk.NurigoApp;
@@ -84,5 +85,26 @@ public class SmsServiceImpl implements SmsService {
 
         if(codeByPhone == null) return false;
         return code.equals(codeByPhone);
+    }
+
+    @Override
+    public void sendNotificationToOwner(String phone, OwnerReservationNotification notification) {
+        Message notifyMessage = new Message(); //새로운 메시지 생성
+        notifyMessage.setFrom(fromNumber);
+        notifyMessage.setTo(phone);
+        notifyMessage.setText("[LunchGo] 신규 예약 알림\n예약 코드: "+notification.getReservationCode()+"\n예약자: "+notification.getName()+
+                "\n예약일: "+notification.getDate()+" "+notification.getTime()+"\n인원수: "+notification.getPartySize()+
+                "\n\n상세 내용은 LunchGo에서 확인해주세요.");
+
+        if(redisUtil.existData(notification.getReservationCode())) return; //예약 코드가 unique
+
+        long expireTime = 1000*60*1L; //중복발신 제거를 위해 유효시간 1분 정해둠
+        redisUtil.setDataExpire(notification.getReservationCode(), phone, expireTime);
+
+        try { //인증번호 전송
+            SingleMessageSentResponse response = this.messageService.sendOne(new SingleMessageSendingRequest(notifyMessage));
+        }catch(Exception e) {
+            redisUtil.deleteData(phone);
+        }
     }
 }
