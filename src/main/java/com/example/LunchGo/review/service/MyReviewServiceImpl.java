@@ -48,6 +48,7 @@ public class MyReviewServiceImpl implements MyReviewService {
             row.getCreatedAt(),
             row.getVisitDate(),
             forbiddenWordService.maskForbiddenWords(row.getContent()),
+            row.getStatus(),
             splitList(row.getTags()),
             splitList(row.getImages())
         );

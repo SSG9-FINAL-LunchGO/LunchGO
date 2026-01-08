@@ -19,6 +19,7 @@
             r.created_at AS createdAt,
             COALESCE(slot.slot_date, DATE(r.created_at)) AS visitDate,
             r.content AS content,
+            r.status AS status,
             tags.tags AS tags,
             images.images AS images
         FROM reviews r

@@ -18,9 +18,9 @@ import org.apache.ibatis.annotations.Param;
 
 @Mapper
 public interface ReviewReadMapper {
-    ReviewSummary selectReviewSummary(@Param("restaurantId") Long restaurantId);
+    ReviewSummary selectReviewSummary(@Param("restaurantId") Long restaurantId, @Param("includeBlinded") boolean includeBlinded);
 
-    List<TagCount> selectTopTags(@Param("restaurantId") Long restaurantId);
+    List<TagCount> selectTopTags(@Param("restaurantId") Long restaurantId, @Param("includeBlinded") boolean includeBlinded);
 
     long selectReviewCount(ReviewListQuery query);
 
@@ -30,7 +30,7 @@ public interface ReviewReadMapper {
 
     List<ReviewItemResponse> selectReviewItemsByIds(@Param("reviewIds") List<Long> reviewIds);
 
-    ReviewDetailResponse selectReviewDetail(@Param("reviewId") Long reviewId);
+    ReviewDetailResponse selectReviewDetail(@Param("reviewId") Long reviewId, @Param("includeBlinded") boolean includeBlinded);
 
     VisitInfo selectVisitInfo(@Param("reviewId") Long reviewId);
 

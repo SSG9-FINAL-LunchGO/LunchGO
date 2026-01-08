@@ -4,16 +4,23 @@
     "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.example.LunchGo.review.mapper.ReviewReadMapper">
 
-    <select id="selectReviewSummary" parameterType="long" resultType="com.example.LunchGo.review.dto.ReviewSummary">
+    <select id="selectReviewSummary" resultType="com.example.LunchGo.review.dto.ReviewSummary">
         SELECT
             COALESCE(AVG(r.rating), 0) AS avgRating,
             COUNT(*) AS reviewCount
         FROM reviews r
         WHERE r.restaurant_id = #{restaurantId}
-          AND r.status IN ('PUBLIC', 'BLINDED', 'BLIND_REQUEST', 'BLIND_REJECTED')
+          <choose>
+            <when test="includeBlinded">
+              AND r.status IN ('PUBLIC', 'BLINDED', 'BLIND_REQUEST', 'BLIND_REJECTED')
+            </when>
+            <otherwise>
+              AND r.status IN ('PUBLIC', 'BLIND_REQUEST', 'BLIND_REJECTED')
+            </otherwise>
+          </choose>
     </select>
 
-    <select id="selectTopTags" parameterType="long" resultType="com.example.LunchGo.review.dto.TagCount">
+    <select id="selectTopTags" resultType="com.example.LunchGo.review.dto.TagCount">
         SELECT
             t.tag_id AS tagId,
             t.name AS name,
@@ -22,7 +29,14 @@
         JOIN review_tags t ON t.tag_id = m.tag_id
         JOIN reviews r ON r.review_id = m.review_id
         WHERE r.restaurant_id = #{restaurantId}
-          AND r.status IN ('PUBLIC', 'BLINDED', 'BLIND_REQUEST', 'BLIND_REJECTED')
+          <choose>
+            <when test="includeBlinded">
+              AND r.status IN ('PUBLIC', 'BLINDED', 'BLIND_REQUEST', 'BLIND_REJECTED')
+            </when>
+            <otherwise>
+              AND r.status IN ('PUBLIC', 'BLIND_REQUEST', 'BLIND_REJECTED')
+            </otherwise>
+          </choose>
         GROUP BY t.tag_id, t.name
         ORDER BY count DESC
         LIMIT 3
@@ -35,7 +49,14 @@
             JOIN review_tag_maps m ON m.review_id = r.review_id
         </if>
         WHERE r.restaurant_id = #{restaurantId}
-          AND r.status IN ('PUBLIC', 'BLINDED', 'BLIND_REQUEST', 'BLIND_REJECTED')
+          <choose>
+            <when test="includeBlinded">
+              AND r.status IN ('PUBLIC', 'BLINDED', 'BLIND_REQUEST', 'BLIND_REJECTED')
+            </when>
+            <otherwise>
+              AND r.status IN ('PUBLIC', 'BLIND_REQUEST', 'BLIND_REJECTED')
+            </otherwise>
+          </choose>
           <if test="tagIds != null and tagIds.size() &gt; 0">
             AND m.tag_id IN
             <foreach collection="tagIds" item="tagId" open="(" separator="," close=")">
@@ -71,7 +92,14 @@
             JOIN review_tag_maps m ON m.review_id = r.review_id
         </if>
         WHERE r.restaurant_id = #{restaurantId}
-          AND r.status IN ('PUBLIC', 'BLINDED', 'BLIND_REQUEST', 'BLIND_REJECTED')
+          <choose>
+            <when test="includeBlinded">
+              AND r.status IN ('PUBLIC', 'BLINDED', 'BLIND_REQUEST', 'BLIND_REJECTED')
+            </when>
+            <otherwise>
+              AND r.status IN ('PUBLIC', 'BLIND_REQUEST', 'BLIND_REJECTED')
+            </otherwise>
+          </choose>
           <if test="tagIds != null and tagIds.size() &gt; 0">
             AND m.tag_id IN
             <foreach collection="tagIds" item="tagId" open="(" separator="," close=")">
@@ -107,7 +135,14 @@
                 JOIN review_tag_maps m ON m.review_id = r.review_id
             </if>
             WHERE r.restaurant_id = #{restaurantId}
-              AND r.status IN ('PUBLIC', 'BLINDED', 'BLIND_REQUEST', 'BLIND_REJECTED')
+              <choose>
+                <when test="includeBlinded">
+                  AND r.status IN ('PUBLIC', 'BLINDED', 'BLIND_REQUEST', 'BLIND_REJECTED')
+                </when>
+                <otherwise>
+                  AND r.status IN ('PUBLIC', 'BLIND_REQUEST', 'BLIND_REJECTED')
+                </otherwise>
+              </choose>
               <if test="tagIds != null and tagIds.size() &gt; 0">
                 AND m.tag_id IN
                 <foreach collection="tagIds" item="tagId" open="(" separator="," close=")">
@@ -166,7 +201,7 @@
         )
     </select>
 
-    <select id="selectReviewDetail" parameterType="long" resultType="com.example.LunchGo.review.dto.ReviewDetailResponse">
+    <select id="selectReviewDetail" resultType="com.example.LunchGo.review.dto.ReviewDetailResponse">
         SELECT
             r.review_id AS reviewId,
             CONCAT(LEFT(u.name, 1), '**') AS author,
@@ -189,6 +224,9 @@
            AND rus.user_id = r.user_id
         LEFT JOIN review_tags brt ON brt.tag_id = r.blind_request_tag_id
         WHERE r.review_id = #{reviewId}
+          <if test="includeBlinded == false">
+            AND r.status != 'BLINDED'
+          </if>
           AND (r.reservation_id IS NOT NULL OR r.receipt_id IS NOT NULL)
     </select>
 
@@ -337,6 +375,7 @@
             r.created_at AS createdAt,
             r.status AS status,
             (SELECT COUNT(*) FROM comments c WHERE c.review_id = r.review_id) AS commentCount,
+            r.blind_request_tag_id AS blindRequestTagId,
             brt.name AS blindRequestTagName,
             r.blind_request_reason AS blindRequestReason,
             r.blind_requested_at AS blindRequestedAt

@@ -2,6 +2,8 @@ package com.example.LunchGo.review.service;
 
 import com.example.LunchGo.review.dto.AdminBlindDecisionRequest;
 import com.example.LunchGo.review.dto.AdminBlindDecisionResponse;
+import com.example.LunchGo.review.dto.AdminReviewHideRequest;
+import com.example.LunchGo.review.dto.AdminReviewHideResponse;
 import com.example.LunchGo.review.entity.Review;
 import com.example.LunchGo.review.repository.ReviewRepository;
 import com.example.LunchGo.review.repository.ReviewTagRepository;
@@ -49,5 +51,33 @@ public class ReviewAdminService {
         review.decideBlind(approve);
         Review saved = reviewRepository.save(review);
         return new AdminBlindDecisionResponse(saved.getReviewId(), saved.getStatus());
+    }
+
+    public AdminReviewHideResponse hideReview(Long reviewId, AdminReviewHideRequest request) {
+        if (reviewId == null) {
+            throw new IllegalArgumentException("reviewId is required");
+        }
+        if (request == null) {
+            throw new IllegalArgumentException("request is required");
+        }
+
+        Review review = reviewRepository.findById(reviewId).orElse(null);
+        if (review == null) {
+            return null;
+        }
+
+        String status = review.getStatus();
+        if (!"PUBLIC".equals(status) && !"BLINDED".equals(status) && !"BLIND_REQUEST".equals(status)) {
+            throw new IllegalStateException("review status cannot be toggled");
+        }
+
+        if (request.isHidden()) {
+            review.setStatus("BLINDED");
+        } else if ("BLINDED".equals(status)) {
+            review.setStatus("PUBLIC");
+        }
+
+        Review saved = reviewRepository.save(review);
+        return new AdminReviewHideResponse(saved.getReviewId(), saved.getStatus());
     }
 }

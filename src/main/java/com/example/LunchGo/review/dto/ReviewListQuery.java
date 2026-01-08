@@ -13,4 +13,5 @@ public class ReviewListQuery {
     private int offset;
     private ReviewSort sort;
     private List<Long> tagIds;
+    private boolean includeBlinded;
 }

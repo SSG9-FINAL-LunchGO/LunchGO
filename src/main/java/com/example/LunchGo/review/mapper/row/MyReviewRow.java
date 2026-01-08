@@ -18,6 +18,7 @@ public class MyReviewRow {
     private LocalDateTime createdAt;
     private LocalDate visitDate;
     private String content;
+    private String status;
     private String tags;
     private String images;
 }
