@@ -13,6 +13,9 @@ import com.example.LunchGo.reservation.repository.ReservationRepository;
 import com.example.LunchGo.reservation.repository.ReservationSlotRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import com.example.LunchGo.reservation.mapper.row.ReservationMenuItemRow;
+import java.util.stream.Collectors;
+
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -69,8 +72,33 @@ public class BusinessReservationQueryService {
 
         User user = userRepository.findById(reservation.getUserId())
                 .orElseThrow(() -> new IllegalArgumentException("user not found: " + reservation.getUserId()));
-
+        String reservationType = String.valueOf(reservation.getReservationType());
         String status = mapStatus(reservation.getStatus());
+<<<<<<< Updated upstream
+=======
+
+        boolean isPreorder = "PREORDER_PREPAY".equals(String.valueOf(reservation.getReservationType()))
+                || "PREPAID_CONFIRMED".equals(String.valueOf(reservation.getStatus()));
+
+        String paymentType = isPreorder ? "prepaid" : "onsite";
+
+        List<BusinessReservationDetailResponse.PreorderItem> preorderItems = Collections.emptyList();
+        if (isPreorder) {
+            List<ReservationMenuItemRow> rows = reservationMapper.selectReservationMenuItems(reservationId);
+
+            if (rows != null && !rows.isEmpty()) {
+                preorderItems = rows.stream()
+                        .map(r -> BusinessReservationDetailResponse.PreorderItem.builder()
+                                .name(r.getMenuName())
+                                .qty(r.getQuantity())
+                                .price(r.getUnitPrice())
+                                .build())
+                        .toList();
+            }
+        }
+
+
+>>>>>>> Stashed changes
 
         // 선주문/선결제 여부는 "상태"가 아니라 reservation_type으로 판단해야 안전함
         boolean isPreorderPrepay = "PREORDER_PREPAY".equalsIgnoreCase(reservation.getReservationType());

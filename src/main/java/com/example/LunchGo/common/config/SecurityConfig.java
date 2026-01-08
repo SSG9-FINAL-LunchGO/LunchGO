@@ -119,7 +119,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/owners/restaurants/*/reviews/*").hasAnyAuthority("ROLE_OWNER", "ROLE_STAFF", "ROLE_ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/business/restaurants/*").hasAuthority("ROLE_OWNER")
                         .requestMatchers(HttpMethod.GET, "/api/business/restaurants/*/images").permitAll()
+<<<<<<< Updated upstream
                         .requestMatchers(HttpMethod.GET, "/api/business/reservations/**").hasAuthority("ROLE_OWNER")
+=======
+                        .requestMatchers(HttpMethod.GET, "/api/business/reservations/**").hasAnyAuthority("ROLE_OWNER", "ROLE_STAFF")
+>>>>>>> Stashed changes
                         .requestMatchers(HttpMethod.POST, "/api/business/reservations/**").hasAuthority("ROLE_OWNER")
                         .requestMatchers(HttpMethod.PATCH, "/api/business/reservations/**").hasAuthority("ROLE_OWNER")
 
@@ -132,7 +136,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/admin/forbidden-words/*").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/admin/forbidden-words/*").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/admin/reviews/*/blind-requests").hasAuthority("ROLE_ADMIN")
+<<<<<<< Updated upstream
                         .requestMatchers(HttpMethod.PATCH, "/api/admin/reviews/*/hide").hasAuthority("ROLE_ADMIN")
+=======
+>>>>>>> Stashed changes
                         .requestMatchers(HttpMethod.GET, "/api/admin/list/owner").hasAuthority("ROLE_ADMIN")
                         .anyRequest().authenticated()
                 )

@@ -7,8 +7,13 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+<<<<<<< Updated upstream
 import java.util.List;
 import com.example.LunchGo.reservation.mapper.row.ReservationMenuItemRow;
+=======
+import com.example.LunchGo.reservation.mapper.row.ReservationMenuItemRow;
+import java.util.List;
+>>>>>>> Stashed changes
 
 @Mapper
 public interface ReservationMapper {
@@ -55,6 +60,7 @@ public interface ReservationMapper {
 
     java.util.List<com.example.LunchGo.reservation.mapper.row.AdminReservationListRow>
     selectAdminReservationList();
+<<<<<<< Updated upstream
 
     java.util.List<com.example.LunchGo.reservation.mapper.row.BusinessReservationListRow>
     selectBusinessReservationListByDate(
@@ -71,5 +77,7 @@ public interface ReservationMapper {
             @Param("lineAmount") Integer lineAmount
     );
 
+=======
+>>>>>>> Stashed changes
     List<ReservationMenuItemRow> selectReservationMenuItems(@Param("reservationId") Long reservationId);
 }

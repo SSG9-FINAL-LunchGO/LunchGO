@@ -6,21 +6,46 @@ import BusinessHeader from '@/components/ui/BusinessHeader.vue';
 import StaffSideBar from '@/components/ui/StaffSideBar.vue';
 import { useRouter, useRoute } from 'vue-router';
 import httpRequest from '@/router/httpRequest';
+import { useAccountStore } from '@/stores/account';
 
 const router = useRouter();
 const route = useRoute();
 const restaurantId = computed(() => Number(route.query.restaurantId || 0));
 
-// 권한 확인 로직 (실제 앱에서는 Pinia Store나 localStorage에서 가져옵니다)
-// 예: const authStore = useAuthStore(); const userRole = computed(() => authStore.userRole);
-const userRole = ref('owner'); // 현재는 직접 입력으로 바꿔야함(owner/staff)
+/* ====== (추가) 권한 확인: Pinia 우선, 없으면 localStorage ====== */
+const accountStore = useAccountStore();
 
+const getStoredMember = () => {
+  if (typeof window === 'undefined') return null;
+  const raw = localStorage.getItem('member');
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    return null;
+  }
+};
+
+const member = computed(() => accountStore.member || getStoredMember());
+
+const userRole = computed(() => {
+  if (member.value?.role === 'ROLE_OWNER') return 'owner';
+  if (member.value?.role === 'ROLE_STAFF') return 'staff';
+  return '';
+});
+/* ============================================================= */
 
 const goDetail = (id) => {
   router.push({
     name: 'reservation-detail',
     params: { id: String(id) },
+<<<<<<< Updated upstream
     query: restaurantId.value ? { ...route.query, restaurantId: String(restaurantId.value) } : { ...route.query },
+=======
+    query: restaurantId.value
+        ? { ...route.query, restaurantId: String(restaurantId.value) }
+        : { ...route.query },
+>>>>>>> Stashed changes
   });
 };
 
@@ -41,20 +66,18 @@ const getReservationDateStr = (datetime) => {
   return String(datetime).split(' ')[0];
 };
 
-// 날짜 필터 on/off 
+// 날짜 필터 on/off
 const onlySelectedDate = ref(true);
 
 // 1차: 날짜로 걸러진 리스트
 const dateFilteredReservations = computed(() => {
   if (!onlySelectedDate.value) return reservations.value;
   return reservations.value.filter(
-    (r) => getReservationDateStr(r.datetime) === selectedDateStr.value
+      (r) => getReservationDateStr(r.datetime) === selectedDateStr.value
   );
 });
 
 const reservations = ref([]);
-
-
 
 // 통계
 const stats = computed(() => ({
@@ -67,8 +90,6 @@ const stats = computed(() => ({
 // 상태 필터
 const filterOpen = ref(false);
 const statusFilter = ref('전체'); // 전체 | 확정 | 대기 | 취소 | 환불
-
-// 2차: 상태 필터까지 적용
 
 // 날짜별 예약 건수 (YYYY-MM-DD -> count)
 const reservationCountByDate = computed(() => {
@@ -148,7 +169,11 @@ const ensureRestaurantId = async () => {
   if (restaurantId.value) return restaurantId.value;
 
   try {
+<<<<<<< Updated upstream
     const res = await httpRequest.get('/api/business/owner/restaurant');
+=======
+    const res = await httpRequest.get('/api/business/me/restaurant');
+>>>>>>> Stashed changes
     const rid = res.data?.restaurantId;
 
     if (rid) {
@@ -164,11 +189,18 @@ const ensureRestaurantId = async () => {
   return 0;
 };
 
+<<<<<<< Updated upstream
 const loadReservations = async () => {
   if (!restaurantId.value) return;
+=======
+const loadReservations = async (rid) => {
+  const targetRid = Number(rid || restaurantId.value || 0);
+  if (!targetRid) return;
+
+>>>>>>> Stashed changes
   try {
     const response = await httpRequest.get('/api/business/reservations', {
-      restaurantId: restaurantId.value,
+      restaurantId: targetRid,
     });
     if (Array.isArray(response.data)) {
       reservations.value = response.data;
@@ -178,12 +210,21 @@ const loadReservations = async () => {
   }
 };
 
+<<<<<<< Updated upstream
 onMounted(async () => {
   const rid = await ensureRestaurantId();
   if (rid) {
     await loadReservations();
+=======
+
+onMounted(async () => {
+  const rid = await ensureRestaurantId();
+  if (rid) {
+    await loadReservations(rid);
+>>>>>>> Stashed changes
   }
 });
+
 
 // --- 취소 모달 상태 ---
 const cancelModalOpen = ref(false);
@@ -234,7 +275,7 @@ const submitCancel = () => {
   window.alert('취소가 완료되었습니다.');
 };
 
-// Calendar helpers 
+// Calendar helpers
 const getDaysInMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
 const getFirstDayOfMonth = (date) => {
   const day = new Date(date.getFullYear(), date.getMonth(), 1).getDay();
@@ -253,9 +294,9 @@ const generateCalendarDays = computed(() => {
 const isSelectedDate = (day) => {
   if (!day) return false;
   return (
-    day === selectedDate.value.getDate() &&
-    currentMonth.value.getMonth() === selectedDate.value.getMonth() &&
-    currentMonth.value.getFullYear() === selectedDate.value.getFullYear()
+      day === selectedDate.value.getDate() &&
+      currentMonth.value.getMonth() === selectedDate.value.getMonth() &&
+      currentMonth.value.getFullYear() === selectedDate.value.getFullYear()
   );
 };
 
@@ -267,7 +308,7 @@ const nextMonth = () => {
 };
 
 const formattedMonth = computed(() =>
-  currentMonth.value.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long' })
+    currentMonth.value.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long' })
 );
 
 const selectDay = (day) => {
@@ -278,13 +319,13 @@ const selectDay = (day) => {
 
 <template>
   <div class="flex h-screen bg-[#f8f9fa]">
-    <BusinessSidebar 
-      v-if="userRole === 'owner'" 
-      activeMenu="reservations" 
+    <BusinessSidebar
+        v-if="userRole === 'owner'"
+        activeMenu="reservations"
     />
-    <StaffSideBar 
-      v-else-if="userRole === 'staff'" 
-      activeMenu="reservations" 
+    <StaffSideBar
+        v-else-if="userRole === 'staff'"
+        activeMenu="reservations"
     />
 
     <div class="flex-1 flex flex-col overflow-hidden">
@@ -304,20 +345,20 @@ const selectDay = (day) => {
 
             <div class="grid grid-cols-7 gap-x-2 gap-y-1">
               <div
-                v-for="dayName in ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']"
-                :key="dayName"
-                class="text-center text-sm font-medium text-[#6c757d] py-1"
+                  v-for="dayName in ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']"
+                  :key="dayName"
+                  class="text-center text-sm font-medium text-[#6c757d] py-1"
               >
                 {{ dayName }}
               </div>
               <button
-                v-for="(day, index) in generateCalendarDays"
-                :key="index"
-                @click="selectDay(day)"
-                :disabled="!day"
-                :class="[
+                  v-for="(day, index) in generateCalendarDays"
+                  :key="index"
+                  @click="selectDay(day)"
+                  :disabled="!day"
+                  :class="[
                   'relative h-24 rounded-xl p-3 flex flex-col justify-between items-stretch border transition-all',
-                  
+
                   { invisible: !day },
                   isSelectedDate(day)
                     ? 'bg-gradient-to-r from-[#FF6B4A] to-[#FFC4B8] text-white border-transparent shadow-md'
@@ -331,8 +372,8 @@ const selectDay = (day) => {
 
                 <!-- 예약 있는 날만 배너 -->
                 <div
-                  v-if="day && getReservationCountForDay(day) > 0"
-                  :class="[
+                    v-if="day && getReservationCountForDay(day) > 0"
+                    :class="[
                     'mt-1 rounded-lg px-2 py-1 text-center font-semibold text-xs',
                     isSelectedDate(day)
                       ? 'bg-white/20 text-white'
@@ -379,16 +420,16 @@ const selectDay = (day) => {
                 <!-- 필터 버튼 + 드롭다운-->
                 <div class="relative" ref="filterWrap">
                   <button
-                    @click.stop="filterOpen = !filterOpen"
-                    class="flex items-center gap-2 px-4 py-2 border border-[#dee2e6] rounded-lg text-[#1e3a5f] hover:bg-white transition-colors"
+                      @click.stop="filterOpen = !filterOpen"
+                      class="flex items-center gap-2 px-4 py-2 border border-[#dee2e6] rounded-lg text-[#1e3a5f] hover:bg-white transition-colors"
                   >
                     <Filter class="w-4 h-4" />
                     <span class="text-sm">필터</span>
                   </button>
 
                   <div
-                    v-if="filterOpen"
-                    class="absolute right-0 mt-2 w-40 bg-white border border-[#e9ecef] rounded-lg shadow-md z-20 overflow-hidden"
+                      v-if="filterOpen"
+                      class="absolute right-0 mt-2 w-40 bg-white border border-[#e9ecef] rounded-lg shadow-md z-20 overflow-hidden"
                   >
                     <button class="w-full text-left px-4 py-2 text-sm hover:bg-[#f8f9fa]" @click="statusFilter='확정'; filterOpen=false">확정</button>
                     <button class="w-full text-left px-4 py-2 text-sm hover:bg-[#f8f9fa]" @click="statusFilter='대기'; filterOpen=false">대기</button>
@@ -403,32 +444,32 @@ const selectDay = (day) => {
             <div class="overflow-x-auto">
               <table class="w-full">
                 <thead class="bg-[#f8f9fa] border-b border-[#e9ecef]">
-                  <tr>
-                    <th class="px-6 py-4 text-left text-sm font-semibold text-[#1e3a5f]">예약자</th>
-                    <th class="px-6 py-4 text-left text-sm font-semibold text-[#1e3a5f]">연락처</th>
-                    <th class="px-6 py-4 text-left text-sm font-semibold text-[#1e3a5f]">예약시간</th>
-                    <th class="px-6 py-4 text-left text-sm font-semibold text-[#1e3a5f]">인원</th>
-                    <th class="px-6 py-4 text-left text-sm font-semibold text-[#1e3a5f]">결제금액</th>
-                    <th class="px-6 py-4 text-left text-sm font-semibold text-[#1e3a5f]">상태</th>
-                    <th class="px-6 py-4 text-left text-sm font-semibold text-[#1e3a5f]">작업</th>
-                  </tr>
+                <tr>
+                  <th class="px-6 py-4 text-left text-sm font-semibold text-[#1e3a5f]">예약자</th>
+                  <th class="px-6 py-4 text-left text-sm font-semibold text-[#1e3a5f]">연락처</th>
+                  <th class="px-6 py-4 text-left text-sm font-semibold text-[#1e3a5f]">예약시간</th>
+                  <th class="px-6 py-4 text-left text-sm font-semibold text-[#1e3a5f]">인원</th>
+                  <th class="px-6 py-4 text-left text-sm font-semibold text-[#1e3a5f]">결제금액</th>
+                  <th class="px-6 py-4 text-left text-sm font-semibold text-[#1e3a5f]">상태</th>
+                  <th class="px-6 py-4 text-left text-sm font-semibold text-[#1e3a5f]">작업</th>
+                </tr>
                 </thead>
 
                 <tbody class="divide-y divide-[#e9ecef]">
-                  <tr
+                <tr
                     v-for="reservation in pagedReservations"
                     :key="reservation.id"
                     class="hover:bg-[#f8f9fa] transition-colors"
-                  >
-                    <td class="px-6 py-4 text-sm text-[#1e3a5f]">{{ reservation.name }}</td>
-                    <td class="px-6 py-4 text-sm text-[#6c757d]">{{ reservation.phone }}</td>
-                    <td class="px-6 py-4 text-sm text-[#1e3a5f]">{{ reservation.datetime }}</td>
-                    <td class="px-6 py-4 text-sm text-[#1e3a5f]">{{ reservation.guests }}명</td>
-                    <td class="px-6 py-4 text-sm text-[#1e3a5f]">{{ reservation.amount.toLocaleString() }}원</td>
+                >
+                  <td class="px-6 py-4 text-sm text-[#1e3a5f]">{{ reservation.name }}</td>
+                  <td class="px-6 py-4 text-sm text-[#6c757d]">{{ reservation.phone }}</td>
+                  <td class="px-6 py-4 text-sm text-[#1e3a5f]">{{ reservation.datetime }}</td>
+                  <td class="px-6 py-4 text-sm text-[#1e3a5f]">{{ reservation.guests }}명</td>
+                  <td class="px-6 py-4 text-sm text-[#1e3a5f]">{{ reservation.amount.toLocaleString() }}원</td>
 
-                    <td class="px-6 py-4">
+                  <td class="px-6 py-4">
                       <span
-                        :class="`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
+                          :class="`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${
                           reservation.status === '확정'
                             ? 'bg-[#d4edda] text-[#155724]'
                             : reservation.status === '대기'
@@ -440,50 +481,50 @@ const selectDay = (day) => {
                       >
                         {{ reservation.status }}
                       </span>
-                    </td>
+                  </td>
 
-                    <td class="px-6 py-4">
-                      <!-- 상세보기 1개만 -->
-                      <div class="flex items-center gap-2">
-                        <button
+                  <td class="px-6 py-4">
+                    <!-- 상세보기 1개만 -->
+                    <div class="flex items-center gap-2">
+                      <button
                           @click="goDetail(reservation.id)"
                           class="bg-gradient-to-r from-[#FF6B4A] to-[#FFC4B8] text-white px-4 py-2 rounded-full text-xs hover:opacity-90 transition-opacity"
-                        >
-                          상세보기
-                        </button>
+                      >
+                        상세보기
+                      </button>
 
-                        <!-- 확정/대기만 취소 가능 -->
-                        <button
+                      <!-- 확정/대기만 취소 가능 -->
+                      <button
                           v-if="reservation.status !== '취소' && reservation.status !== '환불'"
                           @click="openCancelModal(reservation.id)"
                           class="bg-[#dc3545] text-white px-4 py-2 rounded-full text-xs hover:opacity-90 transition-opacity"
-                        >
-                          취소
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                      >
+                        취소
+                      </button>
+                    </div>
+                  </td>
+                </tr>
                 </tbody>
               </table>
               <div
-                v-if="filteredReservations.length > 0"
-                class="flex items-center justify-center gap-3 py-5"
+                  v-if="filteredReservations.length > 0"
+                  class="flex items-center justify-center gap-3 py-5"
               >
                 <button
-                  type="button"
-                  @click="prevPage"
-                  :disabled="currentPage === 1"
-                  class="p-2 rounded-full hover:bg-[#f8f9fa] disabled:opacity-30 disabled:cursor-not-allowed"
+                    type="button"
+                    @click="prevPage"
+                    :disabled="currentPage === 1"
+                    class="p-2 rounded-full hover:bg-[#f8f9fa] disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <ChevronLeft class="w-5 h-5 text-[#6c757d]" />
                 </button>
 
                 <button
-                  v-for="p in pages"
-                  :key="p"
-                  type="button"
-                  @click="goPage(p)"
-                  :class="[
+                    v-for="p in pages"
+                    :key="p"
+                    type="button"
+                    @click="goPage(p)"
+                    :class="[
                     'w-8 h-8 rounded-full text-sm font-semibold transition-all',
                     p === currentPage
                       ? 'bg-gradient-to-r from-[#FF6B4A] to-[#FFC4B8] text-white shadow-sm'
@@ -494,10 +535,10 @@ const selectDay = (day) => {
                 </button>
 
                 <button
-                  type="button"
-                  @click="nextPage"
-                  :disabled="currentPage === totalPages"
-                  class="p-2 rounded-full hover:bg-[#f8f9fa] disabled:opacity-30 disabled:cursor-not-allowed"
+                    type="button"
+                    @click="nextPage"
+                    :disabled="currentPage === totalPages"
+                    class="p-2 rounded-full hover:bg-[#f8f9fa] disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   <ChevronRight class="w-5 h-5 text-[#6c757d]" />
                 </button>
@@ -517,11 +558,11 @@ const selectDay = (day) => {
 
           <div class="mt-4">
             <textarea
-              v-model="cancelReason"
-              rows="4"
-              maxlength="50"
-              class="w-full border border-[#dee2e6] rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-[#ff6b4a]/30"
-              placeholder="예: 고객 요청 / 매장 사정 / 노쇼 등"
+                v-model="cancelReason"
+                rows="4"
+                maxlength="50"
+                class="w-full border border-[#dee2e6] rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-[#ff6b4a]/30"
+                placeholder="예: 고객 요청 / 매장 사정 / 노쇼 등"
             />
             <p class="mt-2 text-xs text-[#6c757d] text-right">
               {{ cancelReason.trim().length }}/50
@@ -531,14 +572,14 @@ const selectDay = (day) => {
 
           <div class="mt-5 flex justify-end gap-2">
             <button
-              @click="closeCancelModal"
-              class="px-4 py-2 border border-[#dee2e6] rounded-lg text-sm text-[#1e3a5f] hover:bg-[#f8f9fa]"
+                @click="closeCancelModal"
+                class="px-4 py-2 border border-[#dee2e6] rounded-lg text-sm text-[#1e3a5f] hover:bg-[#f8f9fa]"
             >
               닫기
             </button>
             <button
-              @click="submitCancel"
-              class="px-4 py-2 rounded-lg text-sm text-white bg-[#dc3545] hover:opacity-90"
+                @click="submitCancel"
+                class="px-4 py-2 rounded-lg text-sm text-white bg-[#dc3545] hover:opacity-90"
             >
               취소 확정
             </button>
