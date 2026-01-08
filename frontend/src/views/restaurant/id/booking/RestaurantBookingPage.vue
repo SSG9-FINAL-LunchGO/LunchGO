@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { ArrowLeft, CalendarIcon, Users } from 'lucide-vue-next';
 import Button from '@/components/ui/Button.vue';
@@ -26,6 +26,21 @@ const resolveUserId = () => {
     return null;
   }
 };
+
+const restaurantName = ref('');
+
+const fetchRestaurantName = async () => {
+  try {
+    const res = await httpRequest.get(`/api/restaurants/${restaurantId}`);
+    restaurantName.value = res?.data?.name || '';
+  } catch (e) {
+    restaurantName.value = '';
+  }
+};
+
+onMounted(() => {
+  fetchRestaurantName();
+});
 
 const selectedDateIndex = ref(null);
 const selectedTime = ref(null);
@@ -274,7 +289,7 @@ const selectDate = (idx) => {
           <div class="space-y-2 text-sm">
             <div class="flex justify-between">
               <span class="text-[#6c757d]">식당명</span>
-              <span class="text-[#1e3a5f] font-medium">식당명</span>
+              <span class="text-[#1e3a5f] font-medium">{{ restaurantName || '-' }}</span>
             </div>
             <div class="flex justify-between">
               <span class="text-[#6c757d]">요청사항</span>
