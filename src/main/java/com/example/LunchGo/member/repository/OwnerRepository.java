@@ -67,4 +67,18 @@ public interface OwnerRepository extends JpaRepository<Owner, Long> {
     @Query("SELECT o.phone FROM Owner o LEFT JOIN Restaurant r ON o.ownerId = r.ownerId " +
             "WHERE o.status = 'ACTIVE' AND r.restaurantId IS NULL AND o.createdAt BETWEEN :startDateTime AND :endDateTime")
     List<String> findPhonesByActiveAndNoRestaurant(@Param("startDateTime") LocalDateTime startDateTime, @Param("endDateTime") LocalDateTime endDateTime);
+
+    /**
+     * 식당을 등록하지 않은 활성 상태의 사업자 중 가입한 지 특정 시간이 지난 사업자 ID 목록 조회
+     * */
+    @Query("SELECT o.ownerId FROM Owner o LEFT JOIN Restaurant r ON o.ownerId = r.ownerId " +
+            "WHERE o.status = 'ACTIVE' AND r.restaurantId IS NULL AND o.createdAt <= :targetTime")
+    List<Long> findOwnerIdsByActiveAndNoRestaurantAndExpired(@Param("targetTime") LocalDateTime targetTime);
+
+    /**
+     * 특정 사업자 회원 탈퇴 처리
+     * */
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Owner o SET o.status = 'WITHDRAWAL', o.withdrawalAt = CURRENT_TIMESTAMP WHERE o.ownerId = :ownerId")
+    int withdrawOwner(@Param("ownerId") Long ownerId);
 }
