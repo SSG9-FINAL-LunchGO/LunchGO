@@ -1,12 +1,11 @@
 package com.example.LunchGo.reservation.service;
 
+import com.example.LunchGo.member.entity.Owner;
+import com.example.LunchGo.member.entity.User;
+import com.example.LunchGo.member.repository.OwnerRepository;
+import com.example.LunchGo.member.repository.UserRepository;
 import com.example.LunchGo.reservation.domain.ReservationStatus;
-import com.example.LunchGo.reservation.dto.CreatePaymentRequest;
-import com.example.LunchGo.reservation.dto.CreatePaymentResponse;
-import com.example.LunchGo.reservation.dto.PortoneCompleteRequest;
-import com.example.LunchGo.reservation.dto.PortoneFailRequest;
-import com.example.LunchGo.reservation.dto.ReservationConfirmationResponse;
-import com.example.LunchGo.reservation.dto.ReservationSummaryResponse;
+import com.example.LunchGo.reservation.dto.*;
 import com.example.LunchGo.reservation.entity.Payment;
 import com.example.LunchGo.reservation.entity.Reservation;
 import com.example.LunchGo.reservation.entity.ReservationSlot;
@@ -24,6 +23,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+
+import com.example.LunchGo.sms.service.SmsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -50,6 +51,9 @@ public class ReservationPaymentService {
     private final PortoneVerificationService portoneVerificationService;
     private final RestaurantStatsEventService statsEventService;
     private final ReservationSummaryMapper reservationSummaryMapper;
+    private final OwnerRepository ownerRepository;
+    private final UserRepository userRepository;
+    private final SmsService smsService;
 
     @Transactional
     public CreatePaymentResponse createPayment(Long reservationId, CreatePaymentRequest request) {
@@ -273,6 +277,19 @@ public class ReservationPaymentService {
                         .build());
             }
         }
+
+        Owner owner = ownerRepository.findByOwnerId(restaurant.getOwnerId()).orElse(null); //알림문자 보낼 사업자 정보
+        User user = userRepository.findByUserId(reservation.getUserId()).orElse(null); //알림 문자 내용에 사용자 정보 필요
+
+        //알림 문자 보내기
+        smsService.sendNotificationToOwner(owner.getPhone(), OwnerReservationNotification.builder()
+                .reservationCode(reservation.getReservationCode())
+                        .date(slot.getSlotDate().toString())
+                        .time(slot.getSlotTime().toString())
+                        .partySize(reservation.getPartySize())
+                        .name(user.getName())
+                .build());
+
 
         return ReservationConfirmationResponse.builder()
             .reservationCode(reservation.getReservationCode())

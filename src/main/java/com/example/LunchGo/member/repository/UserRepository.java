@@ -51,4 +51,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
 
     List<User> findTop10ByEmailContainingIgnoreCaseOrderByEmailAsc(String email);
+
+    /**
+     * 사업자에게 예약 완료 문자 알림시 사용자 정보 필요
+     * */
+    Optional<User> findByUserId(Long userId);
 }
