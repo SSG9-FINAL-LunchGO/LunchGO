@@ -39,13 +39,9 @@ const goDetail = (id) => {
   router.push({
     name: 'reservation-detail',
     params: { id: String(id) },
-<<<<<<< Updated upstream
-    query: restaurantId.value ? { ...route.query, restaurantId: String(restaurantId.value) } : { ...route.query },
-=======
     query: restaurantId.value
         ? { ...route.query, restaurantId: String(restaurantId.value) }
         : { ...route.query },
->>>>>>> Stashed changes
   });
 };
 
@@ -169,11 +165,7 @@ const ensureRestaurantId = async () => {
   if (restaurantId.value) return restaurantId.value;
 
   try {
-<<<<<<< Updated upstream
-    const res = await httpRequest.get('/api/business/owner/restaurant');
-=======
     const res = await httpRequest.get('/api/business/me/restaurant');
->>>>>>> Stashed changes
     const rid = res.data?.restaurantId;
 
     if (rid) {
@@ -189,18 +181,13 @@ const ensureRestaurantId = async () => {
   return 0;
 };
 
-<<<<<<< Updated upstream
-const loadReservations = async () => {
-  if (!restaurantId.value) return;
-=======
 const loadReservations = async (rid) => {
   const targetRid = Number(rid || restaurantId.value || 0);
   if (!targetRid) return;
 
->>>>>>> Stashed changes
   try {
     const response = await httpRequest.get('/api/business/reservations', {
-      restaurantId: targetRid,
+      params: { restaurantId: targetRid },
     });
     if (Array.isArray(response.data)) {
       reservations.value = response.data;
@@ -210,18 +197,10 @@ const loadReservations = async (rid) => {
   }
 };
 
-<<<<<<< Updated upstream
-onMounted(async () => {
-  const rid = await ensureRestaurantId();
-  if (rid) {
-    await loadReservations();
-=======
-
 onMounted(async () => {
   const rid = await ensureRestaurantId();
   if (rid) {
     await loadReservations(rid);
->>>>>>> Stashed changes
   }
 });
 

@@ -121,11 +121,7 @@ const ensureRestaurantId = async () => {
 
   // 사업자 로그인 상태면 백엔드에서 owner의 식당 id를 받아서 쿼리에 박아넣음
   try {
-<<<<<<< Updated upstream
-    const res = await httpRequest.get('/api/business/owner/restaurant');
-=======
     const res = await httpRequest.get('/api/business/me/restaurant');
->>>>>>> Stashed changes
     const rid = res?.data?.restaurantId;
     if (rid) {
       await router.replace({
@@ -139,15 +135,12 @@ const ensureRestaurantId = async () => {
   }
   return 0;
 };
-<<<<<<< Updated upstream
-=======
 
->>>>>>> Stashed changes
 const loadReservations = async (rid) => {
   if (!rid) return;
   try {
     const response = await httpRequest.get('/api/business/reservations', {
-      restaurantId: rid,
+      params: { restaurantId: rid },
     });
     if (Array.isArray(response.data)) {
       reservations.value = response.data.map((row) => {

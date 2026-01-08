@@ -1,11 +1,9 @@
 package com.example.LunchGo.reservation.controller;
 
-<<<<<<< Updated upstream
-=======
 import com.example.LunchGo.account.dto.CustomUserDetails;
 import com.example.LunchGo.member.entity.Staff;
 import com.example.LunchGo.member.repository.StaffRepository;
->>>>>>> Stashed changes
+
 import com.example.LunchGo.reservation.dto.BusinessReservationDetailResponse;
 import com.example.LunchGo.reservation.dto.BusinessReservationItemResponse;
 import com.example.LunchGo.reservation.service.BusinessReservationQueryService;
@@ -23,13 +21,10 @@ import java.util.List;
 @RequiredArgsConstructor
 @RequestMapping("/api/business/reservations")
 public class BusinessReservationController {
-<<<<<<< Updated upstream
+
 
     private final BusinessReservationQueryService businessReservationQueryService;
-=======
->>>>>>> Stashed changes
 
-    private final BusinessReservationQueryService businessReservationQueryService;
     private final BusinessRestaurantService businessRestaurantService;
     private final StaffRepository staffRepository;
 

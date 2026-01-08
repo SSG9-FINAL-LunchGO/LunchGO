@@ -240,18 +240,6 @@
             (#{reservationId}, #{menuId}, #{menuName}, #{unitPrice}, #{quantity}, #{lineAmount})
     </insert>
 
-    <select id="selectReservationMenuItems" resultType="com.example.LunchGo.reservation.mapper.row.ReservationMenuItemRow">
-        SELECT
-            menu_name AS name,
-            quantity,
-            unit_price AS unitPrice,
-            (unit_price * quantity) AS lineAmount
-        FROM reservation_menu_items
-        WHERE reservation_id = #{reservationId}
-        ORDER BY reservation_menu_item_id ASC
-    </select>
-
-
     <select id="selectBusinessReservationListByDate"
             resultType="com.example.LunchGo.reservation.mapper.row.BusinessReservationListRow">
         SELECT
