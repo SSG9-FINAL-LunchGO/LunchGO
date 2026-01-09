@@ -68,4 +68,5 @@ public interface CafeteriaRestaurantRepository extends Repository<Restaurant, Lo
         nativeQuery = true
     )
     List<CafeteriaRestaurantProjection> findCandidateRestaurants(@Param("limit") int limit);
+
 }
