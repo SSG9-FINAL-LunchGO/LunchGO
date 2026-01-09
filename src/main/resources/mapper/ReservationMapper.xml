@@ -42,7 +42,7 @@
         SELECT COALESCE(SUM(party_size), 0)
         FROM reservations
         WHERE slot_id = #{slotId}
-          AND status IN ('TEMPORARY', 'CONFIRMED', 'PREPAID_CONFIRMED')
+          AND status IN ('TEMPORARY', 'CONFIRMED', 'PREPAY_CONFIRM', 'REFUND_PENDING')
     </select>
 
     <insert id="insertReservation"
@@ -193,7 +193,13 @@
         ORDER BY reservation_menu_item_id ASC
     </select>
 
-
+    <select id="countActiveReservation" resultType="int">
+        SELECT COUNT(*)
+        FROM reservations
+        WHERE user_id = #{userId}
+          AND slot_id = #{slotId}
+          AND status IN ('TEMPORARY', 'CONFIRMED', 'PREPAY_CONFIRM', 'REFUND_PENDING')
+    </select>
 
     <select id="selectAdminReservationList"
             resultType="com.example.LunchGo.reservation.mapper.row.AdminReservationListRow">

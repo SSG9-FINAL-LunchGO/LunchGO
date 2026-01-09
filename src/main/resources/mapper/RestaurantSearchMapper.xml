@@ -34,7 +34,7 @@
                 -- 지정한 날짜, 시간대에 특정 식당을 예약한 인원수 총합 계산
                 SELECT slot_id, COALESCE(SUM(party_size), 0) as total_party_size
                 FROM reservations
-                WHERE status IN ('TEMPORARY', 'CONFIRMED', 'PREPAID_CONFIRM')
+                WHERE status IN ('TEMPORARY', 'CONFIRMED', 'PREPAID_CONFIRM', 'REFUND_PENDING')
                 GROUP BY slot_id
             ) res ON s.slot_id = res.slot_id
         </if>
