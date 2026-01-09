@@ -42,7 +42,7 @@
         SELECT COALESCE(SUM(party_size), 0)
         FROM reservations
         WHERE slot_id = #{slotId}
-          AND status IN ('TEMPORARY', 'CONFIRMED', 'PREPAID_CONFIRM')
+          AND status IN ('TEMPORARY', 'CONFIRMED', 'PREPAID_CONFIRMED')
     </select>
 
     <insert id="insertReservation"
@@ -182,6 +182,19 @@
         ORDER BY s.slot_date DESC, s.slot_time DESC
     </select>
 
+    <select id="selectReservationMenuItems" resultType="com.example.LunchGo.reservation.mapper.row.ReservationMenuItemRow">
+        SELECT
+            menu_name AS menuName,
+            quantity AS quantity,
+            unit_price AS unitPrice,
+            (unit_price * quantity) AS lineAmount
+        FROM reservation_menu_items
+        WHERE reservation_id = #{reservationId}
+        ORDER BY reservation_menu_item_id ASC
+    </select>
+
+
+
     <select id="selectAdminReservationList"
             resultType="com.example.LunchGo.reservation.mapper.row.AdminReservationListRow">
         SELECT
@@ -226,19 +239,6 @@
         VALUES
             (#{reservationId}, #{menuId}, #{menuName}, #{unitPrice}, #{quantity}, #{lineAmount})
     </insert>
-
-    <select id="selectReservationMenuItems"
-            resultType="com.example.LunchGo.reservation.mapper.row.ReservationMenuItemRow">
-        SELECT
-            menu_name AS name,
-            quantity,
-            unit_price AS unitPrice,
-            (unit_price * quantity) AS lineAmount
-        FROM reservation_menu_items
-        WHERE reservation_id = #{reservationId}
-          AND is_deleted = 0
-        ORDER BY sort_order ASC
-    </select>
 
     <select id="selectBusinessReservationListByDate"
             resultType="com.example.LunchGo.reservation.mapper.row.BusinessReservationListRow">

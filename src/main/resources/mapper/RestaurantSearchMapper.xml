@@ -18,7 +18,7 @@
                         AND s.slot_date = #{date}
                     </when>
                     <otherwise>
-                        AND s.slot_date BETWEEN date_add(curdate(), interval -7 day) and date_add(curdate(), interval 7 day)
+                        AND s.slot_date BETWEEN curdate() and date_add(curdate(), interval 14 day)
                     </otherwise>
                 </choose>
                 <choose>
@@ -56,6 +56,12 @@
                     #{menuType}
                 </foreach>
             </if>
+            <if test="preorderAvailable == true">
+                AND r.preorder_available = true
+            </if>
+            <!--
+                TODO: 태그 검색 기능 확장
+            -->
         </where>
     </select>
 

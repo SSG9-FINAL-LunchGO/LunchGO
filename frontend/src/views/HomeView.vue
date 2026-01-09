@@ -139,10 +139,12 @@ const filterPerPersonBudgetDisplay = computed(() => {
 });
 
 const isSearchOpen = ref(false);
+const searchResultIds = ref(null);
 const searchDate = ref("");
 const searchTime = ref("");
 const searchCategories = ref([]);
 const searchPartySize = ref(4);
+const searchPreorder = ref(false);
 const searchTags = ref([]);
 const avoidIngredients = ref([]);
 const searchDistance = ref("");
@@ -346,6 +348,12 @@ const processedRestaurants = computed(() => {
   if (selectedRecommendation.value === RECOMMEND_TASTE) {
     result = tagMappingRecommendations.value.slice();
   }
+
+  if (searchResultIds.value !== null) {
+    const validIds = new Set(searchResultIds.value.map(String));
+    result = result.filter((r) => validIds.has(String(r.id)));
+  }
+
   const normalizedQuery = searchQuery.value.trim().toLowerCase();
   if (normalizedQuery) {
     result = result.filter((restaurant) =>
@@ -608,8 +616,20 @@ const toggleCalendar = () => {
   isCalendarOpen.value = !isCalendarOpen.value;
 };
 
+const isDateDisabled = (day) => {
+  if (!day) return true;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(
+    calendarMonth.value.getFullYear(),
+    calendarMonth.value.getMonth(),
+    day
+  );
+  return target < today;
+};
+
 const selectCalendarDay = (day) => {
-  if (!day) return;
+  if (!day || isDateDisabled(day)) return;
 
   const selected = new Date(
       calendarMonth.value.getFullYear(),
@@ -1336,6 +1356,7 @@ const resetSearch = () => {
   searchTime.value = "";
   searchCategories.value = [];
   searchPartySize.value = 4;
+  searchPreorder.value = false;
   searchTags.value = [];
   avoidIngredients.value = [];
   searchDistance.value = "";
@@ -1344,6 +1365,7 @@ const resetSearch = () => {
   persistSearchState();
   isCalendarOpen.value = false;
   calendarMonth.value = new Date();
+  searchResultIds.value = null;
 };
 
 const buildSearchParams = () => {
@@ -1459,6 +1481,28 @@ const restoreSearchState = async () => {
   if (shouldSearch) {
     await executeSearch({ closeModal: false, silent: true });
   }
+const applySearch = async () => {
+  try {
+    const params = {
+      date: searchDate.value || null,
+      time: searchTime.value || null,
+      partySize: searchPartySize.value,
+      preorderAvailable: searchPreorder.value,
+      // TODO: 향후 태그, 카테고리 등 추가 검색 필터 파라미터 확장 가능
+    };
+    const response = await httpRequest.get("/api/restaurants/search", params);
+    searchResultIds.value = response.data;
+    console.log(searchResultIds.value);
+  } catch (error) {
+    if (error.response?.status === 404) {
+      searchResultIds.value = [];
+    } else {
+      console.error("식당 검색 실패:", error);
+      alert("검색 중 오류가 발생했습니다.");
+    }
+  }
+  isSearchOpen.value = false;
+  isCalendarOpen.value = false;
 };
 
 const closeMapRestaurantModal = () => {
@@ -2138,14 +2182,15 @@ onBeforeUnmount(() => {
                     <button
                         v-for="(day, index) in calendarDays"
                         :key="index"
-                        :disabled="!day"
+                        :disabled="!day || isDateDisabled(day)"
                         @click.stop="selectCalendarDay(day)"
                         :class="[
                         'w-9 h-9 rounded-full text-sm transition-colors',
                         !day ? 'cursor-default opacity-0' : '',
-                        day && isCalendarSelectedDay(day)
+                        day && isDateDisabled(day) ? 'text-[#c7cdd3] cursor-not-allowed' : '',
+                        day && !isDateDisabled(day) && isCalendarSelectedDay(day)
                           ? 'bg-[#ff6b4a] text-white font-semibold'
-                          : 'text-gray-700 hover:bg-[#f1f3f5]',
+                          : day && !isDateDisabled(day) ? 'text-gray-700 hover:bg-[#f1f3f5]' : '',
                       ]"
                     >
                       {{ day }}
@@ -2219,6 +2264,25 @@ onBeforeUnmount(() => {
                 <Plus class="w-4 h-4 text-gray-700" />
               </button>
             </div>
+          </div>
+
+          <!-- Pre-order/Pre-payment -->
+          <div class="flex items-center justify-between">
+            <h4 class="text-sm font-semibold text-[#1e3a5f]">선주문/선결제 가능 식당</h4>
+            <button
+                @click="searchPreorder = !searchPreorder"
+                :class="[
+                'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#ff6b4a] focus:ring-offset-2',
+                searchPreorder ? 'bg-[#ff6b4a]' : 'bg-gray-200',
+              ]"
+            >
+              <span
+                  :class="[
+                  'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                  searchPreorder ? 'translate-x-6' : 'translate-x-1',
+                ]"
+              />
+            </button>
           </div>
 
           <!-- Distance Filter -->

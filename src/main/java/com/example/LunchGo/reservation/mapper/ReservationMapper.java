@@ -10,6 +10,7 @@ import org.apache.ibatis.annotations.Param;
 import java.util.List;
 import com.example.LunchGo.reservation.mapper.row.ReservationMenuItemRow;
 
+
 @Mapper
 public interface ReservationMapper {
 
@@ -70,6 +71,5 @@ public interface ReservationMapper {
             @Param("quantity") Integer quantity,
             @Param("lineAmount") Integer lineAmount
     );
-
     List<ReservationMenuItemRow> selectReservationMenuItems(@Param("reservationId") Long reservationId);
 }

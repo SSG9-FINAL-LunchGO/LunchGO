@@ -17,6 +17,7 @@ public class ReviewAdminItemResponse {
     private LocalDateTime createdAt;
     private String status;
     private Integer commentCount;
+    private Long blindRequestTagId;
     private String blindRequestTagName;
     private String blindRequestReason;
     private LocalDateTime blindRequestedAt;

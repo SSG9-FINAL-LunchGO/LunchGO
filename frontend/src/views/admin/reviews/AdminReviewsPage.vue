@@ -28,7 +28,6 @@ const endDate = ref("");
 const isDetailModalOpen = ref(false);
 const isReportModalOpen = ref(false);
 const selectedReview = ref(null);
-const reportTagId = ref("");
 const reportReason = ref("");
 const forbiddenWords = ref([]);
 const forbiddenSearchQuery = ref("");
@@ -96,6 +95,28 @@ const maskName = (name) => {
   return name[0] + "*".repeat(name.length - 2) + name[name.length - 1];
 };
 
+const mapCommentResponse = (comment) => ({
+  id: comment.commentId,
+  authorType: comment.writerType === "OWNER" ? "owner" : "admin",
+  authorName: comment.writerName,
+  content: comment.content,
+  createdAt: comment.createdAt,
+});
+
+const mapVisitInfo = (visitInfo) => {
+  if (!visitInfo) return null;
+  return {
+    date: visitInfo.date,
+    partySize: visitInfo.partySize ?? 0,
+    totalAmount: visitInfo.totalAmount ?? 0,
+    menuItems: (visitInfo.menuItems || []).map((item) => ({
+      name: item.name,
+      quantity: item.qty ?? item.quantity ?? 0,
+      price: item.unitPrice ?? item.price ?? 0,
+    })),
+  };
+};
+
 // 리뷰 내용 미리보기 (30자 제한)
 const getContentPreview = (content) => {
   if (!content) return "";
@@ -132,13 +153,14 @@ const loadAdminReviews = async () => {
       createdAt: item.createdAt,
       status: item.status,
       commentCount: item.commentCount ?? 0,
+      blindRequestTagId: item.blindRequestTagId ?? null,
       blindRequestTagName: item.blindRequestTagName || "",
       blindRequestReason: item.blindRequestReason || "",
       blindRequestedAt: item.blindRequestedAt,
       tags: [],
       images: [],
       comments: [],
-      isTempHidden: false,
+      isTempHidden: item.status === "BLINDED",
     }));
   } catch (error) {
     console.error("관리자 리뷰 데이터를 불러오지 못했습니다:", error);
@@ -469,11 +491,36 @@ const selectedReviewDetail = computed(() => {
 const handleViewDetail = (review) => {
   selectedReview.value = review;
   isDetailModalOpen.value = true;
+  loadAdminReviewDetail(review);
+};
+
+const loadAdminReviewDetail = async (review) => {
+  if (!review?.restaurantId || !review?.id) return;
+  try {
+    const response = await httpRequest.get(
+      `/api/owners/restaurants/${review.restaurantId}/reviews/${review.id}`
+    );
+    const data = response.data?.data ?? response.data;
+    if (!data || !selectedReview.value || selectedReview.value.id !== review.id) {
+      return;
+    }
+    selectedReview.value = {
+      ...selectedReview.value,
+      rating: data.rating ?? selectedReview.value.rating,
+      content: data.content ?? selectedReview.value.content,
+      tags: (data.tags || []).map((tag) => tag.name ?? tag),
+      images: data.images || [],
+      comments: (data.comments || []).map(mapCommentResponse),
+      visitInfo: mapVisitInfo(data.visitInfo),
+      visitCount: data.visitCount ?? selectedReview.value.visitCount,
+    };
+  } catch (error) {
+    console.error("리뷰 상세 조회 실패:", error);
+  }
 };
 
 const handleProcessReport = (review) => {
   selectedReview.value = review;
-  reportTagId.value = "";
   reportReason.value = "";
   isReportModalOpen.value = true;
 };
@@ -483,21 +530,36 @@ const handleHideReview = (review) => {
     const confirmShow = confirm(
       `숨김 해제하시겠습니까?\n리뷰: ${review.id} (${review.restaurantName})`
     );
-    if (confirmShow) {
-      review.isTempHidden = false;
-    } else {
+    if (!confirmShow) {
       alert("숨김 해제를 취소했습니다.");
+      return;
     }
+    toggleHideReview(review, false);
     return;
   }
 
   const confirmHide = confirm(
     `숨김 처리하시겠습니까?\n리뷰: ${review.id} (${review.restaurantName})`
   );
-  if (confirmHide) {
-    review.isTempHidden = true;
-  } else {
+  if (!confirmHide) {
     alert("숨김 처리를 취소했습니다.");
+    return;
+  }
+  toggleHideReview(review, true);
+};
+
+const toggleHideReview = async (review, hidden) => {
+  try {
+    const response = await httpRequest.patch(
+      `/api/admin/reviews/${review.id}/hide`,
+      { hidden }
+    );
+    const data = response.data?.data ?? response.data;
+    review.status = data?.status || review.status;
+    review.isTempHidden = hidden;
+  } catch (error) {
+    console.error("리뷰 숨김 처리 실패:", error);
+    alert("리뷰 숨김 처리에 실패했습니다. 잠시 후 다시 시도해주세요.");
   }
 };
 
@@ -509,17 +571,16 @@ const closeDetailModal = () => {
 const closeReportModal = () => {
   isReportModalOpen.value = false;
   selectedReview.value = null;
-  reportTagId.value = "";
   reportReason.value = "";
 };
 
 const submitReportProcess = async (decision) => {
-  if (!reportTagId.value) {
-    alert("신고 태그를 선택해주세요.");
-    return;
-  }
   if (!reportReason.value.trim()) {
     alert("신고 사유를 입력해주세요.");
+    return;
+  }
+  if (!selectedReview.value?.blindRequestTagId) {
+    alert("사업자 요청 태그가 없어 처리할 수 없습니다.");
     return;
   }
 
@@ -530,13 +591,15 @@ const submitReportProcess = async (decision) => {
       `/api/admin/reviews/${selectedReview.value.id}/blind-requests`,
       {
         decision: decision === "approve" ? "APPROVE" : "REJECT",
-        tagId: reportTagId.value,
+        tagId: selectedReview.value?.blindRequestTagId,
         reason: reportReason.value.trim(),
       }
     );
     const data = response.data?.data ?? response.data;
     selectedReview.value.status =
       data?.status || (decision === "approve" ? "BLINDED" : "BLIND_REJECTED");
+    selectedReview.value.isTempHidden =
+      selectedReview.value.status === "BLINDED";
 
     alert(
       decision === "approve"
@@ -968,7 +1031,7 @@ const submitReportProcess = async (decision) => {
                         v-if="review.isTempHidden"
                         class="mt-2 text-xs text-[#dc3545]"
                       >
-                        임시 숨김 처리됨
+                        숨김 처리됨
                       </div>
                     </td>
                   </tr>
@@ -1298,25 +1361,6 @@ const submitReportProcess = async (decision) => {
               </span>
             </p>
           </div>
-
-        <div class="mb-4">
-          <label class="block text-sm font-semibold text-[#1e3a5f] mb-2">
-            관리자 처리 태그 <span class="text-[#dc3545]">*</span>
-          </label>
-          <select
-            v-model="reportTagId"
-            class="w-full px-4 py-2 border border-[#dee2e6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff6b4a] focus:border-transparent"
-          >
-            <option value="">태그를 선택해주세요</option>
-            <option
-              v-for="tag in adminReportTags"
-              :key="tag.id"
-              :value="tag.id"
-            >
-              {{ tag.name }}
-            </option>
-          </select>
-        </div>
 
         <div class="mb-6">
           <label class="block text-sm font-semibold text-[#1e3a5f] mb-2">

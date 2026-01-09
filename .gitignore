@@ -33,10 +33,13 @@ frontend/.env.*
 /menu_unique_names.csv
 /ncloud-menu-image-sync.skill
 /menu_images_ids.csv
+*.skill
+skills/
 
 ## Scouter APM artifacts
 scouter-all-*.tar.gz
 scouter/agent.java/scouter.agent.jar
+scouter/*.csv
 
 
 ### STS ###
