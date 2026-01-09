@@ -50,6 +50,8 @@ const groupedMenus = computed(() => {
 });
 
 const menuItemCount = computed(() => menus.value.length);
+const isMainMenuGroup = (name) =>
+  name === '주메뉴' || name === '메인 메뉴' || name === 'MAIN';
 </script>
 
 <template>
@@ -89,13 +91,21 @@ const menuItemCount = computed(() => menus.value.length);
           <h3 class="text-base font-semibold text-[#1e3a5f] mb-4">{{ group.name }}</h3>
           <div class="space-y-3">
             <Card
-              v-for="item in group.items"
+              v-for="(item, index) in group.items"
               :key="item.id"
               class="p-4 border-[#e9ecef] rounded-xl bg-white shadow-card hover:shadow-md transition-shadow"
             >
               <div class="flex items-start justify-between gap-3">
                 <div class="flex-1">
-                  <h4 class="font-semibold text-[#1e3a5f] mb-1">{{ item.name }}</h4>
+                  <div class="flex items-center gap-2 mb-1">
+                    <h4 class="font-semibold text-[#1e3a5f]">{{ item.name }}</h4>
+                    <span
+                      v-if="isMainMenuGroup(group.name) && index < 3"
+                      class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#ff6b4a] text-white"
+                    >
+                      대표메뉴
+                    </span>
+                  </div>
                   <p v-if="item.description" class="text-xs text-[#6c757d] mb-2 leading-relaxed">
                     {{ item.description }}
                   </p>
