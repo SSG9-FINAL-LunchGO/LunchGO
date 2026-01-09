@@ -5,6 +5,10 @@
     <select id="findAvailableRestaurantIds" parameterType="com.example.LunchGo.restaurant.dto.RestaurantSearchParameter" resultType="long">
         SELECT DISTINCT r.restaurant_id
         FROM restaurants r
+        <if test="menuTypes != null and menuTypes.size > 0">
+            JOIN restaurant_tag_maps rtm ON r.restaurant_id = rtm.restaurant_id
+            JOIN search_tags st ON st.tag_id = rtm.tag_id
+        </if>
         <if test="date != null or time != null">
             -- 지정한 날짜, 시간대, 식당ID로 생성된 예약 슬롯들을 확인(없으면 null)
             LEFT JOIN restaurant_reservation_slots s
@@ -44,6 +48,13 @@
                     -- Case 2: 예약 슬롯이 존재하지만 잔여석이 충분함
                     s.max_capacity >= (IFNULL(res.total_party_size, 0) + #{partySize})
                 )
+            </if>
+            <if test="menuTypes != null and menuTypes.size > 0">
+                AND st.category = 'MENUTYPE'
+                AND st.content IN
+                <foreach collection="menuTypes" item="menuType" open="(" separator="," close=")">
+                    #{menuType}
+                </foreach>
             </if>
             <if test="preorderAvailable == true">
                 AND r.preorder_available = true

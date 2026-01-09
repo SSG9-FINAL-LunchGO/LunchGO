@@ -96,6 +96,7 @@ const {
 } = useCafeteriaRecommendation({ userId: memberId });
 const cafeteriaImageUrl = computed(() => cafeteriaImageUrlRef.value);
 const homeListStateStorageKey = "homeListState";
+const searchStateStorageKey = "homeSearchState";
 const searchQuery = ref("");
 const filterForm = reactive({
   sort: selectedSort.value,
@@ -147,6 +148,9 @@ const searchPreorder = ref(false);
 const searchTags = ref([]);
 const avoidIngredients = ref([]);
 const searchDistance = ref("");
+const searchRestaurantIds = ref(null);
+const isSearchLoading = ref(false);
+const searchRestaurantError = ref("");
 const categories = ref([]);
 const restaurantTags = ref([]);
 const ingredients = ref([]);
@@ -302,6 +306,10 @@ const restaurantImageCache = new Map();
 const restaurantImageOverrides = ref({});
 const reviewSummaryCache = ref({});
 const reviewSummaryInFlight = new Set();
+const searchRestaurantIdSet = computed(() => {
+  if (!Array.isArray(searchRestaurantIds.value)) return null;
+  return new Set(searchRestaurantIds.value.map((id) => String(id)));
+});
 
 const applyReviewSummary = (restaurant) => {
   const summary = reviewSummaryCache.value[String(restaurant.id)];
@@ -350,6 +358,12 @@ const processedRestaurants = computed(() => {
   if (normalizedQuery) {
     result = result.filter((restaurant) =>
       String(restaurant.name || "").toLowerCase().includes(normalizedQuery)
+    );
+  }
+  const idSet = searchRestaurantIdSet.value;
+  if (idSet) {
+    result = result.filter((restaurant) =>
+      idSet.has(String(restaurant.id ?? restaurant.restaurantId))
     );
   }
   const distanceLimit = selectedDistanceKm.value;
@@ -1048,6 +1062,7 @@ const initializeMap = async () => {
 
 
 onMounted(async () => {
+  void restoreSearchState();
   await applyUserMapCenter();
   await initializeMap();
   if (typeof window !== "undefined") {
@@ -1345,11 +1360,127 @@ const resetSearch = () => {
   searchTags.value = [];
   avoidIngredients.value = [];
   searchDistance.value = "";
+  searchRestaurantIds.value = null;
+  searchRestaurantError.value = "";
+  persistSearchState();
   isCalendarOpen.value = false;
   calendarMonth.value = new Date();
   searchResultIds.value = null;
 };
 
+const buildSearchParams = () => {
+  const hasDate = Boolean(searchDate.value);
+  const hasTime = Boolean(searchTime.value);
+  const hasMenuTypes = searchCategories.value.length > 0;
+  const shouldSearch = hasDate || hasTime || hasMenuTypes;
+  const params = new URLSearchParams();
+  if (hasDate) params.set("date", searchDate.value);
+  if (hasTime) params.set("time", searchTime.value);
+  if (Number.isFinite(Number(searchPartySize.value))) {
+    params.set("partySize", String(searchPartySize.value));
+  }
+  if (hasMenuTypes) {
+    searchCategories.value.forEach((menuType) =>
+      params.append("menuTypes", menuType)
+    );
+  }
+  return { shouldSearch, params };
+};
+
+const executeSearch = async ({ closeModal = true, silent = false } = {}) => {
+  if (closeModal) {
+    isSearchOpen.value = false;
+    isCalendarOpen.value = false;
+  }
+  const { shouldSearch, params } = buildSearchParams();
+  if (!shouldSearch) {
+    searchRestaurantIds.value = null;
+    searchRestaurantError.value = "";
+    persistSearchState();
+    return;
+  }
+
+  if (!silent) {
+    isSearchLoading.value = true;
+  }
+  searchRestaurantError.value = "";
+  try {
+    const response = await httpRequest.get("/api/restaurants/search", params);
+    const ids = Array.isArray(response.data) ? response.data : [];
+    searchRestaurantIds.value = ids;
+    currentPage.value = 1;
+    persistSearchState();
+  } catch (error) {
+    if (error?.response?.status === 404) {
+      searchRestaurantIds.value = [];
+      persistSearchState();
+      return;
+    }
+    searchRestaurantError.value = "검색 결과를 불러오지 못했어요.";
+    searchRestaurantIds.value = [];
+    persistSearchState();
+  } finally {
+    if (!silent) {
+      isSearchLoading.value = false;
+    }
+  }
+};
+
+const applySearch = () => executeSearch({ closeModal: true });
+
+const persistSearchState = () => {
+  const state = {
+    searchDate: searchDate.value,
+    searchTime: searchTime.value,
+    searchCategories: searchCategories.value,
+    searchPartySize: searchPartySize.value,
+    searchTags: searchTags.value,
+    avoidIngredients: avoidIngredients.value,
+    searchDistance: searchDistance.value,
+    searchRestaurantIds: searchRestaurantIds.value,
+  };
+  sessionStorage.setItem(searchStateStorageKey, JSON.stringify(state));
+};
+
+const restoreSearchState = async () => {
+  const storedSearchState = sessionStorage.getItem(searchStateStorageKey);
+  if (!storedSearchState) return;
+  try {
+    const parsed = JSON.parse(storedSearchState);
+    if (typeof parsed.searchDate === "string") {
+      searchDate.value = parsed.searchDate;
+    }
+    if (typeof parsed.searchTime === "string") {
+      searchTime.value = parsed.searchTime;
+    }
+    if (Array.isArray(parsed.searchCategories)) {
+      searchCategories.value = parsed.searchCategories;
+    }
+    if (Number.isFinite(Number(parsed.searchPartySize))) {
+      searchPartySize.value = Number(parsed.searchPartySize);
+    }
+    if (Array.isArray(parsed.searchTags)) {
+      searchTags.value = parsed.searchTags;
+    }
+    if (Array.isArray(parsed.avoidIngredients)) {
+      avoidIngredients.value = parsed.avoidIngredients;
+    }
+    if (typeof parsed.searchDistance === "string") {
+      searchDistance.value = parsed.searchDistance;
+    }
+    if (Array.isArray(parsed.searchRestaurantIds)) {
+      searchRestaurantIds.value = parsed.searchRestaurantIds;
+    }
+  } catch (error) {
+    console.error("검색 상태 복원 실패:", error);
+    sessionStorage.removeItem(searchStateStorageKey);
+    return;
+  }
+
+  const { shouldSearch } = buildSearchParams();
+  if (shouldSearch) {
+    await executeSearch({ closeModal: false, silent: true });
+  }
 const applySearch = async () => {
   try {
     const params = {
