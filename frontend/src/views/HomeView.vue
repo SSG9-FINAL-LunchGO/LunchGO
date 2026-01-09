@@ -1356,7 +1356,6 @@ const resetSearch = () => {
   searchTime.value = "";
   searchCategories.value = [];
   searchPartySize.value = 4;
-  searchPreorder.value = false;
   searchTags.value = [];
   avoidIngredients.value = [];
   searchDistance.value = "";
@@ -1365,7 +1364,6 @@ const resetSearch = () => {
   persistSearchState();
   isCalendarOpen.value = false;
   calendarMonth.value = new Date();
-  searchResultIds.value = null;
 };
 
 const buildSearchParams = () => {
@@ -1481,28 +1479,6 @@ const restoreSearchState = async () => {
   if (shouldSearch) {
     await executeSearch({ closeModal: false, silent: true });
   }
-const applySearch = async () => {
-  try {
-    const params = {
-      date: searchDate.value || null,
-      time: searchTime.value || null,
-      partySize: searchPartySize.value,
-      preorderAvailable: searchPreorder.value,
-      // TODO: 향후 태그, 카테고리 등 추가 검색 필터 파라미터 확장 가능
-    };
-    const response = await httpRequest.get("/api/restaurants/search", params);
-    searchResultIds.value = response.data;
-    console.log(searchResultIds.value);
-  } catch (error) {
-    if (error.response?.status === 404) {
-      searchResultIds.value = [];
-    } else {
-      console.error("식당 검색 실패:", error);
-      alert("검색 중 오류가 발생했습니다.");
-    }
-  }
-  isSearchOpen.value = false;
-  isCalendarOpen.value = false;
 };
 
 const closeMapRestaurantModal = () => {
