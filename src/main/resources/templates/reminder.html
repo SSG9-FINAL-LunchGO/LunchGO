@@ -26,7 +26,7 @@
         <h1 class="title">예약 1시간 전 확인</h1>
         <p class="desc">
             방문 여부를 선택해주세요.<br/>
-            선택 후에는 되돌릴 수 없을 수 있습니다.
+            선택 후에는 되돌릴 수 없습니다.
         </p>
 
         <div class="btns">
@@ -34,15 +34,10 @@
                th:href="@{/api/reminders/visit(token=${token})}">
                 방문 예정
             </a>
-
-            <a class="btn cancel"
-               th:href="@{/api/reminders/cancel(token=${token})}">
-                방문 취소
-            </a>
         </div>
 
         <p class="warn">
-            미응답 시 메뉴 준비가 늦어질 수 있습니다. 위 버튼을 통해 응답해주세요.
+            미응답 시 메뉴 준비가 늦어질 수 있습니다. 위 링크를 통해 응답해주세요.
         </p>
         <div class="hint" th:if="${mode == 'visit'}">현재 링크: 방문 확인(visit)</div>
         <div class="hint" th:if="${mode == 'cancel'}">현재 링크: 방문 취소(cancel)</div>
