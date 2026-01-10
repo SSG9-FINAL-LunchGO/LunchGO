@@ -34,6 +34,11 @@
                th:href="@{/api/reminders/visit(token=${token})}">
                 방문 예정
             </a>
+
+            <a class="btn cancel"
+               th:href="@{/api/reminders/cancel(token=${token})}">
+                방문 취소
+            </a>
         </div>
 
         <p class="warn">
