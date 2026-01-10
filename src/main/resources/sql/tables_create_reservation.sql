@@ -208,7 +208,7 @@ CREATE TABLE `reservation_cancellations` (
 
 ALTER TABLE reservations
     ADD COLUMN visit_status VARCHAR(20) NOT NULL DEFAULT 'PENDING' COMMENT '리마인더 응답 상태(PENDING/CONFIRMED/CANCELLED)' AFTER request_message,
-  ADD COLUMN reminder_token VARCHAR(128) NULL COMMENT '리마인더 링크 토큰(유니크)' AFTER visit_status,
+  ADD COLUMN reminder_token VARCHAR(64) NULL COMMENT '리마인더 링크 토큰(유니크)' AFTER visit_status,
   ADD COLUMN reminder_sent_at DATETIME NULL COMMENT '리마인더 발송 시각' AFTER reminder_token,
   ADD COLUMN visit_responded_at DATETIME NULL COMMENT '방문/취소 응답 시각' AFTER reminder_sent_at;
 
