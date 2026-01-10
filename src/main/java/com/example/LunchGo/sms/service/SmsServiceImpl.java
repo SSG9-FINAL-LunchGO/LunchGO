@@ -147,6 +147,10 @@ public class SmsServiceImpl implements SmsService {
         message.setTo(to);
         message.setText(text);
 
-        this.messageService.sendOne(new SingleMessageSendingRequest(message));
+        try {
+            this.messageService.sendOne(new SingleMessageSendingRequest(message));
+        } catch (Exception e) {
+            System.err.println("SMS sending failed to " + to + ": " + e.getMessage());
+        }
     }
 }
