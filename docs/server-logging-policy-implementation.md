@@ -43,6 +43,37 @@
 - MDC에 요청 컨텍스트를 채워서 패턴에 반영
 - 응답 헤더에 `X-Request-Id`를 내려 상관관계 추적 가능
 
+### userId 로그 보강 (필터 순서 + pre-handle)
+파일: `src/main/java/com/example/LunchGo/common/config/SecurityConfig.java`
+
+- RequestLoggingFilter를 JwtFilter 뒤에 배치해 인증 후 userId를 읽도록 함
+- RequestLoggingFilter에서 필터 진입 시점에도 userId를 MDC에 채움 (중간 로그 반영)
+
+#### 접근 방법
+- 방법 1: RequestLoggingFilter에서 pre-handle로 userId 세팅
+- 방법 2: JwtFilter에서 인증 성공 시 MDC userId 세팅
+- 방법 3: 필터 순서를 보장 (RequestLoggingFilter를 JwtFilter 뒤로)
+
+#### 장단점 요약
+- 방법 1: 구현 단순, 중간 로그 개선 / 순서 의존
+- 방법 2: 인증 성공 즉시 정확 / MDC clear 책임 분산
+- 방법 3: 구조적으로 안정 / 필터 등록 및 순서 관리 필요
+
+#### 적용된 수정 코드 (요약)
+```java
+// SecurityConfig: JwtFilter 다음에 RequestLoggingFilter 실행
+http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+    .addFilterAfter(requestLoggingFilter(), JwtFilter.class);
+```
+
+```java
+// RequestLoggingFilter: 요청 시작 시점에도 userId 세팅
+String preUserId = resolveUserId();
+if (preUserId != null) {
+    MDC.put("userId", preUserId);
+}
+```
+
 ## 로그 파일 경로
 - 기본 경로: `./logs`
 - 운영 권장 경로: `/var/log/lunchgo`

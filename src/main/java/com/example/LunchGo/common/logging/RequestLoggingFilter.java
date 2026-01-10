@@ -30,6 +30,10 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         MDC.put("traceId", traceId);
         MDC.put("method", request.getMethod());
         MDC.put("path", request.getRequestURI());
+        String preUserId = resolveUserId();
+        if (preUserId != null) {
+            MDC.put("userId", preUserId);
+        }
 
         try {
             filterChain.doFilter(request, response);
@@ -41,7 +45,9 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
                 MDC.put("userId", userId);
             }
             response.setHeader("X-Request-Id", traceId);
-            accessLogger.info("request");
+            if (!isPollingStatusRequest(request)) {
+                accessLogger.info("request");
+            }
             MDC.clear();
         }
     }
@@ -64,5 +70,12 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
             return String.valueOf(userDetails.getId());
         }
         return null;
+    }
+
+    private boolean isPollingStatusRequest(HttpServletRequest request) {
+        String path = request.getRequestURI();
+        return "GET".equalsIgnoreCase(request.getMethod())
+            && path != null
+            && path.endsWith("/confirmation/status");
     }
 }

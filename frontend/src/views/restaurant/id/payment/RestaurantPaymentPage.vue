@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { RouterLink, useRouter, useRoute } from "vue-router";
 import {
   ArrowLeft,
@@ -39,6 +39,11 @@ const headcount = computed(() => {
 //예약금만 결제 시 예약금 1~6인 5,000원 / 7인 이상 : 10,000원
 const depositPerPerson = computed(() => (headcount.value >= 7 ? 10000 : 5000));
 
+const totalAmountFromQuery = computed(() => {
+  const v = Number(route.query.totalAmount);
+  return Number.isFinite(v) && v > 0 ? v : null;
+});
+
 //총 예약금
 // query로 넘어온 선주문 합계(메뉴 페이지에서 전달)
 const preorderTotal = computed(() => {
@@ -48,10 +53,40 @@ const preorderTotal = computed(() => {
 
 const totalAmount = computed(() => {
   // 예약하기 플로우: 예약금 = 인원수 * 인당금액
-  if (isDepositOnly.value) return headcount.value * depositPerPerson.value;
+  if (isDepositOnly.value) {
+    if (totalAmountFromQuery.value) {
+      return totalAmountFromQuery.value;
+    }
+    if (bookingSummary.value.totalAmount) {
+      return bookingSummary.value.totalAmount;
+    }
+    return headcount.value * depositPerPerson.value;
+  }
 
   // 선주문/선결제 플로우: 메뉴 합계
   return preorderTotal.value;
+});
+
+const normalizeDeadline = (raw) => {
+  if (!raw) return null;
+  if (typeof raw !== "string") return raw;
+  if (raw.includes("T")) return raw;
+  return raw.replace(" ", "T");
+};
+
+const countdownText = computed(() => {
+  const deadlineRaw = normalizeDeadline(bookingSummary.value.paymentDeadlineAt);
+  if (!deadlineRaw) return "";
+  const deadline = new Date(deadlineRaw);
+  if (Number.isNaN(deadline.getTime())) return "";
+  const diffMs = deadline.getTime() - nowTick.value;
+  if (diffMs <= 0) {
+    return "결제 시간이 초과되었습니다";
+  }
+  const totalSec = Math.floor(diffMs / 1000);
+  const minutes = Math.floor(totalSec / 60);
+  const seconds = totalSec % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 });
 
 const bookingId = computed(() => route.query.bookingId || null);
@@ -60,6 +95,8 @@ const reservationId = computed(
 );
 const bookingSummary = ref({
   requestNote: "", // 요청사항(read-only 표시용)
+  paymentDeadlineAt: null,
+  totalAmount: null,
 });
 const isBookingLoading = ref(false);
 const fetchBookingSummary = async () => {
@@ -67,22 +104,48 @@ const fetchBookingSummary = async () => {
   try {
     if (!reservationId.value) {
       bookingSummary.value.requestNote = "";
+      bookingSummary.value.paymentDeadlineAt = null;
+      bookingSummary.value.totalAmount = null;
       return;
     }
 
     const res = await httpRequest.get(`/api/reservations/${reservationId.value}/summary`);
     bookingSummary.value.requestNote =
         res.data?.requestNote ?? res.data?.booking?.requestNote ?? "";
+    bookingSummary.value.paymentDeadlineAt =
+        res.data?.paymentDeadlineAt ?? res.data?.holdExpiresAt ?? null;
+    const total = Number(res.data?.totalAmount);
+    bookingSummary.value.totalAmount = Number.isFinite(total) && total > 0 ? total : null;
   } catch (e) {
     bookingSummary.value.requestNote = "";
+    bookingSummary.value.paymentDeadlineAt = null;
+    bookingSummary.value.totalAmount = null;
   } finally {
     isBookingLoading.value = false;
   }
 };
 
 onMounted(() => {
+  if (route.query.paymentError) {
+    errorMessage.value = String(route.query.paymentError);
+  }
   fetchBookingSummary();
   loadPortOneSdk();
+});
+
+const nowTick = ref(Date.now());
+let countdownTimer = null;
+
+onMounted(() => {
+  countdownTimer = setInterval(() => {
+    nowTick.value = Date.now();
+  }, 1000);
+});
+
+onUnmounted(() => {
+  if (countdownTimer) {
+    clearInterval(countdownTimer);
+  }
 });
 
 const SERVICE_TERMS_TEXT = `## **제 1 조 (목적)**
@@ -450,13 +513,16 @@ const paymentMethods = [
   },
 ];
 
-const canProceed = computed(
-  () =>
+const canProceed = computed(() => {
+  const isExpired = countdownText.value === "결제 시간이 초과되었습니다";
+  return (
     selectedPayment.value &&
     agreedToTerms.value &&
     agreedToRefund.value &&
-    !isProcessing.value
-);
+    !isProcessing.value &&
+    !isExpired
+  );
+});
 
 const PAYMENT_TIMEOUT_MS = 7 * 60 * 1000;
 const PAYMENT_CONFIRMATION_POLL_MS = 2000;
@@ -467,22 +533,42 @@ const PORTONE_OPEN_TYPE = import.meta.env.VITE_PORTONE_OPEN_TYPE || "popup";
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const resolveOpenType = () => {
+  if (
+    PORTONE_OPEN_TYPE === "popup" ||
+    PORTONE_OPEN_TYPE === "iframe" ||
+    PORTONE_OPEN_TYPE === "redirect"
+  ) {
+    return PORTONE_OPEN_TYPE;
+  }
+  return "popup";
+};
+
+const fetchPaymentStatus = async (reservationId) => {
+  try {
+    const res = await httpRequest.get(
+      `/api/reservations/${reservationId}/confirmation/status`
+    );
+    const paidAt = res?.data?.paidAt;
+    return {
+      paid: Boolean(res?.data?.paid || paidAt),
+      paidAt,
+    };
+  } catch (error) {
+    console.warn("[PortOne] confirmation polling failed", error);
+    return { paid: false, paidAt: null };
+  }
+};
+
 const waitForPaymentConfirmation = async (reservationId, shouldContinue) => {
   const startedAt = Date.now();
   while (Date.now() - startedAt < PAYMENT_CONFIRMATION_TIMEOUT_MS) {
     if (typeof shouldContinue === "function" && !shouldContinue()) {
       return false;
     }
-    try {
-      const res = await httpRequest.get(
-        `/api/reservations/${reservationId}/confirmation`
-      );
-      const paidAt = res?.data?.payment?.paidAt;
-      if (paidAt) {
-        return true;
-      }
-    } catch (error) {
-      console.warn("[PortOne] confirmation polling failed", error);
+    const status = await fetchPaymentStatus(reservationId);
+    if (status.paid) {
+      return true;
     }
     await delay(PAYMENT_CONFIRMATION_POLL_MS);
   }
@@ -535,7 +621,7 @@ const loadPortOneSdk = () => {
   });
 };
 
-const requestPayment = async ({ merchantUid, amount, reservationId }) => {
+const requestPayment = async ({ merchantUid, amount, reservationId, openType }) => {
   // TODO: PortOne SDK 연동 지점
   // window.PortOne.requestPayment(...) 결과를 반환하도록 구현
   await loadPortOneSdk();
@@ -550,12 +636,7 @@ const requestPayment = async ({ merchantUid, amount, reservationId }) => {
       );
       return;
     }
-    const openTypeValue =
-      PORTONE_OPEN_TYPE === "popup" ||
-      PORTONE_OPEN_TYPE === "iframe" ||
-      PORTONE_OPEN_TYPE === "redirect"
-        ? PORTONE_OPEN_TYPE
-        : "popup";
+    const openTypeValue = openType || resolveOpenType();
     const redirectParams = new URLSearchParams({
       reservationId: String(reservationId || ""),
       totalAmount: String(amount),
@@ -604,6 +685,7 @@ const handlePayment = async () => {
   let paymentLaunched = false;
   let didNavigate = false;
   let confirmationWatcher = null;
+  let popupCancelWatcher = null;
   const navigateToConfirmation = () => {
     if (didNavigate || !currentReservationId) return;
     didNavigate = true;
@@ -661,11 +743,51 @@ const handlePayment = async () => {
         navigateToConfirmation();
       }
     });
+    const openTypeValue = resolveOpenType();
     const paymentPromise = requestPayment({
       merchantUid,
       amount,
       reservationId: currentReservationId,
+      openType: openTypeValue,
     });
+    const racePromises = [paymentPromise];
+    if (openTypeValue === "popup") {
+      let cancelHandled = false;
+      let rejectCancel = null;
+      const cancelPromise = new Promise((_, reject) => {
+        rejectCancel = reject;
+      });
+      const handleReturn = async () => {
+        if (cancelHandled || didNavigate || !isProcessing.value) return;
+        const status = await fetchPaymentStatus(currentReservationId);
+        if (status.paid) {
+          navigateToConfirmation();
+          return;
+        }
+        cancelHandled = true;
+        if (rejectCancel) {
+          rejectCancel(new Error("결제가 취소되었습니다. 다시 시도해 주세요."));
+        }
+      };
+      const handleVisibility = () => {
+        if (document.visibilityState === "visible") {
+          handleReturn();
+        }
+      };
+      const handleFocus = () => {
+        handleReturn();
+      };
+      window.addEventListener("focus", handleFocus);
+      document.addEventListener("visibilitychange", handleVisibility);
+      popupCancelWatcher = {
+        promise: cancelPromise,
+        cleanup: () => {
+          window.removeEventListener("focus", handleFocus);
+          document.removeEventListener("visibilitychange", handleVisibility);
+        },
+      };
+      racePromises.push(cancelPromise);
+    }
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(
         () =>
@@ -673,8 +795,9 @@ const handlePayment = async () => {
         PAYMENT_TIMEOUT_MS
       );
     });
+    racePromises.push(timeoutPromise);
 
-    const portoneResult = await Promise.race([paymentPromise, timeoutPromise]);
+    const portoneResult = await Promise.race(racePromises);
 
     await httpRequest.post("/api/payments/portone/complete", {
       merchantUid,
@@ -712,6 +835,9 @@ const handlePayment = async () => {
       console.error("결제 실패/만료 콜백 처리 실패", callbackError);
     }
   } finally {
+    if (popupCancelWatcher) {
+      popupCancelWatcher.cleanup();
+    }
     isProcessing.value = false;
   }
 };
@@ -743,6 +869,10 @@ const backTarget = computed(() => {
     },
   };
 });
+
+const handleBack = () => {
+  router.push(backTarget.value);
+};
 </script>
 
 <template>
@@ -750,7 +880,7 @@ const backTarget = computed(() => {
     <!-- Header -->
     <header class="sticky top-0 z-50 bg-white border-b border-[#e9ecef]">
       <div class="max-w-[500px] mx-auto px-4 h-14 flex items-center">
-        <button type="button" class="mr-3" @click="router.back()">
+        <button type="button" class="mr-3" @click="handleBack">
           <ArrowLeft class="w-6 h-6 text-[#1e3a5f]" />
         </button>
 
@@ -935,6 +1065,8 @@ const backTarget = computed(() => {
           <ul class="space-y-1 text-xs text-[#6c757d] leading-relaxed">
             <template v-if="isDepositOnly">
               <li>• 예약금 결제 후 즉시 예약이 확정됩니다.</li>
+              <li>• 결제창에서 오래 대기하면 결제 확인이 지연되거나 재시도가 필요할 수 있습니다.</li>
+              <li v-if="countdownText">• 결제 남은 시간: {{ countdownText }}</li>
               <li>• 예약금은 이용 완료 확인 시 돌려드립니다.</li>
               <li>
                 • 취소는 방문 1일 전까지 가능하며, 당일 취소 및 노쇼 시 환불
@@ -945,6 +1077,8 @@ const backTarget = computed(() => {
             </template>
             <template v-else>
               <li>• 결제 후 즉시 예약이 확정됩니다.</li>
+              <li>• 결제창에서 오래 대기하면 결제 확인이 지연되거나 재시도가 필요할 수 있습니다.</li>
+              <li v-if="countdownText">• 결제 남은 시간: {{ countdownText }}</li>
               <li>• 영업일 기준 3-5일 이내 환불 처리됩니다.</li>
               <li>• 문의사항은 고객센터로 연락 주시기 바랍니다.</li>
             </template>
@@ -997,8 +1131,14 @@ const backTarget = computed(() => {
       class="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e9ecef] z-50 shadow-lg"
     >
       <div class="max-w-[500px] mx-auto px-4 py-3">
+        <p v-if="countdownText" class="mb-2 text-xs font-semibold text-red-500">
+          결제 남은 시간: {{ countdownText }}
+        </p>
         <p v-if="errorMessage" class="mb-2 text-xs text-red-500">
           {{ errorMessage }}
+          <span class="block mt-1 text-[#6c757d]">
+            결제는 예약 생성 후 7분 이내에 완료해야 확정됩니다.
+          </span>
         </p>
         <Button
           @click="handlePayment"

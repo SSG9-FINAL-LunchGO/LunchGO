@@ -14,6 +14,8 @@ public class ReservationSummaryResponse {
     private String requestNote;
     private Integer totalAmount;
     private Integer visitCount;
+    private String paymentDeadlineAt;
+    private String holdExpiresAt;
     private List<MenuItem> menuItems;
 
     @Getter

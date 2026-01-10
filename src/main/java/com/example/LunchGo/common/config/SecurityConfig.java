@@ -3,6 +3,7 @@ package com.example.LunchGo.common.config;
 import com.example.LunchGo.account.helper.JwtFilter;
 import com.example.LunchGo.common.exception.JwtAccessDeniedHandler;
 import com.example.LunchGo.common.exception.JwtAuthenticationEntryPoint;
+import com.example.LunchGo.common.logging.RequestLoggingFilter;
 import com.example.LunchGo.common.util.TokenUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -141,7 +142,8 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
 
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(requestLoggingFilter(), JwtFilter.class);
 
         return http.build();
     }
@@ -178,5 +180,10 @@ public class SecurityConfig {
     @Bean
     public JwtFilter jwtFilter() {
         return new JwtFilter(tokenUtils);
+    }
+
+    @Bean
+    public RequestLoggingFilter requestLoggingFilter() {
+        return new RequestLoggingFilter();
     }
 }
