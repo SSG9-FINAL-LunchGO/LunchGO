@@ -154,6 +154,7 @@ const searchRestaurantError = ref("");
 const categories = ref([]);
 const restaurantTags = ref([]);
 const ingredients = ref([]);
+const hasAutoRefreshedCafeteria = ref(false);
 
 const fetchSearchTags = async () => {
   try {
@@ -1097,6 +1098,14 @@ onMounted(async () => {
           fetchTagMappingRecommendations();
         }
       }
+      if (
+          selectedRecommendation.value === RECOMMEND_CAFETERIA &&
+          !cafeteriaRecommendations.value.length
+      ) {
+        selectedRecommendation.value = null;
+        filterForm.recommendation = null;
+        persistHomeListState();
+      }
       nextTick(() => {
         if (Number.isFinite(parsed.scrollY)) {
           window.scrollTo(0, parsed.scrollY);
@@ -1489,10 +1498,44 @@ const resolveCafeteriaBaseDate = () => {
   if (searchDate.value) {
     return searchDate.value;
   }
-  return new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const base = new Date(now);
+  const isFriday = base.getDay() === 5;
+  const isAfterFridayNoon =
+      isFriday && (base.getHours() > 12 || (base.getHours() === 12 && base.getMinutes() >= 0));
+  if (isAfterFridayNoon) {
+    base.setDate(base.getDate() + 7);
+  }
+  const year = base.getFullYear();
+  const month = String(base.getMonth() + 1).padStart(2, "0");
+  const day = String(base.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
-onMounted(() => {
+const refreshCafeteriaRecommendationsIfNeeded = async () => {
+  if (hasAutoRefreshedCafeteria.value) {
+    return;
+  }
+  if (!isLoggedIn.value) {
+    return;
+  }
+  const shouldRefresh =
+    selectedRecommendation.value === RECOMMEND_CAFETERIA ||
+    cafeteriaRecommendations.value.length > 0;
+  if (!shouldRefresh) {
+    return;
+  }
+  hasAutoRefreshedCafeteria.value = true;
+  const baseDate = resolveCafeteriaBaseDate();
+  const hasMenus = await checkCafeteriaMenuStatus(baseDate);
+  if (hasMenus) {
+    await requestCafeteriaRecommendations(baseDate);
+  } else {
+    clearCafeteriaRecommendations();
+  }
+};
+
+onMounted(async () => {
   loadRecommendationsFromStorage();
 
   const storedHomeState = sessionStorage.getItem(homeListStateStorageKey);
@@ -1512,6 +1555,15 @@ onMounted(() => {
       if (selectedRecommendation.value === RECOMMEND_WEATHER) {
         fetchWeatherRecommendationsForCenter();
       }
+      if (
+          selectedRecommendation.value === RECOMMEND_CAFETERIA &&
+          !cafeteriaRecommendations.value.length
+      ) {
+        selectedRecommendation.value = null;
+        filterForm.recommendation = null;
+        persistHomeListState();
+      }
+      await refreshCafeteriaRecommendationsIfNeeded();
       nextTick(() => {
         if (Number.isFinite(parsed.scrollY)) {
           window.scrollTo(0, parsed.scrollY);
@@ -1521,6 +1573,8 @@ onMounted(() => {
       console.error("홈 리스트 상태 복원 실패:", error);
       sessionStorage.removeItem(homeListStateStorageKey);
     }
+  } else {
+    await refreshCafeteriaRecommendationsIfNeeded();
   }
 });
 
@@ -1581,6 +1635,7 @@ const {
   clearCafeteriaRecommendations,
   resolveCafeteriaBaseDate,
   checkCafeteriaMenuStatus,
+  openCafeteriaModal,
   requestCafeteriaRecommendations,
   hasConfirmedMenus,
   currentPage,

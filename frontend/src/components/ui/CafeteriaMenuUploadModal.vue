@@ -28,11 +28,12 @@ const emit = defineEmits(["close", "run-ocr", "confirm", "file-change"]);
 
 const previewUrl = ref("");
 const localDays = ref([]);
+const newMenuInputs = ref([]);
 let currentObjectUrl = "";
 const displayUrl = computed(() => previewUrl.value || props.initialImageUrl);
 const hasFile = computed(() => Boolean(previewUrl.value));
-const canConfirm = computed(
-  () => localDays.value.some((day) => day.menus?.length)
+const canConfirm = computed(() =>
+  localDays.value.some((day) => (day.menus?.length ?? 0) > 0)
 );
 
 const handleFileChange = (event) => {
@@ -56,19 +57,41 @@ const handleFileChange = (event) => {
   emit("file-change", file);
 };
 
-const updateDayMenus = (index, value) => {
-  const menus = value
-    .split(",")
+const normalizeMenuInput = (value) =>
+  value
+    .split(/\n|,/)
     .map((item) => item.trim())
     .filter(Boolean);
-  localDays.value[index] = {
-    ...localDays.value[index],
-    menus,
-  };
+
+const updateMenuItem = (dayIndex, menuIndex, value) => {
+  const menus = localDays.value[dayIndex]?.menus;
+  if (!menus) return;
+  menus.splice(menuIndex, 1, value);
+};
+
+const removeMenuItem = (dayIndex, menuIndex) => {
+  const menus = localDays.value[dayIndex]?.menus;
+  if (!menus) return;
+  menus.splice(menuIndex, 1);
+};
+
+const commitMenuInput = (dayIndex) => {
+  const value = newMenuInputs.value[dayIndex] || "";
+  const items = normalizeMenuInput(value);
+  if (!items.length) return;
+  const menus = localDays.value[dayIndex]?.menus;
+  if (!menus) return;
+  menus.push(...items);
+  newMenuInputs.value[dayIndex] = "";
 };
 
 const handleConfirm = () => {
-  emit("confirm", localDays.value);
+  const normalized = localDays.value.map((day) => ({
+    ...day,
+    menus: (day.menus || []).map((menu) => menu.trim()).filter(Boolean),
+  }));
+  localDays.value = normalized;
+  emit("confirm", normalized);
 };
 
 watch(
@@ -78,6 +101,7 @@ watch(
       ...day,
       menus: Array.isArray(day.menus) ? [...day.menus] : [],
     }));
+    newMenuInputs.value = localDays.value.map(() => "");
   },
   { immediate: true }
 );
@@ -157,18 +181,49 @@ onBeforeUnmount(() => {
               <p v-else-if="ocrResult" class="text-xs text-[#6c757d]">
                 날짜별 메뉴를 확인하고 수정할 수 있어요.
               </p>
-              <div class="space-y-3">
+              <div class="space-y-4">
                 <div v-for="(day, index) in localDays" :key="day.date">
                   <label class="text-xs font-semibold text-[#1e3a5f]">
                     {{ day.day }} ({{ day.date }})
                   </label>
-                  <input
-                    type="text"
-                    class="mt-1 w-full rounded-lg border border-[#dee2e6] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ff6b4a]"
-                    :value="day.menus?.join(', ')"
-                    placeholder="예: 제육, 된장찌개"
-                    @input="updateDayMenus(index, $event.target.value)"
-                  />
+                  <div class="mt-2 space-y-2">
+                    <div
+                      v-for="(menu, menuIndex) in day.menus"
+                      :key="`${day.date}-${menuIndex}`"
+                      class="flex items-center gap-2"
+                    >
+                      <input
+                        type="text"
+                        class="flex-1 rounded-lg border border-[#dee2e6] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ff6b4a]"
+                        :value="menu"
+                        placeholder="메뉴명을 입력하세요"
+                        @input="updateMenuItem(index, menuIndex, $event.target.value)"
+                      />
+                      <button
+                        type="button"
+                        class="px-2.5 py-2 rounded-lg border border-[#e9ecef] text-xs text-[#6c757d] hover:bg-[#f1f3f5]"
+                        @click="removeMenuItem(index, menuIndex)"
+                      >
+                        삭제
+                      </button>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <input
+                        v-model="newMenuInputs[index]"
+                        type="text"
+                        class="flex-1 rounded-lg border border-dashed border-[#dee2e6] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ff6b4a]"
+                        placeholder="메뉴 추가 (쉼표 또는 줄바꿈 가능)"
+                        @keydown.enter.prevent="commitMenuInput(index)"
+                      />
+                      <button
+                        type="button"
+                        class="px-3 py-2 rounded-lg text-xs font-semibold gradient-primary text-white"
+                        @click="commitMenuInput(index)"
+                      >
+                        추가
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
               <div

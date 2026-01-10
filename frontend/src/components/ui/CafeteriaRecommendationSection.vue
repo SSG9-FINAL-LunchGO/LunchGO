@@ -124,14 +124,14 @@ defineProps({
             <p class="text-sm font-semibold text-[#1e3a5f]">
               {{ day.day }} · {{ day.date }}
             </p>
-            <p class="text-xs text-[#6c757d]">
+            <p class="text-xs text-[#495057]">
               기피 메뉴: {{ day.avoidMenu || "없음" }}
             </p>
           </div>
           <span
             class="text-xs font-semibold px-2 py-1 rounded-full bg-[#f8f9fa] text-[#495057]"
           >
-            팀 선호 반영
+            본인+팀 선호 반영
           </span>
         </div>
         <RestaurantCardList :restaurants="day.restaurants || []" />

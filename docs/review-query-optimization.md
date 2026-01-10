@@ -39,6 +39,30 @@
 - [ ] API 응답 구조 변경 영향 확인(프론트/모바일)
 
 ## 쿼리 변경 내용
+### 쉽게 보는 변경 요약
+- 변경 전: 리뷰 ID를 먼저 뽑고, 그 ID 목록으로 다시 상세를 조회하는 2단계 방식
+- 변경 후: 페이징 대상 ID를 서브쿼리로 만들고, 상세 조회를 1번에 합친 1단계 방식
+- 효과: 네트워크 왕복(쿼리 1회) 감소 + 동일 정렬 기준 유지
+
+### 흐름 다이어그램
+```mermaid
+flowchart TD
+  subgraph Before["변경 전"]
+    direction TB
+    BClient["클라이언트"] --> BID["리뷰 ID 페이징 쿼리"]
+    BID --> BDetail["리뷰 상세 조회 쿼리 (ID IN)"]
+    BDetail --> BTags["태그 조회 쿼리"]
+    BTags --> BImages["이미지 조회 쿼리"]
+  end
+
+  subgraph After["변경 후"]
+    direction TB
+    AClient["클라이언트"] --> AUnified["리뷰 페이징+상세 통합 쿼리"]
+    AUnified --> ATags["태그 조회 쿼리"]
+    ATags --> AImages["이미지 조회 쿼리"]
+  end
+```
+
 ### 변경 전
 ```sql
 -- 1) 리뷰 ID 페이징만 먼저 수행
@@ -118,13 +142,26 @@ ORDER BY page.created_at DESC
 
 ## 결과 기록
 - 변경 전
-  - 평균 쿼리 수: 6.74 (Scouter XLog, 93건 평균)
-  - 평균 응답 시간: 38.28 ms (Scouter XLog, 93건 평균)
-  - P95 응답 시간: 257 ms (Scouter XLog)
+  - 평균 쿼리 수: 6.73 (Scouter XLog, 220건 평균)
+  - 평균 응답 시간: 34.52 ms (Scouter XLog, 220건 평균)
+  - P95 응답 시간: 256.9 ms (Scouter XLog)
   - DB SQL 평균 시간: 0.889 ms (SQL Summary, weighted avg)
   - DB CPU/IO: N/A (별도 지표 필요)
 - 변경 후
-  - 평균 쿼리 수:
-  - 평균 응답 시간:
-  - DB CPU/IO:
+  - 평균 쿼리 수: 4.71 (Scouter XLog, 126건 평균)
+  - 평균 응답 시간: 16.86 ms (Scouter XLog, 126건 평균)
+  - P95 응답 시간: 25.65 ms (Scouter XLog)
+  - DB SQL 평균 시간: 0.937 ms (SQL Summary, weighted avg)
+  - DB CPU/IO: N/A (별도 지표 필요)
   - 적용 인덱스: `src/main/resources/sql/migration_add_review_query_indexes.sql`
+
+## 성능 비교 표
+P95 응답 시간은 전체 요청 중 상위 5%를 제외한 최대 응답 시간입니다.
+즉, 극단적인 아웃라이어를 배제한 상태에서의 최악 지연을 의미합니다.
+
+| 지표 | 변경 전 | 변경 후 | 개선(배) | 개선(%) |
+| --- | --- | --- | --- | --- |
+| 평균 응답 시간 | 34.52 ms | 16.86 ms | 2.05x | 51.16% ↓ |
+| P95 응답 시간 | 256.9 ms | 25.65 ms | 10.01x | 90.02% ↓ |
+| 평균 SQL Count | 6.73 | 4.71 | 1.43x | 29.92% ↓ |
+| DB SQL 평균 시간 | 0.889 ms | 0.937 ms | 0.95x | 5.40% ↑ |
