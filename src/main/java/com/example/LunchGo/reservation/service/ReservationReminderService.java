@@ -46,10 +46,9 @@ public class ReservationReminderService {
             String when = slot.format(DT);
 
             String content =
-                    "[런치고] 예약 1시간 전 확인\n" +
+                    "[런치고] 예약 1시간 전 방문 확인\n" +
                             t.getRestaurantName() + " (" + when + ")\n" +
-                            "방문: " + visitUrl + "\n" +
-                            "취소: " + cancelUrl + "\n" +
+                            "방문 확인: " + visitUrl + "\n" +
                             "미응답 시 메뉴 준비가 늦어질 수 있습니다. 위 링크를 통해 응답해주세요.";
 
             // CoolSMS
