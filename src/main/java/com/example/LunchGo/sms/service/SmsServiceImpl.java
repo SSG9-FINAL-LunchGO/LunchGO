@@ -140,4 +140,17 @@ public class SmsServiceImpl implements SmsService {
             }
         }
     }
+    @Override
+    public void sendSystemSms(String to, String text) {
+        Message message = new Message();
+        message.setFrom(fromNumber);
+        message.setTo(to);
+        message.setText(text);
+
+        try {
+            this.messageService.sendOne(new SingleMessageSendingRequest(message));
+        } catch (Exception e) {
+            System.err.println("SMS sending failed to " + to + ": " + e.getMessage());
+        }
+    }
 }
