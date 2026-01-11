@@ -45,7 +45,7 @@ public class ReservationServiceImpl implements ReservationService {
         validate(request);
 
         // Redis 락을 사용하여 짧은 시간(5초 이내) 동안 중복해서 전달되는 예약 요청을 처리
-        // (이 코드가 있어야 애플리케이션 레벨에서 중복 예약 요청이 들어오는 것을 방어 가능 - 결제 만료 시간과는 별개의 역할)
+        // (이 코드가 있어야 애플리케이션 레벨에서 중복 예약 요청이 들어오는 것을 방어 가능 - 결제 만료 시간 체크와는 별개이므로 삭제 X)
         String lockKey = "reservation_lock:" + request.getUserId() + ":" + request.getRestaurantId() + ":" + request.getSlotDate() + ":" + request.getSlotTime();
         if (!redisUtil.setIfAbsent(lockKey, "processing", 5000)) {
             throw new DuplicateReservationException("이미 처리 중인 예약 요청입니다. 잠시 후 다시 시도해주세요.");
