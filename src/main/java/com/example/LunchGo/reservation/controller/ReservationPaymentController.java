@@ -3,6 +3,7 @@ package com.example.LunchGo.reservation.controller;
 import com.example.LunchGo.reservation.dto.CreatePaymentRequest;
 import com.example.LunchGo.reservation.dto.CreatePaymentResponse;
 import com.example.LunchGo.reservation.dto.ReservationConfirmationResponse;
+import com.example.LunchGo.reservation.dto.ReservationPaymentStatusResponse;
 import com.example.LunchGo.reservation.dto.ReservationSummaryResponse;
 import com.example.LunchGo.reservation.service.ReservationPaymentService;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +40,12 @@ public class ReservationPaymentController {
     @GetMapping("/reservations/{reservationId}/confirmation")
     public ResponseEntity<ReservationConfirmationResponse> getConfirmation(@PathVariable Long reservationId) {
         ReservationConfirmationResponse response = reservationPaymentService.getConfirmation(reservationId);
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    @GetMapping("/reservations/{reservationId}/confirmation/status")
+    public ResponseEntity<ReservationPaymentStatusResponse> getConfirmationStatus(@PathVariable Long reservationId) {
+        ReservationPaymentStatusResponse response = reservationPaymentService.getConfirmationStatus(reservationId);
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
 

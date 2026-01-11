@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Collection;
 import java.util.List;
@@ -30,5 +31,19 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
             @Param("fromTime") LocalTime fromTime,
             @Param("toTime") LocalTime toTime,
             @Param("statuses") Collection<ReservationStatus> statuses
+    );
+
+    @Query("""
+        select r
+        from Reservation r
+        where r.status = :status
+          and (
+            (r.paymentDeadlineAt is not null and r.paymentDeadlineAt <= :now)
+            or (r.paymentDeadlineAt is null and r.holdExpiresAt is not null and r.holdExpiresAt <= :now)
+          )
+    """)
+    List<Reservation> findDueForPaymentExpiry(
+            @Param("status") ReservationStatus status,
+            @Param("now") LocalDateTime now
     );
 }

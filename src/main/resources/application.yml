@@ -18,3 +18,14 @@ trend:
   visit-weight: ${TREND_VISIT_WEIGHT:0.8}
   view-weight: ${TREND_VIEW_WEIGHT:0.2}
   default-image-url: ${TREND_DEFAULT_IMAGE_URL:/placeholder.svg}
+
+portone:
+  http:
+    connect-timeout-ms: ${PORTONE_HTTP_CONNECT_TIMEOUT_MS:5000}
+    read-timeout-ms: ${PORTONE_HTTP_READ_TIMEOUT_MS:12000}
+    max-attempts: ${PORTONE_HTTP_MAX_ATTEMPTS:2}
+    retry-backoff-ms: ${PORTONE_HTTP_RETRY_BACKOFF_MS:300}
+
+reservation:
+  payment-expiry:
+    interval-ms: ${RESERVATION_PAYMENT_EXPIRY_INTERVAL_MS:10000}

@@ -96,3 +96,21 @@ bash scripts/upload_frontend_object_storage.sh
 1) 백엔드 로그에서 서명 검증 확인
    - `Webhook Signature Check`의 Received/Calculated가 일치해야 함
 2) DB에 결제 레코드가 존재하는지 확인
+
+### 증상 (로컬에서 로그가 안 찍히는데 상태가 바뀜)
+- 로컬 서버 로그에 웹훅 수신 로그가 없음
+- DB 상태는 `EXPIRED`/`CANCELLED`로 변경됨
+
+### 원인
+- PortOne 웹훅 URL이 배포 환경을 가리키고 있음
+- 로컬이 같은 원격 DB를 사용 중이라, 배포 서버가 상태를 갱신해버림
+
+### 해결 (로컬 터널링)
+1) 로컬 서버가 동작 중인지 확인 (예: `http://localhost:8080`)
+2) ngrok 실행
+```bash
+ngrok http 8080
+```
+3) PortOne 웹훅 URL을 ngrok HTTPS 주소로 변경
+   - 예: `https://xxxx.ngrok-free.app/api/payments/portone/webhook`
+4) 로컬 로그에서 `PortOne webhook received`가 찍히는지 확인
