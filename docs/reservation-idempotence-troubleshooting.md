@@ -57,11 +57,19 @@
 
 - reservations 테이블에 이미 저장된 중복 데이터는 삭제하지 않고, 향후 동일 예약 요청을 중복 처리하는 것을 방지하는 것에 집중
 - 다음의 장점으로 인해, Redis를 활용하면서, 애플리케이션 레벨에서 중복 요청을 처리하는 방향으로 진행
-  - DB의 외래키 관계나 중복된 데이터를 건드리지 않으므로, 데이터 삭제로 인한 위험부담이 없음
-  - 사용자의 예약 요청 시, Redis를 통해 중복된 예약 내역이 누적되는 것을 방지
-  - 기존의 DB 비관적 락과 Redis 락을 모두 적용
+  - 애플리케이션 레벨에서 사용자의 중복된 예약 요청이 DB에 도달하기 전에 미리 방어
+  - 따라서, 기존의 DB 비관적 락과 Redis 락을 모두 활용해야 함
     - DB 비관적 락: 예약 인원이 식당의 최대 수용가능인원을 초과하는 것을 방지(여러 명이 동시에 한 식당을 예약할 때의 동시성 제어 담당)
     - Redis : 짧은 시간 동안 동일한 예약 요청이 중복 발생하는 것을 방지(1명이 식당 한 곳에 중복된 예약 신청을 넣지 않도록 제어)
+- 예약 슬롯 생성 직전 5초 간 Redis 락을 설정 
+  - 1명의 사용자가 짧은 시간 동안 중복된 예약 요청을 보냈을 때, 이미 처리된 예약을 다시 처리하게 되는 것을 방지하는 용도
+  - ReservationServiceImpl의 `create` 메서드 내부에서는 예약 슬롯 생성 직전에 아래의 코드를 실행
+  - ```java
+    String lockKey = String.format(RESERVATION_LOCK_KEY_FORMAT, request.getUserId(), request.getRestaurantId(), request.getSlotDate(), request.getSlotTime());
+    if (!redisUtil.setIfAbsent(lockKey, RESERVATION_LOCK_VALUE, RESERVATION_LOCK_TIMEOUT_MS)) {
+        throw new DuplicateReservationException("이미 처리 중인 예약 요청입니다. 잠시 후 다시 시도해주세요.");
+    }
+    ```
 
 ---
 
@@ -176,10 +184,14 @@ if (e.response?.status === 409) {
 - ReservationServiceImpl에서 중복 예약 발생 시 409 예외를 던졌을 때 스프링 부트가 내부적으로 에러 처리를 수행하기 위해 `/error` 경로로 요청을 포워딩
 - 하지만 SecurityConfig에서는 `/error`를 별도로 인가하지 않았기 때문에 이 요청이 `anyRequest().authenticated()`에 막혀버리는 문제 발생
 
-### 해결
+### 해결방안 1: SecurityConfig 설정 변경
 
 - SecurityConfig 내부에 `.requestMatchers("/error").permitAll()` 설정 추가
   - 이 설정을 추가하는 것은 보안을 해제하는 것이 아닌, 내부 서비스 로직에서 클라이언트에게 전달할 에러 응답이 보안 필터에 가로막히지 않게 한다는 것을 의미
   - 위 설정을 추가하더라도 API 요청이 백엔드로 전달될 때의 보안 검사는 여전히 유효
 - 코드 변경을 최소화한다는 측면에서 위의 방안을 적용
   - 구조적인 측면에서는 `@ControllerAdvice를 도입하는 것이 좋지만, 서비스 계층에서 발생한 모든 예외에 관한 처리 로직을 작성해야 하므로 코드 변경 범위가 큼
+
+### 해결방안 2: 예약 기능 전용 예외 핸들러 사용
+
+- 1차적으로 SecurityConfig의 설정을 변경했지만, 
