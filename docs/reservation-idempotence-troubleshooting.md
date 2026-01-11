@@ -1,6 +1,6 @@
 # 동시성 제어 - 중복 예약 처리
 
-## 문제: 이미 생성된 중복 예약으로 인한 unique 키 생성 불가
+## 문제 1: 이미 생성된 중복 예약으로 인한 unique 키 생성 불가
 
 ### 증상
 
@@ -123,3 +123,63 @@
   - 예약 생성 과정에서 오류가 발생한 경우에도 DB의 auto increment id값(주로 pk)이 증가하는 등의 부수적인 문제도 발생
 - redis를 사용하면 애플리케이션 레벨에서 일부 중복 예약 요청을 먼저 차단하게 되어 DB의 부담이 감소
   - 중복 예약 처리와는 별개로, redis는 예약 프로세스 만료시간을 설정할 때도 활용될 수 있음
+
+---
+
+## 문제 3: SQLIntegrityConstraintViolationException 예외 처리
+
+### 증상
+
+- 현재 로그인한 사용자가 같은 식당을 대상으로 중복된 예약 요청을 보내면 SQLIntegrityConstraintViolationException 예외가 발생하면서 강제 로그아웃되는 문제 발생
+
+
+### 원인
+
+- 중복된 예약 요청 자체가 reservations 테이블을 대상으로 이전에 설정했던 unique 제약조건을 충족하지 못하면서 SQLIntegrityConstraintViolationException이 발생
+- 그러나, 발생한 SQLIntegrityConstraintViolationException에 관한 예외 처리를 수행하지 않아 강제 로그아웃되는 문제 발생
+
+### 해결
+
+- ReservationServiceImpl.java의 `create` 메서드에서 예약 생성용 insert문 쿼리를 실행 중 SQLIntegrityConstraintViolationException 발생 시 409 상태코드를 반환하도록 예외 처리
+
+```java
+try {
+    reservationMapper.insertReservation(reservation);
+} catch (DataIntegrityViolationException e) {
+    throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 처리된 예약 요청입니다.");
+}
+```
+
+- RestaurantBookingPage.vue 파일의 handleProceed 함수에서 409 상태코드를 처리하도록 catch 블록 내부를 아래와 같이 수정 
+  - 409 상태코드를 반환받을 시, 에러 메시지를 띄운 후 메인 페이지로 이동하도록 처리
+  - 그 외에는 이전처럼 에러 처리
+
+```javascript
+if (e.response?.status === 409) {
+  alert('이미 예약 처리 중인 식당입니다. 예약 내역을 확인해 주세요.');
+  router.push('/');
+} else {
+  createErrorMessage.value = e.response?.data?.message || e?.message || '예약 생성 중 오류가 발생했습니다.';
+}
+```
+
+---
+
+## 문제 4: 409 에러 처리 로직 수행 오류
+
+### 증상
+
+- 중복 예약 발생 시 반환된 409 상태코드를 처리하는 로직을 추가했음에도 불구하고, 지정한 에러 처리 로직 대신 "인증에 실패했습니다."라는 메시지만 예약 정보 입력 페이지 하단에 뜨는 문제 발생
+
+### 원인
+
+- ReservationServiceImpl에서 중복 예약 발생 시 409 예외를 던졌을 때 스프링 부트가 내부적으로 에러 처리를 수행하기 위해 `/error` 경로로 요청을 포워딩
+- 하지만 SecurityConfig에서는 `/error`를 별도로 인가하지 않았기 때문에 이 요청이 `anyRequest().authenticated()`에 막혀버리는 문제 발생
+
+### 해결
+
+- SecurityConfig 내부에 `.requestMatchers("/error").permitAll()` 설정 추가
+  - 이 설정을 추가하는 것은 보안을 해제하는 것이 아닌, 내부 서비스 로직에서 클라이언트에게 전달할 에러 응답이 보안 필터에 가로막히지 않게 한다는 것을 의미
+  - 위 설정을 추가하더라도 API 요청이 백엔드로 전달될 때의 보안 검사는 여전히 유효
+- 코드 변경을 최소화한다는 측면에서 위의 방안을 적용
+  - 구조적인 측면에서는 `@ControllerAdvice를 도입하는 것이 좋지만, 서비스 계층에서 발생한 모든 예외에 관한 처리 로직을 작성해야 하므로 코드 변경 범위가 큼
