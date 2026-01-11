@@ -340,7 +340,7 @@ const weatherTheme = computed(() => {
     : summary.feelsLike;
   if (Number.isFinite(temp) && temp <= 7) return "cold";
   if (Number.isFinite(temp) && temp >= 28) return "hot";
-  return "cold";
+  return null;
 });
 const weatherThemeStyle = computed(() => {
   if (!weatherTheme.value) return null;
