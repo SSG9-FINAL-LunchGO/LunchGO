@@ -174,10 +174,12 @@ if (e.response?.status === 409) {
 ### 원인
 
 - ReservationServiceImpl에서 중복 예약 발생 시 409 예외를 던졌을 때 스프링 부트가 내부적으로 에러 처리를 수행하기 위해 `/error` 경로로 요청을 포워딩
-- 하지만 SecurityConfig에서는 `/error`에 관한 별도의 인가 처리를 수행하지 않았기 때문에 이 요청이 `anyRequest().authenticated()`에 막혀버리는 문제 발생
+- 하지만 SecurityConfig에서는 `/error`를 별도로 인가하지 않았기 때문에 이 요청이 `anyRequest().authenticated()`에 막혀버리는 문제 발생
 
 ### 해결
 
 - SecurityConfig 내부에 `.requestMatchers("/error").permitAll()` 설정 추가
   - 이 설정을 추가하는 것은 보안을 해제하는 것이 아닌, 내부 서비스 로직에서 클라이언트에게 전달할 에러 응답이 보안 필터에 가로막히지 않게 한다는 것을 의미
   - 위 설정을 추가하더라도 API 요청이 백엔드로 전달될 때의 보안 검사는 여전히 유효
+- 코드 변경을 최소화한다는 측면에서 위의 방안을 적용
+  - 구조적인 측면에서는 `@ControllerAdvice를 도입하는 것이 좋지만, 서비스 계층에서 발생한 모든 예외에 관한 처리 로직을 작성해야 하므로 코드 변경 범위가 큼
