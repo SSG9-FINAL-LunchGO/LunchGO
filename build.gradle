@@ -34,8 +34,9 @@ dependencies {
 	testImplementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter-test:3.0.5'
 	runtimeOnly 'com.mysql:mysql-connector-j'
 
-	// Redis 의존성 추가
+	// Redis 의존성 추가(lettuce)
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	implementation 'org.redisson:redisson-spring-boot-starter:3.43.0'
 
 	//이메일 의존성 추가
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
