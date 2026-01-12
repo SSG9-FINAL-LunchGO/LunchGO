@@ -192,6 +192,51 @@ if (e.response?.status === 409) {
 - 코드 변경을 최소화한다는 측면에서 위의 방안을 적용
   - 구조적인 측면에서는 `@ControllerAdvice를 도입하는 것이 좋지만, 서비스 계층에서 발생한 모든 예외에 관한 처리 로직을 작성해야 하므로 코드 변경 범위가 큼
 
-### 해결방안 2: 예약 기능 전용 예외 핸들러 사용
+### 해결방안 2: 예약 기능 전용 예외 처리 핸들러 추가
 
-- 1차적으로 SecurityConfig의 설정을 변경했지만, 
+- SecurityConfig에 `.requestMatchers("/error").permitAll()`란 설정을 추가하는 방안을 적용했지만 다음의 측면에서 개선의 필요성을 느낌
+  - 서비스 계층 내부에 새로운 예외 처리 코드를 추가할 때마다 서비스 계층의 로직을 수정해야 하는 번거로움
+  - 서비스 계층의 코드 분량이 늘어나면서 가독성이 떨어지고, 예외 처리 코드를 파악하고 관리하는 것이 어려움
+  - SecurityConfig에 `.requestMatchers("/error").permitAll()`이란 설정을 포함시켰을 때, 해당 설정이 가진 의미가 명확하지 않음
+- 이전에는 `@ControllerAdvice` 클래스를 도입할 경우 전역적인 예외 처리 핸들러를 작성하는 것의 부담으로 인해 해당 방안을 사용하지 않았으나, 다음의 절충안을 사용
+  - `@ControllerAdvice` 어노테이션의 `basePackage` 또는 `assignableTypes` 속성값을 사용하여 적용 범위를 줄이는 것이 가능
+    - `basePackage`
+      - `@ControllerAdvice` 또는 `@RestControllerAdvice`가 붙은 핸들러 클래스에서 사용
+      - 예외 처리 핸들러를 적용할 특정 패키지를 지정
+      - 특정 도메인에 관한 여러 개의 컨트롤러에 대해 공통으로 예외 처리 가능 
+    - `assignableTypes`
+      - `@ControllerAdvice` 또는 `@RestControllerAdvice`가 붙은 핸들러 클래스에서 사용
+      - 특정 컨트롤러에서 발생한 예외만 처리하도록 명시적으로 지정
+    - 컨트롤러 내부에서 `@ExceptionHandler` 정의
+      - 별도의 핸들러 클래스 생성 불필요
+      - 예외 처리를 수행할 컨트롤러의 메서드에 사용, 해당 컨트롤러 내부에서 발생한 예외만 처리
+      - 적용 범위가 가장 좁은 방식 -> 다른 컨트롤러에서는 재사용 불가
+- 예약 생성 중 발생한 409 에러에 관한 예외 처리 시 `@RestControllerAdvice`를 사용
+  - 이미 RESTful API 환경에서 기능 구성을 진행하고 있었고, JSON 형식으로 반환된 예외 메시지를 활용하여 409 에러 발생 시 그에 관한 에러 메시지를 화면에 출력해야 했기 때문
+  - 따라서, 아래의 핸들러 클래스를 사용
+  - 현재는 잔여석 부족, 중복 예약 처리 요청으로 인한 예외 발생 시 409 상태코드를 반환하는 예외 처리 핸들러만 추가한 상태
+  ```java
+  import org.springframework.http.HttpStatus;
+  import org.springframework.http.ResponseEntity;
+  import org.springframework.web.bind.annotation.ExceptionHandler;
+  import org.springframework.web.bind.annotation.RestControllerAdvice;
+  
+  import java.util.HashMap;
+  import java.util.Map;
+  
+  @RestControllerAdvice(basePackages = "com.example.LunchGo.reservation")
+  public class ReservationExceptionHandler {
+  
+      @ExceptionHandler({DuplicateReservationException.class, SlotCapacityExceededException.class})
+      public ResponseEntity<Map<String, String>> handleReservationExceptions(RuntimeException e) {
+          Map<String, String> response = new HashMap<>();
+          response.put("message", e.getMessage());
+          
+          return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
+      }
+  }
+  ```
+
+- 발생한 예외가 무엇인지를 명확히 표현하기 위해, ReservationServiceImpl 클래스 내부의 예외 생성 로직에서는 기존에 사용했던 예외를 커스텀 예외 클래스로 교체
+  - SQLIntegrityConstraintViolationException -> DuplicateReservationException
+  - IllegalStateException -> SlotCapacityExceedException
