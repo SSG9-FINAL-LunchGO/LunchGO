@@ -59,7 +59,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/search/loginId").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/search/pwd").permitAll()
                         .requestMatchers(HttpMethod.PUT, "/api/auth/pwd").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/business/restaurants/*/stats/weekly.pdf").permitAll()
 
                         .requestMatchers(HttpMethod.GET,
                                 "/api/restaurants/{id}",
@@ -121,6 +120,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/business/reservations/**").hasAuthority("ROLE_OWNER")
                         .requestMatchers(HttpMethod.POST, "/api/business/reservations/**").hasAuthority("ROLE_OWNER")
                         .requestMatchers(HttpMethod.PATCH, "/api/business/reservations/**").hasAuthority("ROLE_OWNER")
+                        .requestMatchers(HttpMethod.GET, "/api/business/restaurants/*/stats/weekly.pdf").hasAuthority("ROLE_OWNER")
 
                         .requestMatchers(HttpMethod.POST, "/api/business/staff/*").hasAuthority("ROLE_OWNER")
                         .requestMatchers(HttpMethod.POST, "/api/business/promotion/*").hasAuthority("ROLE_OWNER")

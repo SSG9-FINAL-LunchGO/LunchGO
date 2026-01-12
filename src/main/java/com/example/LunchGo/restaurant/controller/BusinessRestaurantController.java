@@ -93,22 +93,22 @@ public class BusinessRestaurantController {
                 : ResponseEntity.status(HttpStatus.FORBIDDEN).build();
     }
 
-//    @PreAuthorize("hasAuthority('ROLE_OWNER')")
+    @PreAuthorize("hasAuthority('ROLE_OWNER')")
     @GetMapping("/restaurants/{id}/stats/weekly.pdf")
     public ResponseEntity<byte[]> downloadWeeklyStatsPdf(
             @PathVariable("id") Long id,
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-//        if (userDetails == null) {
-//            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build(); //권한 없음
-//        }
-//        Optional<Long> restaurantId = businessRestaurantService.findRestaurantIdByOwnerId(userDetails.getId());
-//        if (restaurantId.isEmpty()) {
-//            return ResponseEntity.status(HttpStatus.NOT_FOUND).build(); //사용자 찾을 수 없음
-//        }
-//        if (!restaurantId.get().equals(id)) {
-//            return ResponseEntity.status(HttpStatus.FORBIDDEN).build(); //접근 금지
-//        }
+        if (userDetails == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build(); //권한 없음
+        }
+        Optional<Long> restaurantId = businessRestaurantService.findRestaurantIdByOwnerId(userDetails.getId());
+        if (restaurantId.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build(); //사용자 찾을 수 없음
+        }
+        if (!restaurantId.get().equals(id)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build(); //접근 금지
+        }
 
         byte[] pdf = restaurantStatsService.generateWeeklyStatsPdf(id);
         HttpHeaders headers = new HttpHeaders();
