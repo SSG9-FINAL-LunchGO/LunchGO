@@ -105,7 +105,7 @@ scrape_configs:
 docker exec -it lunchgo-db mysql -uroot -p<YOUR_ROOT_PASSWORD>
 
 # MySQL 내부에서 실행
-CREATE USER 'exporter'@'%' IDENTIFIED BY 'exporter1234!';
+CREATE USER 'exporter'@'%' IDENTIFIED BY '<YOUR_EXPORTER_PASSWORD>';
 GRANT PROCESS, REPLICATION CLIENT, SELECT ON *.* TO 'exporter'@'%';
 FLUSH PRIVILEGES;
 ```
