@@ -67,10 +67,12 @@ public class DistributedLockAop {
             return joinPoint.proceed();
 
         } catch (InterruptedException e) {
+            // 인터럽트 발생 시 락 해제 및 상태 복구
             if (userLockKey != null) {
                 redisUtil.deleteData(userLockKey);
             }
-            throw e;
+            Thread.currentThread().interrupt(); // 인터럽트 상태 복구
+            throw new IllegalStateException("DistributedLock AOP: Lock acquisition interrupted", e); // 런타임 예외로 래핑
         } finally {
             // 식당 락 해제
             if (rLock != null && rLock.isHeldByCurrentThread()) {

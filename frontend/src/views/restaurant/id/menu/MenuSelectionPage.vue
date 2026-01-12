@@ -7,6 +7,7 @@ import Card from '@/components/ui/Card.vue';
 import WaitingModal from '@/components/ui/WaitingModal.vue';
 import httpRequest from '@/router/httpRequest';
 import { useAccountStore } from '@/stores/account';
+import { useReservationQueue } from '@/composables/useReservationQueue';
 
 const route = useRoute();
 const router = useRouter();
@@ -109,19 +110,21 @@ const partySize = computed(() => {
 });
 
 const isSubmitting = ref(false);
-const isWaiting = ref(false);
-const modalType = ref('waiting');
-const modalMessage = ref('');
 const submitErrorMessage = ref('');
 
-const handleCloseModal = () => {
-  isWaiting.value = false;
-  // 에러 모달 닫으면 로딩 해제 및 메인으로 이동
-  if (modalType.value === 'error') {
-    isSubmitting.value = false;
-    router.push('/');
-  }
-};
+const { 
+  isWaiting, 
+  modalType, 
+  modalMessage, 
+  queueErrorMessage, 
+  processQueue, 
+  handleQueueModalClose 
+} = useReservationQueue();
+
+import { watch } from 'vue';
+watch(queueErrorMessage, (newVal) => {
+  if (newVal) submitErrorMessage.value = newVal;
+});
 
 const resolveUserId = () => {
   const storeMemberId = accountStore.member?.id;
@@ -187,19 +190,12 @@ const handleProceed = async () => {
   if (!canProceed.value || isSubmitting.value) return;
   submitErrorMessage.value = '';
   isSubmitting.value = true;
-  modalType.value = 'waiting'; // 초기화
 
-  const MAX_RETRIES = 10;
-  let retryCount = 0;
-
-  const attemptCreate = async () => {
-    try {
-      const created = await createReservation();
+  await processQueue(
+    createReservation,
+    (created) => {
       const reservationId = created?.reservationId;
-
-      if (!reservationId) {
-        throw new Error('예약 생성에 실패했습니다. 다시 시도해 주세요.');
-      }
+      if (!reservationId) throw new Error('예약 생성 실패');
 
       router.push({
         path: `/restaurant/${restaurantId}/payment`,
@@ -213,47 +209,9 @@ const handleProceed = async () => {
           reservationId: String(reservationId),
         },
       });
-    } catch (e) {
-      const errorMessage = e.response?.data?.message || e?.message || '';
-
-      // 1. [중복 예약 등 에러 모달] "대기 중"이 없는 409 에러
-      if (e.response?.status === 409 && !errorMessage.includes('대기 중')) {
-         modalType.value = 'error';
-         // 마침표 뒤에 줄바꿈 추가하여 가독성 향상
-         modalMessage.value = (errorMessage || '이미 처리된 예약이거나 잔여석이 부족합니다.').replace('. ', '.\n');
-         isWaiting.value = true;
-         return; 
-      }
-
-      // 2. [대기열 진입] 메시지에 "대기 중"이 포함된 경우
-      if (e.response?.status === 409 && errorMessage.includes('대기 중')) {
-        if (retryCount < MAX_RETRIES) {
-          retryCount++;
-          modalType.value = 'waiting';
-          modalMessage.value = '예약 요청이 많아 대기 중입니다.\n잠시만 기다려주세요...';
-          isWaiting.value = true;
-          setTimeout(attemptCreate, 2000); // 2초 후 재시도
-          return;
-        } else {
-           modalType.value = 'error';
-           modalMessage.value = '현재 예약 요청이 많습니다.\n잠시 후 다시 시도해 주세요.';
-           isWaiting.value = true;
-        }
-      } else {
-        // 3. 기타 에러
-        submitErrorMessage.value = errorMessage || '예약 생성 중 오류가 발생했습니다.';
-      }
-    } finally {
-      // 대기 중이 아니거나 재시도 루프가 끝났을 때만 로딩 해제
-      // (단, 에러 모달이 떠있는 경우는 로딩만 끄고 모달은 유지 -> handleCloseModal에서 처리)
-      if (modalType.value !== 'error' && (!isWaiting.value || retryCount >= MAX_RETRIES)) {
-        isSubmitting.value = false;
-        isWaiting.value = false;
-      }
-    }
-  };
-
-  await attemptCreate();
+    },
+    isSubmitting
+  );
 };
 </script>
 
@@ -357,7 +315,7 @@ const handleProceed = async () => {
       :isOpen="isWaiting" 
       :type="modalType"
       :message="modalMessage || undefined"
-      @close="handleCloseModal"
+      @close="() => handleQueueModalClose(isSubmitting)"
     />
   </div>
 </template>

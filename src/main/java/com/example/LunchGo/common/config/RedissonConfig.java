@@ -4,6 +4,8 @@ import lombok.RequiredArgsConstructor;
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
+import org.redisson.config.SingleServerConfig;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.data.redis.RedisProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,9 +18,13 @@ import org.springframework.util.StringUtils;
 @RequiredArgsConstructor
 public class RedissonConfig {
 
-    private static final int CONNECTION_POOL_SIZE = 8;
-    private static final int CONNECTION_MIN_IDLE_SIZE = 4;
     private static final String REDIS_PROTOCOL_FORMAT = "redis://%s:%d";
+
+    @Value("${spring.redis.redisson.pool.size:8}")
+    private int connectionPoolSize;
+
+    @Value("${spring.redis.redisson.pool.min-idle-size:4}")
+    private int connectionMinIdleSize;
 
     private final RedisProperties redisProperties;
 
@@ -29,20 +35,20 @@ public class RedissonConfig {
         // Redis 주소 형식 구성 (redis://host:port)
         String address = String.format(REDIS_PROTOCOL_FORMAT, redisProperties.getHost(), redisProperties.getPort());
 
-        // Single Server 모드로 설정
-        config.useSingleServer()
+        // Single Server 모드 설정
+        SingleServerConfig serverConfig = config.useSingleServer()
                 .setAddress(address)
-                .setConnectionPoolSize(CONNECTION_POOL_SIZE)
-                .setConnectionMinimumIdleSize(CONNECTION_MIN_IDLE_SIZE);
+                .setConnectionPoolSize(connectionPoolSize)
+                .setConnectionMinimumIdleSize(connectionMinIdleSize);
 
         // 비밀번호가 설정된 경우에만 설정
         if (StringUtils.hasText(redisProperties.getPassword())) {
-            config.useSingleServer().setPassword(redisProperties.getPassword());
+            serverConfig.setPassword(redisProperties.getPassword());
         }
         
         // 사용자 이름이 설정된 경우 (ACL 사용 시 등)
         if (StringUtils.hasText(redisProperties.getUsername())) {
-             config.useSingleServer().setUsername(redisProperties.getUsername());
+             serverConfig.setUsername(redisProperties.getUsername());
         }
 
         return Redisson.create(config);

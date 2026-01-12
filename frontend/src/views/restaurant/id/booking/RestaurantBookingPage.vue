@@ -7,6 +7,7 @@ import Card from '@/components/ui/Card.vue';
 import WaitingModal from '@/components/ui/WaitingModal.vue';
 import httpRequest from '@/router/httpRequest';
 import { useAccountStore } from '@/stores/account';
+import { useReservationQueue } from '@/composables/useReservationQueue';
 
 const route = useRoute();
 const router = useRouter();
@@ -73,10 +74,22 @@ const timeSlots = ref(['11:00', '12:00', '13:00', '14:00']);
 const canProceed = computed(() => selectedDateIndex.value !== null && selectedTime.value !== null);
 
 const isCreatingReservation = ref(false);
-const isWaiting = ref(false); // 모달 표시 여부
-const modalType = ref('waiting'); // 'waiting' | 'error'
-const modalMessage = ref('');
 const createErrorMessage = ref('');
+
+const { 
+  isWaiting, 
+  modalType, 
+  modalMessage, 
+  queueErrorMessage, 
+  processQueue, 
+  handleQueueModalClose 
+} = useReservationQueue();
+
+// queueErrorMessage 변경 시 로컬 에러 메시지 업데이트 (필요 시)
+import { watch } from 'vue';
+watch(queueErrorMessage, (newVal) => {
+  if (newVal) createErrorMessage.value = newVal;
+});
 
 const selectedSlotDate = computed(() => {
   if (selectedDateIndex.value === null) return null;
@@ -119,47 +132,34 @@ const createReservation = async () => {
   return res.data;
 };
 
-const handleCloseModal = () => {
-  isWaiting.value = false;
-  if (modalType.value === 'error') {
-    router.push('/'); // 에러 확인 후 메인으로 이동
-  }
-};
-
 const handleProceed = async () => {
   if (!canProceed.value) return;
 
   isCreatingReservation.value = true;
   createErrorMessage.value = '';
-  modalType.value = 'waiting'; // 초기화
 
-  const MAX_RETRIES = 10;
-  let retryCount = 0;
+  // 선주문인 경우 바로 이동 (기존 로직 유지)
+  if (isPreorder.value) {
+    router.push({
+      path: `/restaurant/${restaurantId}/menu`,
+      query: {
+        type: 'preorder',
+        partySize: String(partySize.value),
+        requestNote: String(requestNote.value || ''),
+        dateIndex: String(selectedDateIndex.value),
+        time: String(selectedTime.value),
+      },
+    });
+    return;
+  }
 
-  const attemptCreate = async () => {
-    try {
-      // ... (기존 로직: 선주문 체크 및 예약 생성) ...
-      if (isPreorder.value) {
-        router.push({
-          path: `/restaurant/${restaurantId}/menu`,
-          query: {
-            type: 'preorder',
-            partySize: String(partySize.value),
-            requestNote: String(requestNote.value || ''),
-            dateIndex: String(selectedDateIndex.value),
-            time: String(selectedTime.value),
-          },
-        });
-        return;
-      }
-
-      const created = await createReservation();
+  // 일반 예약: 대기열 처리 로직 사용
+  await processQueue(
+    createReservation, 
+    (created) => {
       const reservationId = created?.reservationId;
-
-      if (!reservationId) {
-        throw new Error('예약 생성에 실패했습니다. 다시 시도해 주세요.');
-      }
-
+      if (!reservationId) throw new Error('예약 생성 실패');
+      
       router.push({
         path: `/restaurant/${restaurantId}/payment`,
         query: {
@@ -171,45 +171,9 @@ const handleProceed = async () => {
           reservationId: String(reservationId),
         },
       });
-    } catch (e) {
-      const errorMessage = e.response?.data?.message || e?.message || '';
-
-      // 1. [중복 예약 등 에러 모달] "대기 중"이 없는 409 에러
-      if (e.response?.status === 409 && !errorMessage.includes('대기 중')) {
-        modalType.value = 'error';
-        // 마침표 뒤에 줄바꿈 추가하여 가독성 향상
-        modalMessage.value = (errorMessage || '이미 처리된 예약이거나 잔여석이 부족합니다.').replace('. ', '.\n');
-        isWaiting.value = true;
-        return;
-      }
-
-      // 2. [대기열 진입] "대기 중" 포함된 경우
-      if (e.response?.status === 409 && errorMessage.includes('대기 중')) {
-        if (retryCount < MAX_RETRIES) {
-          retryCount++;
-          modalType.value = 'waiting';
-          modalMessage.value = '예약 요청이 많아 대기 중입니다.\n잠시만 기다려주세요...';
-          isWaiting.value = true;
-          setTimeout(attemptCreate, 2000); // 2초 후 재시도
-          return;
-        } else {
-           modalType.value = 'error';
-           modalMessage.value = '현재 예약 요청이 많습니다.\n잠시 후 다시 시도해 주세요.';
-           isWaiting.value = true;
-        }
-      } else {
-        createErrorMessage.value = errorMessage || '예약 생성 중 오류가 발생했습니다.';
-      }
-    } finally {
-      // 대기 중이 아니거나 재시도 루프가 끝났을 때만 로딩 해제
-      // (단, 에러 모달이 떠있는 경우는 로딩만 끄고 모달은 유지)
-      if (modalType.value === 'error' || (!isWaiting.value)) {
-        isCreatingReservation.value = false;
-      }
-    }
-  };
-
-  await attemptCreate();
+    },
+    isCreatingReservation
+  );
 };
 
 const selectDate = (idx) => {
@@ -387,7 +351,7 @@ const selectDate = (idx) => {
       :isOpen="isWaiting" 
       :type="modalType"
       :message="modalMessage || undefined"
-      @close="handleCloseModal"
+      @close="() => handleQueueModalClose(isCreatingReservation)"
     />
   </div>
 </template>
