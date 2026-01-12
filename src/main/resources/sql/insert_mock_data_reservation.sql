@@ -157,4 +157,64 @@ VALUES
      'M20251122-301', 'IMP20251122-301', '2025-11-22 11:00:00', '2025-11-22 11:01:00',
      '2025-11-22 11:00:00', '2025-11-22 11:01:00');
 
+-- 리뷰 작성용 지난 예약 (user_id=7211, restaurant_id=96)
+-- restaurant_id=96이 실제 존재할 때만 생성되도록 방어 처리
+SET @mock_slot_date := DATE_SUB(CURDATE(), INTERVAL 3 DAY);
+SET @mock_slot_time := '12:00:00';
 
+-- slot 생성
+INSERT INTO restaurant_reservation_slots
+(slot_id, restaurant_id, slot_date, slot_time, max_capacity)
+SELECT
+    900096,
+    r.restaurant_id,
+    @mock_slot_date,
+    @mock_slot_time,
+    20
+FROM restaurants r
+WHERE r.restaurant_id = 96
+ON DUPLICATE KEY UPDATE slot_id = LAST_INSERT_ID(slot_id);
+
+SET @mock_slot_id := LAST_INSERT_ID();
+
+-- reservation 생성
+INSERT INTO reservations
+(reservation_id, reservation_code, slot_id, user_id, party_size,
+ reservation_type, status, request_message,
+ deposit_amount, prepay_amount, total_amount, currency,
+ created_at, updated_at)
+SELECT
+    900096,
+    CONCAT('R-MOCK-96-7211-', DATE_FORMAT(NOW(), '%Y%m%d')),
+    @mock_slot_id,
+    7211,
+    2,
+    'RESERVATION_DEPOSIT',
+    'COMPLETED',
+    NULL,
+    10000,
+    NULL,
+    50000,
+    'KRW',
+    DATE_SUB(NOW(), INTERVAL 3 DAY),
+    DATE_SUB(NOW(), INTERVAL 3 DAY)
+WHERE @mock_slot_id IS NOT NULL AND @mock_slot_id != 0
+ON DUPLICATE KEY UPDATE
+                     slot_id = VALUES(slot_id),
+                     updated_at = VALUES(updated_at);
+
+-- 방문 통계
+INSERT INTO restaurant_user_stats
+(restaurant_id, user_id, visit_cnt, total_spend_amt, last_visit_date)
+SELECT
+    96,
+    7211,
+    1,
+    50000,
+    DATE_SUB(CURDATE(), INTERVAL 3 DAY)
+FROM restaurants r
+WHERE r.restaurant_id = 96
+ON DUPLICATE KEY UPDATE
+                     visit_cnt = visit_cnt + 1,
+                     total_spend_amt = total_spend_amt + VALUES(total_spend_amt),
+                     last_visit_date = VALUES(last_visit_date);

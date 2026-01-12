@@ -55,6 +55,7 @@ public class PaymentController {
             PortoneWebhookRequest request = objectMapper.readValue(rawBody, PortoneWebhookRequest.class);
             String eventType = request.getType();
             String paymentId = request.getData() != null ? request.getData().getPaymentId() : null;
+            log.info("PortOne webhook received: type={}, paymentId={}", eventType, paymentId);
 
             if ("Transaction.Paid".equalsIgnoreCase(eventType)) {
                 reservationPaymentService.handleWebhookPaid(paymentId);

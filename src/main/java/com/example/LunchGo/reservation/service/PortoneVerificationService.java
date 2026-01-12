@@ -1,5 +1,6 @@
 package com.example.LunchGo.reservation.service;
 
+import java.time.Duration;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,6 +11,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 @Service
@@ -25,18 +27,58 @@ public class PortoneVerificationService {
     @Value("${portone.api-secret:}")
     private String apiSecret;
 
+    @Value("${portone.http.connect-timeout-ms:5000}")
+    private long connectTimeoutMs;
+
+    @Value("${portone.http.read-timeout-ms:12000}")
+    private long readTimeoutMs;
+
+    @Value("${portone.http.max-attempts:2}")
+    private int maxAttempts;
+
+    @Value("${portone.http.retry-backoff-ms:300}")
+    private long retryBackoffMs;
+
     public PortonePaymentInfo verifyPayment(String paymentId, Integer expectedAmount) {
         if (!StringUtils.hasText(apiSecret)) {
             throw new IllegalStateException("PortOne API Secret이 설정되지 않았습니다.");
         }
 
         String url = apiBase + "/payments/" + paymentId;
-        RestTemplate restTemplate = restTemplateBuilder.build();
+        RestTemplate restTemplate = restTemplateBuilder
+            .setConnectTimeout(Duration.ofMillis(connectTimeoutMs))
+            .setReadTimeout(Duration.ofMillis(readTimeoutMs))
+            .build();
         HttpHeaders headers = new HttpHeaders();
         headers.set(HttpHeaders.AUTHORIZATION, "PortOne " + apiSecret);
         HttpEntity<Void> entity = new HttpEntity<>(headers);
 
-        ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
+        ResponseEntity<Map> response = null;
+        RestClientException lastError = null;
+        int attempts = Math.max(1, maxAttempts);
+        for (int attempt = 1; attempt <= attempts; attempt++) {
+            try {
+                response = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
+                lastError = null;
+                break;
+            } catch (RestClientException ex) {
+                lastError = ex;
+                if (attempt == attempts) {
+                    break;
+                }
+                if (retryBackoffMs > 0) {
+                    try {
+                        Thread.sleep(retryBackoffMs);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+            }
+        }
+        if (response == null) {
+            throw new IllegalStateException("PortOne 결제 조회 실패", lastError);
+        }
         Map body = response.getBody();
         if (body == null) {
             throw new IllegalStateException("PortOne 결제 조회 응답이 비어있습니다.");

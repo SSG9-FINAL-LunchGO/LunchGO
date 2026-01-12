@@ -10,6 +10,7 @@ import org.apache.ibatis.annotations.Param;
 import java.util.List;
 import com.example.LunchGo.reservation.mapper.row.ReservationMenuItemRow;
 
+
 @Mapper
 public interface ReservationMapper {
 
@@ -70,6 +71,21 @@ public interface ReservationMapper {
             @Param("quantity") Integer quantity,
             @Param("lineAmount") Integer lineAmount
     );
-
     List<ReservationMenuItemRow> selectReservationMenuItems(@Param("reservationId") Long reservationId);
+
+    // --- reminder ---
+    List<com.example.LunchGo.reservation.mapper.row.ReminderSendRow> selectReminderTargets();
+
+    int tryMarkReminderSent(
+            @Param("reservationId") Long reservationId,
+            @Param("reminderToken") String reminderToken
+    );
+
+    int updateVisitStatusByToken(
+            @Param("token") String token,
+            @Param("visitStatus") String visitStatus
+    );
+
+    List<com.example.LunchGo.reservation.mapper.row.BusinessVisitNotificationRow>
+    selectBusinessVisitNotifications(@Param("restaurantId") Long restaurantId);
 }

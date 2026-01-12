@@ -1,16 +1,18 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { CheckCircle2, MapPin, Calendar, Clock, Users } from 'lucide-vue-next';
-import { RouterLink, useRoute } from 'vue-router'; // Import Vue RouterLink
+import { RouterLink, useRoute, useRouter } from 'vue-router'; // Import Vue RouterLink
 import httpRequest from '@/router/httpRequest';
 import Button from '@/components/ui/Button.vue'; // Import custom Button
 import Card from '@/components/ui/Card.vue';
 
 const route = useRoute();
+const router = useRouter();
 const reservationId = route.query.reservationId || null;
 const isLoading = ref(false);
 const errorMessage = ref('');
 const completionAttempted = ref(false);
+const paymentStatus = ref({ paid: false, paidAt: '' });
 
 const shortConfirmationNumber = (value) => {
   const raw = String(value ?? '').trim();
@@ -20,25 +22,41 @@ const shortConfirmationNumber = (value) => {
 };
 
 const reservation = ref({
-  confirmationNumber: 'LG2024121500123',
+  confirmationNumber: '',
   restaurant: {
-    name: '식당명',
-    address: '서울시 강남구 테헤란로 123',
-    phone: '02-1234-5678',
+    name: '',
+    address: '',
+    phone: '',
   },
   booking: {
-    date: '2024년 12월 15일 (금)',
-    time: '18:00',
-    partySize: 4,
-    requestNote: '', //요청사항 (백엔드 연동 시 값 채우기)
+    date: '',
+    time: '',
+    partySize: null,
+    requestNote: '',
   },
   payment: {
-    amount: 176000,
-    method: '신용카드',
-    paidAt: '2024. 12. 10. 14:35',
+    amount: 0,
+    method: '',
+    paidAt: '',
   },
   menuItems: [],
 });
+
+const fetchPaymentStatus = async () => {
+  if (!reservationId) return;
+  try {
+    const response = await httpRequest.get(
+      `/api/reservations/${reservationId}/confirmation/status`
+    );
+    const paidAt = response?.data?.paidAt || '';
+    paymentStatus.value = {
+      paid: Boolean(response?.data?.paid || paidAt),
+      paidAt,
+    };
+  } catch (error) {
+    paymentStatus.value = { paid: false, paidAt: '' };
+  }
+};
 
 const fetchReservationDetail = async () => {
   if (!reservationId) return;
@@ -76,6 +94,37 @@ const fetchReservationDetail = async () => {
   }
 };
 
+const isRedirectFailure = () => {
+  const code = route.query.code ? String(route.query.code) : '';
+  const pgCode = route.query.pgCode ? String(route.query.pgCode) : '';
+  const pgMessage = route.query.pgMessage ? String(route.query.pgMessage) : '';
+  const message = route.query.message ? String(route.query.message) : '';
+
+  if (code.startsWith('FAILURE') || code.startsWith('ERROR')) {
+    return true;
+  }
+  if (pgCode || pgMessage || message) {
+    return true;
+  }
+  return false;
+};
+
+const redirectToPayment = () => {
+  router.replace({
+    path: `/restaurant/${route.params.id}/payment`,
+    query: {
+      type: route.query.type || 'deposit',
+      totalAmount: route.query.totalAmount,
+      partySize: route.query.partySize,
+      requestNote: route.query.requestNote,
+      dateIndex: route.query.dateIndex,
+      time: route.query.time,
+      reservationId: route.query.reservationId,
+      paymentError: route.query.message || route.query.pgMessage || '결제가 취소되었습니다. 다시 시도해 주세요.',
+    },
+  });
+};
+
 const completePaymentFromRedirect = async () => {
   if (completionAttempted.value) return;
   completionAttempted.value = true;
@@ -85,6 +134,10 @@ const completePaymentFromRedirect = async () => {
     route.query.redirected === "1" || route.query.redirected === 1;
   if (!isRedirectFlow) {
     return;
+  }
+  if (isRedirectFailure()) {
+    redirectToPayment();
+    return true;
   }
   const merchantUid =
     route.query.paymentId ||
@@ -123,10 +176,15 @@ const completePaymentFromRedirect = async () => {
       error?.message || '결제 완료 처리에 실패했습니다. 다시 확인해 주세요.';
     console.error("[PortOne] complete from redirect failed", error);
   }
+  return false;
 };
 
 onMounted(async () => {
-  await completePaymentFromRedirect();
+  const handledRedirect = await completePaymentFromRedirect();
+  if (handledRedirect) {
+    return;
+  }
+  await fetchPaymentStatus();
   await fetchReservationDetail();
 });
 </script>
@@ -139,11 +197,20 @@ onMounted(async () => {
         <div class="w-16 h-16 rounded-full gradient-primary flex items-center justify-center mx-auto mb-4 shadow-button-hover">
           <CheckCircle2 class="w-10 h-10 text-white" />
         </div>
-        <h1 class="text-2xl font-bold text-[#1e3a5f] mb-2">예약이 완료되었습니다</h1>
+        <h1 class="text-2xl font-bold text-[#1e3a5f] mb-2">
+          {{ paymentStatus.paid ? "예약이 완료되었습니다" : "결제 대기 중입니다" }}
+        </h1>
         <p class="text-sm text-[#6c757d] leading-relaxed">
-          예약 정보를 확인하시고
-          <br />
-          방문 전 예약 내역을 확인해 주세요
+          <template v-if="paymentStatus.paid">
+            예약 정보를 확인하시고
+            <br />
+            방문 전 예약 내역을 확인해 주세요
+          </template>
+          <template v-else>
+            결제가 완료되면 예약이 확정됩니다.
+            <br />
+            결제 후 다시 확인해 주세요
+          </template>
         </p>
         <p v-if="isLoading" class="mt-3 text-xs text-[#6c757d]">예약 정보를 불러오는 중...</p>
         <p v-if="errorMessage" class="mt-3 text-xs text-red-500">{{ errorMessage }}</p>
@@ -257,7 +324,7 @@ onMounted(async () => {
       <!-- Payment Info -->
       <div class="bg-white px-4 py-5 mt-2">
         <h2 class="text-base font-semibold text-[#1e3a5f] mb-4">결제 정보</h2>
-        <div class="space-y-2.5">
+        <div v-if="paymentStatus.paid" class="space-y-2.5">
           <div class="flex items-center justify-between text-sm">
             <span class="text-[#6c757d]">결제 금액</span>
             <span class="font-semibold text-[#1e3a5f]">{{ reservation.payment.amount.toLocaleString() }}원</span>
@@ -270,6 +337,9 @@ onMounted(async () => {
             <span class="text-[#6c757d]">결제 일시</span>
             <span class="font-medium text-[#495057]">{{ reservation.payment.paidAt }}</span>
           </div>
+        </div>
+        <div v-else class="text-sm text-[#6c757d] leading-relaxed">
+          결제 대기 중입니다. 결제 완료 후 결제 정보가 표시됩니다.
         </div>
       </div>
 
@@ -290,6 +360,29 @@ onMounted(async () => {
     <!-- Fixed Bottom Buttons -->
     <div class="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e9ecef] z-50 shadow-lg">
       <div class="max-w-[500px] mx-auto px-4 py-3 flex gap-2">
+        <RouterLink
+          v-if="!paymentStatus.paid"
+          :to="{
+            path: `/restaurant/${route.params.id}/payment`,
+            query: {
+              type: route.query.type || 'deposit',
+              totalAmount: route.query.totalAmount,
+              partySize: route.query.partySize,
+              requestNote: route.query.requestNote,
+              dateIndex: route.query.dateIndex,
+              time: route.query.time,
+              reservationId: route.query.reservationId,
+            },
+          }"
+          class="flex-1"
+        >
+          <Button
+            variant="outline"
+            class="w-full h-12 border-[#dee2e6] text-[#495057] bg-white hover:bg-[#f8f9fa] rounded-xl font-semibold"
+          >
+            결제 페이지로
+          </Button>
+        </RouterLink>
         <RouterLink to="/" class="flex-1">
           <Button
             variant="outline"

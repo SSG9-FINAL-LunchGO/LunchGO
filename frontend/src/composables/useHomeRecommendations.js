@@ -16,6 +16,7 @@ export const useHomeRecommendations = ({
   clearCafeteriaRecommendations,
   resolveCafeteriaBaseDate,
   checkCafeteriaMenuStatus,
+  openCafeteriaModal,
   requestCafeteriaRecommendations,
   hasConfirmedMenus,
   currentPage,
@@ -86,6 +87,8 @@ export const useHomeRecommendations = ({
       await checkCafeteriaMenuStatus(baseDate);
       if (hasConfirmedMenus.value) {
         await requestCafeteriaRecommendations(baseDate);
+      } else if (openCafeteriaModal) {
+        openCafeteriaModal();
       }
       return;
     }

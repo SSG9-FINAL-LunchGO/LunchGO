@@ -1,7 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import { RouterLink } from "vue-router";
-import axios from "axios";
+import { useRouter, useRoute } from "vue-router";
 import httpRequest from "@/router/httpRequest";
 import {
   Star,
@@ -11,6 +10,7 @@ import {
   Image as ImageIcon,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Search,
   Filter,
   AlertTriangle,
@@ -54,8 +54,12 @@ const isReportModalOpen = ref(false);
 const reportReviewId = ref(null);
 const reportTag = ref("");
 const reportReason = ref("");
+const isReportTagOpen = ref(false);
+const reportTagDropdownRef = ref(null);
 
-const restaurantId = ref(1); // 일단 식당 1로  고정 : 추후 수정
+const router = useRouter();
+const route = useRoute();
+const restaurantId = ref(Number(route.query.restaurantId || 0));
 const reviews = ref([]);
 
 const reportTagOptions = [
@@ -225,8 +229,8 @@ const mapVisitInfo = (visitInfo) => {
   if (!visitInfo) return null;
   return {
     date: visitInfo.date,
-    partySize: visitInfo.partySize,
-    totalAmount: visitInfo.totalAmount,
+    partySize: visitInfo.partySize ?? 0,
+    totalAmount: visitInfo.totalAmount ?? 0,
     menuItems: (visitInfo.menuItems || []).map((item) => ({
       name: item.name,
       quantity: item.qty ?? item.quantity ?? 0,
@@ -259,27 +263,35 @@ const mapReviewDetail = (detail) => ({
   comments: (detail.comments || []).map(mapCommentResponse),
 });
 
-// 로그인 이후 수정 예정
-// const loadRestaurantInfo = async () => {
-//   const response = await axios.get('/api/my-restaurant');
-//   const data = response.data?.data ?? response.data;
-//   restaurantId.value =
-//     data?.restaurantId ?? data?.id ?? data?.restaurant?.restaurantId ?? null;
-//   if (!restaurantId.value) {
-//     throw new Error('식당 ID를 조회하지 못했습니다.');
-//   }
-// };
+const ensureRestaurantId = async () => {
+  if (restaurantId.value) return restaurantId.value;
+
+  try {
+    const res = await httpRequest.get("/api/business/owner/restaurant");
+    const rid = res?.data?.restaurantId;
+    if (rid) {
+      restaurantId.value = Number(rid);
+      await router.replace({
+        path: route.path,
+        query: { ...route.query, restaurantId: String(rid) },
+      });
+      return restaurantId.value;
+    }
+  } catch (error) {
+    console.error("사업자 restaurantId 조회 실패:", error);
+  }
+
+  return 0;
+};
 
 const loadReviews = async () => {
   if (!restaurantId.value) return;
-  const response = await axios.get(
-    `/api/restaurants/${restaurantId.value}/reviews`,
+  const response = await httpRequest.get(
+    `/api/owners/restaurants/${restaurantId.value}/reviews`,
     {
-      params: {
-        page: currentPage.value,
-        size: pageSize,
-        sort: "LATEST",
-      },
+      page: currentPage.value,
+      size: pageSize,
+      sort: "LATEST",
     }
   );
   const data = response.data?.data ?? response.data;
@@ -288,8 +300,8 @@ const loadReviews = async () => {
   totalReviews.value = data?.page?.total ?? items.length;
   const details = await Promise.all(
     items.map((item) =>
-      axios.get(
-        `/api/restaurants/${restaurantId.value}/reviews/${item.reviewId}`
+      httpRequest.get(
+        `/api/owners/restaurants/${restaurantId.value}/reviews/${item.reviewId}`
       )
     )
   );
@@ -299,14 +311,12 @@ const loadReviews = async () => {
 const loadReviewStats = async () => {
   if (!restaurantId.value) return;
   const statsPageSize = 50;
-  const response = await axios.get(
-    `/api/restaurants/${restaurantId.value}/reviews`,
+  const response = await httpRequest.get(
+    `/api/owners/restaurants/${restaurantId.value}/reviews`,
     {
-      params: {
-        page: 1,
-        size: statsPageSize,
-        sort: "LATEST",
-      },
+      page: 1,
+      size: statsPageSize,
+      sort: "LATEST",
     }
   );
   const data = response.data?.data ?? response.data;
@@ -322,12 +332,10 @@ const loadReviewStats = async () => {
   if (totalPagesForStats > 1) {
     const morePages = await Promise.all(
       Array.from({ length: totalPagesForStats - 1 }, (_, idx) =>
-        axios.get(`/api/restaurants/${restaurantId.value}/reviews`, {
-          params: {
-            page: idx + 2,
-            size: statsPageSize,
-            sort: "LATEST",
-          },
+        httpRequest.get(`/api/owners/restaurants/${restaurantId.value}/reviews`, {
+          page: idx + 2,
+          size: statsPageSize,
+          sort: "LATEST",
         })
       )
     );
@@ -345,8 +353,8 @@ const loadReviewStats = async () => {
 
   const details = await Promise.all(
     allItems.map((item) =>
-      axios.get(
-        `/api/restaurants/${restaurantId.value}/reviews/${item.reviewId}`
+      httpRequest.get(
+        `/api/owners/restaurants/${restaurantId.value}/reviews/${item.reviewId}`
       )
     )
   );
@@ -378,7 +386,12 @@ const addComment = async (reviewId) => {
       `/api/owners/restaurants/${restaurantId.value}/reviews/${reviewId}/comments`,
       { content }
     );
-    review.comments.push(mapCommentResponse(response.data));
+    const newComment = mapCommentResponse(response.data);
+    review.comments.push(newComment);
+    const statsReview = statsReviews.value.find((r) => r.id === reviewId);
+    if (statsReview) {
+      statsReview.comments.push(newComment);
+    }
 
     // 입력 초기화
     commentInputs.value[reviewId] = "";
@@ -403,6 +416,12 @@ const deleteComment = async (reviewId, commentId) => {
       `/api/owners/restaurants/${restaurantId.value}/reviews/${reviewId}/comments/${commentId}`
     );
     review.comments = review.comments.filter((c) => c.id !== commentId);
+    const statsReview = statsReviews.value.find((r) => r.id === reviewId);
+    if (statsReview) {
+      statsReview.comments = statsReview.comments.filter(
+        (c) => c.id !== commentId
+      );
+    }
   } catch (error) {
     console.error("댓글 삭제 실패:", error);
     alert("댓글 삭제에 실패했습니다. 잠시 후 다시 시도해주세요.");
@@ -423,6 +442,7 @@ const closeReportModal = () => {
   reportReviewId.value = null;
   reportTag.value = "";
   reportReason.value = "";
+  isReportTagOpen.value = false;
 };
 
 // 블라인드 요청 제출
@@ -503,13 +523,27 @@ onMounted(() => {
     if (e.key === "Escape") closeImageModal();
   };
   window.addEventListener("keydown", handleKeydown);
-  return () => window.removeEventListener("keydown", handleKeydown);
+  const handleClickOutside = (e) => {
+    if (!isReportTagOpen.value) return;
+    const target = e.target;
+    if (
+      reportTagDropdownRef.value &&
+      !reportTagDropdownRef.value.contains(target)
+    ) {
+      isReportTagOpen.value = false;
+    }
+  };
+  window.addEventListener("click", handleClickOutside);
+  return () => {
+    window.removeEventListener("keydown", handleKeydown);
+    window.removeEventListener("click", handleClickOutside);
+  };
 });
 
 onMounted(async () => {
   try {
-    // 로그인 이후
-    // await loadRestaurantInfo();
+    const rid = await ensureRestaurantId();
+    if (!rid) return;
     await Promise.all([loadReviews(), loadReviewStats()]);
   } catch (error) {
     console.error("리뷰 데이터를 불러오지 못했습니다:", error);
@@ -1262,19 +1296,36 @@ onMounted(async () => {
             <label class="block text-sm font-semibold text-[#1e3a5f] mb-2">
               신고 태그 <span class="text-[#dc3545]">*</span>
             </label>
-            <select
-              v-model="reportTag"
-              class="w-full px-4 py-2 border border-[#dee2e6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff6b4a] focus:border-transparent"
-            >
-              <option value="">신고 태그를 선택해주세요</option>
-              <option
-                v-for="tag in reportTagOptions"
-                :key="tag.id"
-                :value="tag.name"
+            <div class="relative" ref="reportTagDropdownRef">
+              <button
+                type="button"
+                class="w-full h-11 px-4 border border-[#dee2e6] rounded-lg text-left text-sm text-[#1e3a5f] bg-white flex items-center justify-between hover:bg-white transition-colors"
+                @click.stop="isReportTagOpen = !isReportTagOpen"
               >
-                {{ tag.name }}
-              </option>
-            </select>
+                <span :class="reportTag ? 'text-[#1e3a5f]' : 'text-[#6c757d]'">
+                  {{ reportTag || "신고 태그를 선택해주세요" }}
+                </span>
+                <ChevronDown class="w-4 h-4 text-[#1e3a5f]" />
+              </button>
+
+              <div
+                v-if="isReportTagOpen"
+                class="absolute left-0 right-0 mt-2 bg-white border border-[#e9ecef] rounded-lg shadow-md z-30 max-h-56 overflow-y-auto"
+              >
+                <button
+                  v-for="tag in reportTagOptions"
+                  :key="tag.id"
+                  type="button"
+                  class="w-full text-left px-4 py-2 text-sm text-[#1e3a5f] hover:bg-[#f8f9fa]"
+                  @click.stop="
+                    reportTag = tag.name;
+                    isReportTagOpen = false;
+                  "
+                >
+                  {{ tag.name }}
+                </button>
+              </div>
+            </div>
           </div>
 
           <div class="mb-6">

@@ -267,15 +267,33 @@ Response:
 
 `POST /api/reservations/{reservationId}/payments/expire`
 
-### 6-6. 예약 확인 정보
+### 6-6. 예약 확인 상태 (폴링 전용)
+
+`GET /api/reservations/{reservationId}/confirmation/status`
+
+```json
+{
+  "paid": true,
+  "paidAt": "2026. 01. 10. 21:36"
+}
+```
+
+### 6-7. 예약 확인 정보
 
 `GET /api/reservations/{reservationId}/confirmation`
 
-### 6-7. 예약 요약 정보
+### 6-8. 예약 요약 정보
 
 `GET /api/reservations/{reservationId}/summary`
 
-### 6-8. PortOne 웹훅 수신
+```json
+{
+  "paymentDeadlineAt": "2026-01-11T01:23:37",
+  "holdExpiresAt": "2026-01-11T01:23:37"
+}
+```
+
+### 6-9. PortOne 웹훅 수신
 
 `POST /api/payments/portone/webhook`
 
@@ -338,6 +356,13 @@ public void markPaymentRequested(String merchantUid) {
 ```
 
 ## 7. PortOne 연동 방식
+
+## 최근 업데이트 (결제 대기/실패 처리 개선)
+- 폴링 전용 `GET /api/reservations/{reservationId}/confirmation/status` 추가
+- `/summary`에 `paymentDeadlineAt`, `holdExpiresAt` 반환 (결제 남은 시간 표시용)
+- 결제 실패/취소 리다이렉트 시 confirmation에서 결제 페이지로 되돌림
+- 결제 페이지에 남은 시간 카운트다운 표시 및 만료 시 결제 버튼 비활성화
+- 서버 스케줄러로 결제 만료 처리 (기본 10초 주기)
 
 - 프론트: `@portone/browser-sdk/v2`
 - 사용 파라미터: `storeId`, `channelKey`, `paymentId`, `orderName`, `totalAmount`, `currency`, `payMethod`

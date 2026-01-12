@@ -33,8 +33,8 @@ public class BusinessRestaurantImageController {
     @PreAuthorize("hasAuthority('ROLE_OWNER')")
     @PostMapping
     public ResponseEntity<RestaurantImageResponse> createImage(
-        @PathVariable Long restaurantId,
-        @RequestBody RestaurantImageRequest request
+            @PathVariable Long restaurantId,
+            @RequestBody RestaurantImageRequest request
     ) {
         RestaurantImageResponse response = businessRestaurantImageService.createImage(restaurantId, request);
         if (response == null) {
@@ -46,9 +46,9 @@ public class BusinessRestaurantImageController {
     @PreAuthorize("hasAuthority('ROLE_OWNER')")
     @PutMapping("/{restaurantImageId}")
     public ResponseEntity<RestaurantImageResponse> updateImage(
-        @PathVariable Long restaurantId,
-        @PathVariable Long restaurantImageId,
-        @RequestBody RestaurantImageRequest request
+            @PathVariable Long restaurantId,
+            @PathVariable Long restaurantImageId,
+            @RequestBody RestaurantImageRequest request
     ) {
         RestaurantImageResponse response = businessRestaurantImageService.updateImage(restaurantId, restaurantImageId, request);
         if (response == null) {
@@ -60,8 +60,8 @@ public class BusinessRestaurantImageController {
     @PreAuthorize("hasAuthority('ROLE_OWNER')")
     @DeleteMapping("/{restaurantImageId}")
     public ResponseEntity<Void> deleteImage(
-        @PathVariable Long restaurantId,
-        @PathVariable Long restaurantImageId
+            @PathVariable Long restaurantId,
+            @PathVariable Long restaurantImageId
     ) {
         boolean deleted = businessRestaurantImageService.deleteImage(restaurantId, restaurantImageId);
         if (!deleted) {

@@ -4,11 +4,13 @@ import com.example.LunchGo.common.util.RedisUtil;
 import com.example.LunchGo.reservation.domain.*;
 import com.example.LunchGo.reservation.dto.ReservationCreateRequest;
 import com.example.LunchGo.reservation.dto.ReservationCreateResponse;
+import com.example.LunchGo.reservation.exception.DuplicateReservationException;
 import com.example.LunchGo.reservation.mapper.ReservationMapper;
 import com.example.LunchGo.reservation.mapper.row.ReservationCreateRow;
 import com.example.LunchGo.restaurant.entity.Menu;
 import com.example.LunchGo.restaurant.repository.MenuRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +29,11 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class ReservationServiceImpl implements ReservationService {
 
+    // 클래스 레벨에 상수 선언
+    private static final String RESERVATION_LOCK_KEY_FORMAT = "reservation_lock:%s:%s:%s:%s";
+    private static final String RESERVATION_LOCK_VALUE = "processing";
+    private static final long RESERVATION_LOCK_TIMEOUT_MS = 5000L;
+
     private static final DateTimeFormatter CODE_DATE = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final int DEPOSIT_PER_PERSON_DEFAULT = 5000;
     private static final int DEPOSIT_PER_PERSON_LARGE = 10000;
@@ -41,6 +48,13 @@ public class ReservationServiceImpl implements ReservationService {
     @Transactional
     public ReservationCreateResponse create(ReservationCreateRequest request) {
         validate(request);
+
+        // Redis 락을 사용하여 짧은 시간(5초 이내) 동안 중복해서 전달되는 예약 요청을 처리
+        // (이 코드가 있어야 애플리케이션 레벨에서 중복 예약 요청이 들어오는 것을 방어 가능 - 결제 만료 시간 체크와는 별개이므로 삭제 X)
+        String lockKey = String.format(RESERVATION_LOCK_KEY_FORMAT, request.getUserId(), request.getRestaurantId(), request.getSlotDate(), request.getSlotTime());
+        if (!redisUtil.setIfAbsent(lockKey, RESERVATION_LOCK_VALUE, RESERVATION_LOCK_TIMEOUT_MS)) {
+            throw new DuplicateReservationException("이미 처리 중인 예약 요청입니다. 잠시 후 다시 시도해주세요.");
+        }
 
         // 지정한 날짜+시간대의 예약슬롯을 불러오는 서비스 로직(없으면 신규 생성)
         ReservationSlot slot = reservationSlotService.getValidatedSlot(
@@ -88,6 +102,8 @@ public class ReservationServiceImpl implements ReservationService {
         reservation.setStatus(ReservationStatus.TEMPORARY);
         reservation.setRequestMessage(trimToNull(request.getRequestMessage()));
         reservation.setHoldExpiresAt(LocalDateTime.now().plusMinutes(7));
+        reservation.setVisitStatus(VisitStatus.PENDING);
+
 
         if (ReservationType.RESERVATION_DEPOSIT.equals(request.getReservationType())) {
             int perPerson = request.getPartySize() >= DEPOSIT_LARGE_THRESHOLD
@@ -102,7 +118,12 @@ public class ReservationServiceImpl implements ReservationService {
             reservation.setTotalAmount(preorderSum);
         }
 
-        reservationMapper.insertReservation(reservation);
+        try {
+            reservationMapper.insertReservation(reservation);
+        } catch (DataIntegrityViolationException e) {
+            // 결제 대기 시간 만료 전, 약간의 텀을 두고 중복된 예약 요청이 발생했을 때의 중복 예약 방지
+            throw new DuplicateReservationException("이미 결제 대기 중인 예약 요청입니다.");
+        }
 
         // reservation_menu_items 저장 (예약 PK 생긴 다음에)
         if (ReservationType.PREORDER_PREPAY.equals(request.getReservationType()) && !snapshots.isEmpty()) {

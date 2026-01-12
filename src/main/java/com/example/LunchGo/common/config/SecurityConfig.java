@@ -3,6 +3,7 @@ package com.example.LunchGo.common.config;
 import com.example.LunchGo.account.helper.JwtFilter;
 import com.example.LunchGo.common.exception.JwtAccessDeniedHandler;
 import com.example.LunchGo.common.exception.JwtAuthenticationEntryPoint;
+import com.example.LunchGo.common.logging.RequestLoggingFilter;
 import com.example.LunchGo.common.util.TokenUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -52,13 +53,18 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(authorizeRequests -> authorizeRequests
                         //각자 권한 걸어주면 됨니다
+                        .requestMatchers("/reminders/**").permitAll()
+                        .requestMatchers("/api/reminders/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/reminders/**", "/api/reminders/**").permitAll()
                         .requestMatchers("/api/join/**", "/api/auth/**", "/api/sms/**", "/api/login").permitAll()
                         .requestMatchers("/api/refresh").permitAll()
+                        .requestMatchers("/api/reminders/**", "/reminders/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/search/email").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/search/loginId").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/search/pwd").permitAll()
                         .requestMatchers(HttpMethod.PUT, "/api/auth/pwd").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/email/*").hasAuthority("ROLE_USER")
 
                         .requestMatchers(HttpMethod.GET,
                                 "/api/restaurants/{id}",
@@ -80,6 +86,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/restaurants/*/reviews/*/edit").hasAuthority("ROLE_USER")
                         .requestMatchers(HttpMethod.PUT, "/api/restaurants/*/reviews/*").hasAuthority("ROLE_USER")
                         .requestMatchers(HttpMethod.DELETE, "/api/restaurants/*/reviews/*").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.GET, "/api/restaurants/mapping/**").hasAuthority("ROLE_USER")
 
                         .requestMatchers(HttpMethod.POST, "/api/v1/images/upload/*")
                         .hasAnyAuthority("ROLE_USER", "ROLE_OWNER")
@@ -107,23 +114,33 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/bookmark-links/search").hasAuthority("ROLE_USER")
                         .requestMatchers(HttpMethod.GET, "/api/bookmark-links/search/list").hasAuthority("ROLE_USER")
                         .requestMatchers(HttpMethod.DELETE, "/api/bookmark-links").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.POST, "/api/bookmark").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/bookmark").hasAuthority("ROLE_USER")
                         .requestMatchers(HttpMethod.PATCH, "/api/bookmark/visibility").hasAuthority("ROLE_USER")
                         .requestMatchers(HttpMethod.PATCH, "/api/bookmark/promotion").hasAuthority("ROLE_USER")
                         .requestMatchers(HttpMethod.GET, "/api/bookmark/shared").hasAuthority("ROLE_USER")
                         .requestMatchers(HttpMethod.GET, "/api/bookmark/list").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.GET, "/api/info/user/*").hasAuthority("ROLE_USER")
+                        .requestMatchers(HttpMethod.PUT, "/api/info/user/*").hasAuthority("ROLE_USER")
 
-                        .requestMatchers(HttpMethod.POST, "/api/owners/restaurants/*/reviews/*/comments").hasAuthority("ROLE_OWNER")
-                        .requestMatchers(HttpMethod.DELETE, "/api/owners/restaurants/*/reviews/*/comments/*").hasAuthority("ROLE_OWNER")
+                        .requestMatchers(HttpMethod.POST, "/api/owners/restaurants/*/reviews/*/comments").hasAnyAuthority("ROLE_OWNER", "ROLE_STAFF")
+                        .requestMatchers(HttpMethod.DELETE, "/api/owners/restaurants/*/reviews/*/comments/*").hasAnyAuthority("ROLE_OWNER", "ROLE_STAFF")
                         .requestMatchers(HttpMethod.POST, "/api/owners/restaurants/*/reviews/*/blind-requests").hasAuthority("ROLE_OWNER")
+                        .requestMatchers(HttpMethod.GET, "/api/owners/restaurants/*/reviews").hasAnyAuthority("ROLE_OWNER", "ROLE_STAFF", "ROLE_ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/owners/restaurants/*/reviews/*").hasAnyAuthority("ROLE_OWNER", "ROLE_STAFF", "ROLE_ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/business/restaurants/*").hasAuthority("ROLE_OWNER")
                         .requestMatchers(HttpMethod.GET, "/api/business/restaurants/*/images").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/business/reservations/**").hasAuthority("ROLE_OWNER")
+                        .requestMatchers(HttpMethod.GET, "/api/business/reservations/**").hasAnyAuthority("ROLE_OWNER", "ROLE_STAFF")
                         .requestMatchers(HttpMethod.POST, "/api/business/reservations/**").hasAuthority("ROLE_OWNER")
                         .requestMatchers(HttpMethod.PATCH, "/api/business/reservations/**").hasAuthority("ROLE_OWNER")
                         .requestMatchers(HttpMethod.GET, "/api/business/restaurants/*/stats/weekly.pdf").hasAuthority("ROLE_OWNER")
 
-                        .requestMatchers(HttpMethod.POST, "/api/business/staff/*").hasAuthority("ROLE_OWNER")
+                        .requestMatchers(HttpMethod.POST, "/api/business/staff").hasAuthority("ROLE_OWNER")
+                        .requestMatchers(HttpMethod.DELETE, "/api/business/staff").hasAuthority("ROLE_OWNER")
+                        .requestMatchers(HttpMethod.GET, "/api/business/staff/*").hasAnyAuthority("ROLE_OWNER", "ROLE_STAFF")
                         .requestMatchers(HttpMethod.POST, "/api/business/promotion/*").hasAuthority("ROLE_OWNER")
+                        .requestMatchers(HttpMethod.GET, "/api/info/business/*").hasAuthority("ROLE_OWNER")
+                        .requestMatchers(HttpMethod.PUT, "/api/info/business/*").hasAuthority("ROLE_OWNER")
 
                         .requestMatchers(HttpMethod.GET, "/api/admin/reviews").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/admin/forbidden-words").hasAuthority("ROLE_ADMIN")
@@ -131,11 +148,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/admin/forbidden-words/*").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/admin/forbidden-words/*").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/admin/reviews/*/blind-requests").hasAuthority("ROLE_ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/admin/reviews/*/hide").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/admin/list/owner").hasAuthority("ROLE_ADMIN")
                         .anyRequest().authenticated()
                 )
 
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(requestLoggingFilter(), JwtFilter.class);
 
         return http.build();
     }
@@ -161,7 +180,7 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        return new BCryptPasswordEncoder(8); //cost를 낮춰 속도 개선
     }
 
     @Bean
@@ -172,5 +191,10 @@ public class SecurityConfig {
     @Bean
     public JwtFilter jwtFilter() {
         return new JwtFilter(tokenUtils);
+    }
+
+    @Bean
+    public RequestLoggingFilter requestLoggingFilter() {
+        return new RequestLoggingFilter();
     }
 }

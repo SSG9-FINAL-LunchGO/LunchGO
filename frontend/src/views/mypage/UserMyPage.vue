@@ -81,6 +81,39 @@ const formatTime = (value?: string) => {
   return String(value).slice(0, 5);
 };
 
+const resolveCafeteriaBaseDate = () => {
+  const now = new Date();
+  const base = new Date(now);
+  const isFriday = base.getDay() === 5;
+  const isAfterFridayNoon =
+    isFriday && (base.getHours() > 12 || (base.getHours() === 12 && base.getMinutes() >= 0));
+  if (isAfterFridayNoon) {
+    base.setDate(base.getDate() + 7);
+  }
+  const year = base.getFullYear();
+  const month = String(base.getMonth() + 1).padStart(2, '0');
+  const day = String(base.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const prefetchCafeteriaRecommendations = async () => {
+  if (typeof window === 'undefined') return;
+  const userId = memberId.value;
+  if (!userId) return;
+  const baseDate = resolveCafeteriaBaseDate();
+  try {
+    const response = await httpRequest.get('/api/cafeteria/recommendations', {
+      userId,
+      baseDate,
+      limit: 2,
+    });
+    const recommendations = response.data?.recommendations ?? [];
+    sessionStorage.setItem('cafeteriaRecommendations', JSON.stringify(recommendations));
+  } catch (error) {
+    sessionStorage.removeItem('cafeteriaRecommendations');
+  }
+};
+
 const mapReservation = (item: any) => {
   const reservationStatus = statusMap[item.reservationStatus] || 'confirmed';
   const fallbackVisitCount = reservationStatus === 'completed' ? 1 : 0;
@@ -614,6 +647,8 @@ const handleSave = async () => {
         'Content-Type': 'multipart/form-data',
       },
     });
+
+    await prefetchCafeteriaRecommendations();
 
     showSuccess.value = true;
     isAddressEditable.value = false;

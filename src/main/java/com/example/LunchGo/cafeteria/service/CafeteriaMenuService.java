@@ -12,6 +12,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
@@ -33,6 +36,8 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class CafeteriaMenuService {
 
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+    private static final LocalTime FRIDAY_CUTOFF = LocalTime.NOON;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final Pattern KOREAN_DAY_PATTERN = Pattern.compile("^(월|화|수|목|금)(요일)?(\\s|:|$)");
     private static final Pattern ENGLISH_DAY_PATTERN = Pattern.compile(
@@ -250,8 +255,21 @@ public class CafeteriaMenuService {
     }
 
     private LocalDate weekStart(LocalDate baseDate) {
-        LocalDate target = baseDate != null ? baseDate : LocalDate.now();
+        LocalDate target = resolveWeekBaseDate(baseDate);
         return target.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+    }
+
+    private LocalDate resolveWeekBaseDate(LocalDate baseDate) {
+        LocalDate today = LocalDate.now(KST);
+        LocalDate target = baseDate != null ? baseDate : today;
+        if (!target.equals(today)) {
+            return target;
+        }
+        LocalDateTime now = LocalDateTime.now(KST);
+        if (now.getDayOfWeek() == DayOfWeek.FRIDAY && !now.toLocalTime().isBefore(FRIDAY_CUTOFF)) {
+            return target.plusWeeks(1);
+        }
+        return target;
     }
 
     private String toKoreanDay(DayOfWeek dayOfWeek) {
