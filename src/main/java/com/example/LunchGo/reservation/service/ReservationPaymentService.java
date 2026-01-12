@@ -132,6 +132,10 @@ public class ReservationPaymentService {
         Payment payment = paymentRepository.findByMerchantUid(request.getMerchantUid())
             .orElseThrow(() -> new IllegalArgumentException("결제 정보를 찾을 수 없습니다."));
 
+        if (PAYMENT_STATUS_PAID.equals(payment.getStatus())) {
+            return;
+        }
+
         if (!payment.getAmount().equals(request.getPaidAmount())) {
             throw new IllegalArgumentException("결제 금액이 일치하지 않습니다.");
         }
@@ -158,6 +162,7 @@ public class ReservationPaymentService {
         reservation.setStatus(resolveReservationStatus(payment.getPaymentType()));
 
         recordConfirmAfterCommit(payment, reservation);
+        sendOwnerNotificationAfterCommit(reservation);
     }
 
     @Transactional
@@ -172,7 +177,19 @@ public class ReservationPaymentService {
     @Transactional
     public void expirePayment(Long reservationId) {
         Reservation reservation = getReservation(reservationId);
+        if (!ReservationStatus.TEMPORARY.equals(reservation.getStatus())) {
+            log.info("결제 만료 스킵: status={} (reservationId={})", reservation.getStatus(), reservationId);
+            return;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime deadline = resolvePaymentDeadline(reservation);
+        if (deadline != null && now.isBefore(deadline)) {
+            log.info("결제 만료 스킵: deadline 미도달 (reservationId={}, deadline={}, now={})",
+                reservationId, deadline, now);
+            return;
+        }
         reservation.setStatus(ReservationStatus.EXPIRED);
+        log.info("결제 만료 처리: reservationId={}, deadline={}, now={}", reservationId, deadline, now);
 
         paymentRepository.findTopByReservationIdOrderByCreatedAtDesc(reservationId)
             .ifPresent(payment -> {
@@ -215,6 +232,7 @@ public class ReservationPaymentService {
         reservation.setStatus(resolveReservationStatus(payment.getPaymentType()));
 
         recordConfirmAfterCommit(payment, reservation);
+        sendOwnerNotificationAfterCommit(reservation);
     }
 
     @Transactional
@@ -231,7 +249,13 @@ public class ReservationPaymentService {
 
         Reservation reservation = getReservation(payment.getReservationId());
         if (ReservationStatus.TEMPORARY.equals(reservation.getStatus())) {
+            if (!isPastPaymentDeadline(reservation)) {
+                log.info("웹훅 실패: 결제 마감 전이므로 TEMPORARY 유지 (reservationId={})",
+                    reservation.getReservationId());
+                return;
+            }
             reservation.setStatus(ReservationStatus.EXPIRED);
+            log.info("웹훅 실패 만료 처리: reservationId={}", reservation.getReservationId());
         }
     }
 
@@ -248,7 +272,13 @@ public class ReservationPaymentService {
         payment.setCancelledAt(LocalDateTime.now());
 
         Reservation reservation = getReservation(payment.getReservationId());
+        if (ReservationStatus.TEMPORARY.equals(reservation.getStatus()) && !isPastPaymentDeadline(reservation)) {
+            log.info("웹훅 취소: 결제 마감 전이므로 TEMPORARY 유지 (reservationId={})",
+                reservation.getReservationId());
+            return;
+        }
         reservation.setStatus(ReservationStatus.CANCELLED);
+        log.info("웹훅 취소 처리: reservationId={}", reservation.getReservationId());
     }
 
     @Transactional(readOnly = true)
@@ -278,19 +308,6 @@ public class ReservationPaymentService {
             }
         }
 
-        Owner owner = ownerRepository.findByOwnerId(restaurant.getOwnerId()).orElse(null); //알림문자 보낼 사업자 정보
-        User user = userRepository.findByUserId(reservation.getUserId()).orElse(null); //알림 문자 내용에 사용자 정보 필요
-
-        //알림 문자 보내기
-        smsService.sendNotificationToOwner(owner.getPhone(), OwnerReservationNotification.builder()
-                .reservationCode(reservation.getReservationCode())
-                        .date(slot.getSlotDate().toString())
-                        .time(slot.getSlotTime().toString())
-                        .partySize(reservation.getPartySize())
-                        .name(user.getName())
-                .build());
-
-
         return ReservationConfirmationResponse.builder()
             .reservationCode(reservation.getReservationCode())
             .restaurant(ReservationConfirmationResponse.RestaurantInfo.builder()
@@ -310,6 +327,22 @@ public class ReservationPaymentService {
                 .paidAt(formatPaidAt(payment != null ? payment.getApprovedAt() : null))
                 .build())
             .menuItems(menuItems.isEmpty() ? null : menuItems)
+            .build();
+    }
+
+    @Transactional(readOnly = true)
+    public ReservationPaymentStatusResponse getConfirmationStatus(Long reservationId) {
+        getReservation(reservationId);
+        Payment payment = paymentRepository.findTopByReservationIdAndStatusOrderByApprovedAtDesc(
+                reservationId,
+                PAYMENT_STATUS_PAID
+            )
+            .orElse(null);
+        boolean paid = payment != null && payment.getApprovedAt() != null;
+
+        return ReservationPaymentStatusResponse.builder()
+            .paid(paid)
+            .paidAt(formatPaidAt(payment != null ? payment.getApprovedAt() : null))
             .build();
     }
 
@@ -353,6 +386,11 @@ public class ReservationPaymentService {
         if (totalAmount == null) {
             totalAmount = payment != null ? payment.getAmount() : 0;
         }
+        LocalDateTime deadline = reservation.getPaymentDeadlineAt();
+        if (deadline == null) {
+            deadline = reservation.getHoldExpiresAt();
+        }
+        String holdExpiresAt = formatDeadline(reservation.getHoldExpiresAt());
 
         return ReservationSummaryResponse.builder()
             .restaurant(ReservationSummaryResponse.RestaurantInfo.builder()
@@ -372,6 +410,8 @@ public class ReservationPaymentService {
             .requestNote(reservation.getRequestMessage())
             .totalAmount(totalAmount)
             .visitCount(visitCount)
+            .paymentDeadlineAt(formatDeadline(deadline))
+            .holdExpiresAt(holdExpiresAt)
             .menuItems(menuItems.isEmpty() ? null : menuItems)
             .build();
     }
@@ -478,6 +518,50 @@ public class ReservationPaymentService {
         return approvedAt.format(formatter);
     }
 
+    private String formatDeadline(LocalDateTime deadline) {
+        if (deadline == null) {
+            return null;
+        }
+        return deadline.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+    }
+
+    private void sendOwnerNotificationAfterCommit(Reservation reservation) {
+        if (reservation == null) {
+            return;
+        }
+        ReservationSlot slot = getSlot(reservation.getSlotId());
+        Restaurant restaurant = getRestaurant(slot.getRestaurantId());
+        Owner owner = ownerRepository.findByOwnerId(restaurant.getOwnerId()).orElse(null);
+        User user = userRepository.findByUserId(reservation.getUserId()).orElse(null);
+        if (owner == null || user == null || owner.getPhone() == null || owner.getPhone().isBlank()) {
+            return;
+        }
+
+        if (!TransactionSynchronizationManager.isActualTransactionActive()) {
+            smsService.sendNotificationToOwner(owner.getPhone(), OwnerReservationNotification.builder()
+                .reservationCode(reservation.getReservationCode())
+                .date(slot.getSlotDate().toString())
+                .time(slot.getSlotTime().toString())
+                .partySize(reservation.getPartySize())
+                .name(user.getName())
+                .build());
+            return;
+        }
+
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                smsService.sendNotificationToOwner(owner.getPhone(), OwnerReservationNotification.builder()
+                    .reservationCode(reservation.getReservationCode())
+                    .date(slot.getSlotDate().toString())
+                    .time(slot.getSlotTime().toString())
+                    .partySize(reservation.getPartySize())
+                    .name(user.getName())
+                    .build());
+            }
+        });
+    }
+
     private void recordConfirmAfterCommit(Payment payment, Reservation reservation) {
         if (payment == null || reservation == null) {
             return;
@@ -511,5 +595,27 @@ public class ReservationPaymentService {
             .pgProvider(payment.getPgProvider())
             .currency(payment.getCurrency())
             .build();
+    }
+
+    private boolean isPastPaymentDeadline(Reservation reservation) {
+        if (reservation == null) {
+            return false;
+        }
+        LocalDateTime deadline = resolvePaymentDeadline(reservation);
+        if (deadline == null) {
+            return false;
+        }
+        return !LocalDateTime.now().isBefore(deadline);
+    }
+
+    private LocalDateTime resolvePaymentDeadline(Reservation reservation) {
+        if (reservation == null) {
+            return null;
+        }
+        LocalDateTime deadline = reservation.getPaymentDeadlineAt();
+        if (deadline == null) {
+            deadline = reservation.getHoldExpiresAt();
+        }
+        return deadline;
     }
 }

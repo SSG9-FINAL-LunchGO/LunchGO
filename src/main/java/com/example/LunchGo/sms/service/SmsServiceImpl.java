@@ -14,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.List;
 import java.util.Random;
 
 @Service
@@ -105,6 +106,51 @@ public class SmsServiceImpl implements SmsService {
             SingleMessageSentResponse response = this.messageService.sendOne(new SingleMessageSendingRequest(notifyMessage));
         }catch(Exception e) {
             redisUtil.deleteData(phone);
+        }
+    }
+
+    @Override
+    public void sendRestaurantRegistrationNotice(List<String> ownerPhones) {
+        String content = "[LunchGO] 미등록시 계정 휴면됩니다. 사업자페이지>식당정보 메뉴에서 등록 부탁드립니다.";
+
+        for (String phone : ownerPhones) {
+            Message message = new Message();
+            message.setFrom(fromNumber);
+            message.setTo(phone);
+            message.setText(content);
+
+            // Redis Key 충돌 방지를 위한 접두사 사용
+            String redisKey = "notif:reg:" + phone;
+
+            // 중복 발송 방지 (이미 키가 존재하면 스킵)
+            if (redisUtil.existData(redisKey)) {
+                continue;
+            }
+
+            // 3일간 동일 번호로의 중복 발송 방지
+            long expireTime = 1000 * 60 * 60 * 24 * 3L;
+            redisUtil.setDataExpire(redisKey, "sent", expireTime);
+
+            try {
+                SingleMessageSentResponse response = this.messageService.sendOne(new SingleMessageSendingRequest(message));
+            } catch (Exception e) {
+                // 개별 발송 실패 시 해당 번호의 Redis 데이터 삭제 (재시도 가능하게 함)
+                redisUtil.deleteData(redisKey);
+                // 로그를 남기거나 예외를 던질 수 있으나, 전체 발송 중단을 피하기 위해 여기서는 catch만 함
+            }
+        }
+    }
+    @Override
+    public void sendSystemSms(String to, String text) {
+        Message message = new Message();
+        message.setFrom(fromNumber);
+        message.setTo(to);
+        message.setText(text);
+
+        try {
+            this.messageService.sendOne(new SingleMessageSendingRequest(message));
+        } catch (Exception e) {
+            System.err.println("SMS sending failed to " + to + ": " + e.getMessage());
         }
     }
 }

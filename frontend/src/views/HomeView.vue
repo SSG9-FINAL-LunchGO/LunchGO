@@ -31,6 +31,7 @@ import { restaurants as restaurantData } from "@/data/restaurants";
 import AppHeader from "@/components/ui/AppHeader.vue";
 import CafeteriaRecommendationSection from "@/components/ui/CafeteriaRecommendationSection.vue";
 import RestaurantCardList from "@/components/ui/RestaurantCardList.vue";
+import RestaurantCardSkeletonList from "@/components/ui/RestaurantCardSkeletonList.vue";
 import { useCafeteriaRecommendation } from "@/composables/useCafeteriaRecommendation";
 import TrendingRecommendationSection from "@/components/ui/TrendingRecommendationSection.vue";
 import { useTrendingRestaurants } from "@/composables/useTrendingRestaurants";
@@ -96,6 +97,7 @@ const {
 } = useCafeteriaRecommendation({ userId: memberId });
 const cafeteriaImageUrl = computed(() => cafeteriaImageUrlRef.value);
 const homeListStateStorageKey = "homeListState";
+const searchStateStorageKey = "homeSearchState";
 const searchQuery = ref("");
 const filterForm = reactive({
   sort: selectedSort.value,
@@ -138,17 +140,23 @@ const filterPerPersonBudgetDisplay = computed(() => {
 });
 
 const isSearchOpen = ref(false);
+const searchModalScrollRef = ref(null);
 const searchResultIds = ref(null);
 const searchDate = ref("");
 const searchTime = ref("");
 const searchCategories = ref([]);
 const searchPartySize = ref(4);
+const searchPreorder = ref(false);
 const searchTags = ref([]);
 const avoidIngredients = ref([]);
 const searchDistance = ref("");
+const searchRestaurantIds = ref(null);
+const isSearchLoading = ref(false);
+const searchRestaurantError = ref("");
 const categories = ref([]);
 const restaurantTags = ref([]);
 const ingredients = ref([]);
+const hasAutoRefreshedCafeteria = ref(false);
 
 const fetchSearchTags = async () => {
   try {
@@ -290,6 +298,57 @@ const tagMappingNotice = computed(() => {
   }
   return "";
 });
+const weatherThemeMap = {
+  hot: {
+    wrapperClass:
+      "bg-gradient-to-br from-[#ffd6a5] via-[#ffb56b] to-[#ff8c5a] border border-[#ff9a76]",
+    accentClass: "text-[#9a3412]",
+    emoji: "🔥",
+    label: "더운 날씨",
+  },
+  cold: {
+    wrapperClass:
+      "bg-gradient-to-br from-[#dbeafe] via-[#c7d2fe] to-[#b8c7ff] border border-[#a5b4fc]",
+    accentClass: "text-[#1e40af]",
+    emoji: "🥶",
+    label: "추운 날씨",
+  },
+  rain: {
+    wrapperClass:
+      "bg-gradient-to-br from-[#dbeafe] via-[#c7d2fe] to-[#b8c7ff] border border-[#a5b4fc]",
+    accentClass: "text-[#1e3a8a]",
+    emoji: "🌧️",
+    label: "비 오는 날씨",
+  },
+  snow: {
+    wrapperClass:
+      "bg-gradient-to-br from-[#eef2ff] via-[#e0f2fe] to-[#cfe7ff] border border-[#c7d2fe]",
+    accentClass: "text-[#1e40af]",
+    emoji: "❄️",
+    label: "눈 오는 날씨",
+  },
+};
+const weatherTheme = computed(() => {
+  if (selectedRecommendation.value !== RECOMMEND_WEATHER) return null;
+  const summary = weatherSummary.value;
+  if (!summary) return null;
+  const condition = String(summary.condition || "").toLowerCase();
+  if (["rain", "drizzle", "thunderstorm"].includes(condition)) return "rain";
+  if (condition === "snow") return "snow";
+  const temp = Number.isFinite(summary.temp)
+    ? summary.temp
+    : summary.feelsLike;
+  if (Number.isFinite(temp) && temp <= 7) return "cold";
+  if (Number.isFinite(temp) && temp >= 28) return "hot";
+  return null;
+});
+const weatherThemeStyle = computed(() => {
+  if (!weatherTheme.value) return null;
+  return weatherThemeMap[weatherTheme.value] || weatherThemeMap.cold;
+});
+const formatTemp = (value) =>
+  Number.isFinite(value) ? `${Math.round(value)}°` : "--°";
+const weatherDisplayLabel = computed(() => weatherThemeStyle.value?.label || "");
 
 const restaurantsPerPage = 10;
 const currentPage = ref(1);
@@ -301,6 +360,10 @@ const restaurantImageCache = new Map();
 const restaurantImageOverrides = ref({});
 const reviewSummaryCache = ref({});
 const reviewSummaryInFlight = new Set();
+const searchRestaurantIdSet = computed(() => {
+  if (!Array.isArray(searchRestaurantIds.value)) return null;
+  return new Set(searchRestaurantIds.value.map((id) => String(id)));
+});
 
 const applyReviewSummary = (restaurant) => {
   const summary = reviewSummaryCache.value[String(restaurant.id)];
@@ -349,6 +412,12 @@ const processedRestaurants = computed(() => {
   if (normalizedQuery) {
     result = result.filter((restaurant) =>
       String(restaurant.name || "").toLowerCase().includes(normalizedQuery)
+    );
+  }
+  const idSet = searchRestaurantIdSet.value;
+  if (idSet) {
+    result = result.filter((restaurant) =>
+      idSet.has(String(restaurant.id ?? restaurant.restaurantId))
     );
   }
   const distanceLimit = selectedDistanceKm.value;
@@ -599,6 +668,11 @@ const toggleCalendar = () => {
         : new Date();
   }
   isCalendarOpen.value = !isCalendarOpen.value;
+};
+const handleSearchModalScroll = () => {
+  if (isCalendarOpen.value) {
+    isCalendarOpen.value = false;
+  }
 };
 
 const isDateDisabled = (day) => {
@@ -1047,6 +1121,7 @@ const initializeMap = async () => {
 
 
 onMounted(async () => {
+  void restoreSearchState();
   await applyUserMapCenter();
   await initializeMap();
   if (typeof window !== "undefined") {
@@ -1080,6 +1155,14 @@ onMounted(async () => {
         } else {
           fetchTagMappingRecommendations();
         }
+      }
+      if (
+          selectedRecommendation.value === RECOMMEND_CAFETERIA &&
+          !cafeteriaRecommendations.value.length
+      ) {
+        selectedRecommendation.value = null;
+        filterForm.recommendation = null;
+        persistHomeListState();
       }
       nextTick(() => {
         if (Number.isFinite(parsed.scrollY)) {
@@ -1343,32 +1426,145 @@ const resetSearch = () => {
   searchTags.value = [];
   avoidIngredients.value = [];
   searchDistance.value = "";
+  searchRestaurantIds.value = null;
+  searchRestaurantError.value = "";
+  persistSearchState();
   isCalendarOpen.value = false;
   calendarMonth.value = new Date();
-  searchResultIds.value = null;
 };
 
-const applySearch = async () => {
+const buildSearchParams = () => {
+  const hasDate = Boolean(searchDate.value);
+  const hasTime = Boolean(searchTime.value);
+  const hasMenuTypes = searchCategories.value.length > 0;
+  const hasRestaurantTags = searchTags.value.length > 0;
+  const hasAvoidIngredients = avoidIngredients.value.length > 0;
+  const shouldSearch =
+    hasDate ||
+    hasTime ||
+    hasMenuTypes ||
+    hasRestaurantTags ||
+    hasAvoidIngredients ||
+    searchPreorder.value;
+  const params = new URLSearchParams();
+  if (hasDate) params.set("date", searchDate.value);
+  if (hasTime) params.set("time", searchTime.value);
+  if (Number.isFinite(Number(searchPartySize.value))) {
+    params.set("partySize", String(searchPartySize.value));
+  }
+  if (hasMenuTypes) {
+    searchCategories.value.forEach((menuType) =>
+      params.append("menuTypes", menuType)
+    );
+  }
+  if (hasRestaurantTags) {
+    searchTags.value.forEach((tag) => params.append("restaurantTags", tag));
+  }
+  if (hasAvoidIngredients) {
+    avoidIngredients.value.forEach((ingredient) =>
+      params.append("avoidIngredients", ingredient)
+    );
+  }
+  if (searchPreorder.value) {
+    params.set("preorderAvailable", "true");
+  }
+  return { shouldSearch, params };
+};
+
+const executeSearch = async ({ closeModal = true, silent = false } = {}) => {
+  if (closeModal) {
+    isSearchOpen.value = false;
+    isCalendarOpen.value = false;
+  }
+  const { shouldSearch, params } = buildSearchParams();
+  if (!shouldSearch) {
+    searchRestaurantIds.value = null;
+    searchRestaurantError.value = "";
+    persistSearchState();
+    return;
+  }
+
+  if (!silent) {
+    isSearchLoading.value = true;
+  }
+  searchRestaurantError.value = "";
   try {
-    const params = {
-      date: searchDate.value || null,
-      time: searchTime.value || null,
-      partySize: searchPartySize.value,
-      // TODO: 향후 태그, 카테고리 등 추가 검색 필터 파라미터 확장 가능
-    };
     const response = await httpRequest.get("/api/restaurants/search", params);
-    searchResultIds.value = response.data;
-    console.log(searchResultIds.value);
+    const ids = Array.isArray(response.data) ? response.data : [];
+    searchRestaurantIds.value = ids;
+    currentPage.value = 1;
+    persistSearchState();
   } catch (error) {
-    if (error.response?.status === 404) {
-      searchResultIds.value = [];
-    } else {
-      console.error("식당 검색 실패:", error);
-      alert("검색 중 오류가 발생했습니다.");
+    if (error?.response?.status === 404) {
+      searchRestaurantIds.value = [];
+      persistSearchState();
+      return;
+    }
+    searchRestaurantError.value = "검색 결과를 불러오지 못했어요.";
+    searchRestaurantIds.value = [];
+    persistSearchState();
+  } finally {
+    if (!silent) {
+      isSearchLoading.value = false;
     }
   }
-  isSearchOpen.value = false;
-  isCalendarOpen.value = false;
+};
+
+const applySearch = () => executeSearch({ closeModal: true });
+
+const persistSearchState = () => {
+  const state = {
+    searchDate: searchDate.value,
+    searchTime: searchTime.value,
+    searchCategories: searchCategories.value,
+    searchPartySize: searchPartySize.value,
+    searchTags: searchTags.value,
+    avoidIngredients: avoidIngredients.value,
+    searchDistance: searchDistance.value,
+    searchRestaurantIds: searchRestaurantIds.value,
+  };
+  sessionStorage.setItem(searchStateStorageKey, JSON.stringify(state));
+};
+
+const restoreSearchState = async () => {
+  const storedSearchState = sessionStorage.getItem(searchStateStorageKey);
+  if (!storedSearchState) return;
+  try {
+    const parsed = JSON.parse(storedSearchState);
+    if (typeof parsed.searchDate === "string") {
+      searchDate.value = parsed.searchDate;
+    }
+    if (typeof parsed.searchTime === "string") {
+      searchTime.value = parsed.searchTime;
+    }
+    if (Array.isArray(parsed.searchCategories)) {
+      searchCategories.value = parsed.searchCategories;
+    }
+    if (Number.isFinite(Number(parsed.searchPartySize))) {
+      searchPartySize.value = Number(parsed.searchPartySize);
+    }
+    if (Array.isArray(parsed.searchTags)) {
+      searchTags.value = parsed.searchTags;
+    }
+    if (Array.isArray(parsed.avoidIngredients)) {
+      avoidIngredients.value = parsed.avoidIngredients;
+    }
+    if (typeof parsed.searchDistance === "string") {
+      searchDistance.value = parsed.searchDistance;
+    }
+    if (Array.isArray(parsed.searchRestaurantIds)) {
+      searchRestaurantIds.value = parsed.searchRestaurantIds;
+    }
+  } catch (error) {
+    console.error("검색 상태 복원 실패:", error);
+    sessionStorage.removeItem(searchStateStorageKey);
+    return;
+  }
+
+  const { shouldSearch } = buildSearchParams();
+  if (shouldSearch) {
+    await executeSearch({ closeModal: false, silent: true });
+  }
 };
 
 const closeMapRestaurantModal = () => {
@@ -1379,10 +1575,44 @@ const resolveCafeteriaBaseDate = () => {
   if (searchDate.value) {
     return searchDate.value;
   }
-  return new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const base = new Date(now);
+  const isFriday = base.getDay() === 5;
+  const isAfterFridayNoon =
+      isFriday && (base.getHours() > 12 || (base.getHours() === 12 && base.getMinutes() >= 0));
+  if (isAfterFridayNoon) {
+    base.setDate(base.getDate() + 7);
+  }
+  const year = base.getFullYear();
+  const month = String(base.getMonth() + 1).padStart(2, "0");
+  const day = String(base.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
-onMounted(() => {
+const refreshCafeteriaRecommendationsIfNeeded = async () => {
+  if (hasAutoRefreshedCafeteria.value) {
+    return;
+  }
+  if (!isLoggedIn.value) {
+    return;
+  }
+  const shouldRefresh =
+    selectedRecommendation.value === RECOMMEND_CAFETERIA ||
+    cafeteriaRecommendations.value.length > 0;
+  if (!shouldRefresh) {
+    return;
+  }
+  hasAutoRefreshedCafeteria.value = true;
+  const baseDate = resolveCafeteriaBaseDate();
+  const hasMenus = await checkCafeteriaMenuStatus(baseDate);
+  if (hasMenus) {
+    await requestCafeteriaRecommendations(baseDate);
+  } else {
+    clearCafeteriaRecommendations();
+  }
+};
+
+onMounted(async () => {
   loadRecommendationsFromStorage();
 
   const storedHomeState = sessionStorage.getItem(homeListStateStorageKey);
@@ -1402,6 +1632,15 @@ onMounted(() => {
       if (selectedRecommendation.value === RECOMMEND_WEATHER) {
         fetchWeatherRecommendationsForCenter();
       }
+      if (
+          selectedRecommendation.value === RECOMMEND_CAFETERIA &&
+          !cafeteriaRecommendations.value.length
+      ) {
+        selectedRecommendation.value = null;
+        filterForm.recommendation = null;
+        persistHomeListState();
+      }
+      await refreshCafeteriaRecommendationsIfNeeded();
       nextTick(() => {
         if (Number.isFinite(parsed.scrollY)) {
           window.scrollTo(0, parsed.scrollY);
@@ -1411,6 +1650,8 @@ onMounted(() => {
       console.error("홈 리스트 상태 복원 실패:", error);
       sessionStorage.removeItem(homeListStateStorageKey);
     }
+  } else {
+    await refreshCafeteriaRecommendationsIfNeeded();
   }
 });
 
@@ -1471,6 +1712,7 @@ const {
   clearCafeteriaRecommendations,
   resolveCafeteriaBaseDate,
   checkCafeteriaMenuStatus,
+  openCafeteriaModal,
   requestCafeteriaRecommendations,
   hasConfirmedMenus,
   currentPage,
@@ -1578,7 +1820,10 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <div class="px-4 py-5">
+      <div
+        class="px-4 py-5 relative overflow-hidden"
+        :class="weatherThemeStyle ? `rounded-3xl ${weatherThemeStyle.wrapperClass}` : ''"
+      >
         <div
             v-if="!isLoggedIn"
             class="mb-3 rounded-2xl border border-[#e9ecef] bg-white py-2 px-4 text-[13px] text-gray-700 whitespace-nowrap text-center"
@@ -1605,6 +1850,39 @@ onBeforeUnmount(() => {
               </span>
             </button>
           </div>
+        </div>
+
+        <div
+          v-if="weatherThemeStyle && selectedRecommendation === RECOMMEND_WEATHER && weatherSummary"
+          class="mb-3 rounded-2xl border border-white/60 bg-white/70 backdrop-blur px-4 py-3"
+        >
+          <div class="flex items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">{{ weatherThemeStyle.emoji }}</span>
+              <div>
+                <p class="text-sm font-semibold" :class="weatherThemeStyle.accentClass">
+                  오늘 날씨
+                </p>
+                <p class="text-xs text-gray-700">
+                  {{ weatherDisplayLabel }}
+                </p>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="text-lg font-semibold text-[#1e3a5f]">
+                {{ formatTemp(weatherSummary.temp) }}
+              </p>
+              <p class="text-xs text-gray-600">
+                체감 {{ formatTemp(weatherSummary.feelsLike) }}
+              </p>
+            </div>
+          </div>
+        </div>
+        <div
+          v-else-if="selectedRecommendation === RECOMMEND_WEATHER && weatherError"
+          class="mb-3 rounded-2xl border border-[#e9ecef] bg-white px-4 py-3 text-sm text-gray-700"
+        >
+          {{ weatherError }}
         </div>
 
         <div class="flex items-center gap-2 mb-2">
@@ -1685,7 +1963,14 @@ onBeforeUnmount(() => {
           </div>
 
           <div
-              v-if="!cafeteriaRecommendations.length && !paginatedRestaurants.length"
+              v-if="!cafeteriaRecommendations.length && selectedRecommendation === RECOMMEND_WEATHER && isWeatherLoading"
+              class="px-4"
+          >
+            <RestaurantCardSkeletonList :count="3" />
+          </div>
+
+          <div
+              v-else-if="!cafeteriaRecommendations.length && !paginatedRestaurants.length"
               class="w-full px-4 py-10 text-center text-sm text-gray-700"
           >
             해당 검색 결과가 없습니다.
@@ -1979,10 +2264,10 @@ onBeforeUnmount(() => {
         class="fixed inset-0 z-[100] bg-black/50 flex items-end"
     >
       <div
-          class="w-full max-w-[500px] mx-auto bg-white rounded-t-2xl max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom duration-300"
+          class="w-full max-w-[500px] mx-auto bg-white rounded-t-2xl max-h-[85vh] animate-in slide-in-from-bottom duration-300 flex flex-col"
       >
         <div
-            class="sticky top-0 bg-white border-b border-[#e9ecef] px-4 py-4 flex items-center justify-between"
+            class="sticky top-0 z-10 bg-white border-b border-[#e9ecef] px-4 py-4 flex items-center justify-between"
         >
           <h3 class="text-lg font-semibold text-[#1e3a5f]">검색 필터</h3>
           <button
@@ -1993,7 +2278,12 @@ onBeforeUnmount(() => {
           </button>
         </div>
 
-        <div class="p-4 space-y-6">
+        <div
+            ref="searchModalScrollRef"
+            class="flex-1 overflow-y-auto"
+            @scroll="handleSearchModalScroll"
+        >
+          <div class="p-4 space-y-6">
           <!-- Reservation Date -->
           <div>
             <h4 class="text-sm font-semibold text-[#1e3a5f] mb-3">예약 날짜</h4>
@@ -2132,6 +2422,25 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
+          <!-- Pre-order/Pre-payment -->
+          <div class="flex items-center justify-between">
+            <h4 class="text-sm font-semibold text-[#1e3a5f]">선주문/선결제 가능 식당</h4>
+            <button
+                @click="searchPreorder = !searchPreorder"
+                :class="[
+                'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-[#ff6b4a] focus:ring-offset-2',
+                searchPreorder ? 'bg-[#ff6b4a]' : 'bg-gray-200',
+              ]"
+            >
+              <span
+                  :class="[
+                  'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                  searchPreorder ? 'translate-x-6' : 'translate-x-1',
+                ]"
+              />
+            </button>
+          </div>
+
           <!-- Distance Filter -->
           <div>
             <h4 class="text-sm font-semibold text-[#1e3a5f] mb-3">거리</h4>
@@ -2190,22 +2499,23 @@ onBeforeUnmount(() => {
           </div>
         </div>
 
-        <div
-            class="sticky bottom-0 bg-white border-t border-[#e9ecef] p-4 flex gap-3"
-        >
-          <Button
-              @click="resetSearch"
-              variant="outline"
-              class="flex-1 h-12 text-gray-700 border-[#dee2e6] hover:bg-[#f8f9fa] rounded-xl bg-transparent"
+          <div
+              class="sticky bottom-0 bg-white border-t border-[#e9ecef] p-4 flex gap-3"
           >
-            초기화
-          </Button>
-          <Button
-              @click="applySearch"
-              class="flex-1 h-12 gradient-primary text-white rounded-xl"
-          >
-            검색하기
-          </Button>
+            <Button
+                @click="resetSearch"
+                variant="outline"
+                class="flex-1 h-12 text-gray-700 border-[#dee2e6] hover:bg-[#f8f9fa] rounded-xl bg-transparent"
+            >
+              초기화
+            </Button>
+            <Button
+                @click="applySearch"
+                class="flex-1 h-12 gradient-primary text-white rounded-xl"
+            >
+              검색하기
+            </Button>
+          </div>
         </div>
       </div>
     </div>

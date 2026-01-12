@@ -29,6 +29,8 @@ import org.springframework.stereotype.Service;
 public class CafeteriaRecommendationService {
 
     private static final int DEFAULT_RECOMMENDATION_LIMIT = 2;
+    private static final String NO_AVOID_MENU_MESSAGE =
+        "기피 메뉴가 없으시군요? 그럼 이런 곳은 어때요?";
     private static final List<String> PORK_INGREDIENTS = List.of("돼지고기");
     private static final List<String> BEEF_INGREDIENTS = List.of("소고기");
     private static final List<String> CHICKEN_INGREDIENTS = List.of("닭고기");
@@ -113,21 +115,30 @@ public class CafeteriaRecommendationService {
         Set<Long> excludedRestaurantIds = loadExcludedRestaurantIds(dislikedKeywords);
 
         int candidateLimit = Math.max(limitPerDay * 10, 10);
-        List<CafeteriaRestaurantRecommendationDto> candidates = cafeteriaRestaurantRepository
+        List<CafeteriaRestaurantProjection> candidateProjections = cafeteriaRestaurantRepository
             .findCandidateRestaurants(candidateLimit)
             .stream()
             .filter(projection -> !excludedRestaurantIds.contains(projection.getRestaurantId()))
+            .toList();
+        List<CafeteriaRestaurantRecommendationDto> candidates = candidateProjections
+            .stream()
             .map(this::toRecommendation)
             .toList();
 
         List<CafeteriaDayRecommendationDto> recommendations = new ArrayList<>();
         for (int index = 0; index < days.size(); index++) {
             CafeteriaDayMenuDto day = days.get(index);
-            String avoidMenu = buildAvoidMenu(day.getMenus(), dislikedKeywords);
-            if ("-".equals(avoidMenu)) {
+            if (day.getMenus() == null || day.getMenus().isEmpty()) {
                 continue;
             }
-            List<CafeteriaRestaurantRecommendationDto> selected = pickRecommendations(candidates, limitPerDay, index);
+            String avoidMenu = buildAvoidMenu(day.getMenus(), dislikedKeywords);
+            List<CafeteriaRestaurantRecommendationDto> selected;
+            if ("-".equals(avoidMenu)) {
+                selected = pickRandomCheapestCandidates(candidateProjections, limitPerDay);
+                avoidMenu = NO_AVOID_MENU_MESSAGE;
+            } else {
+                selected = pickRecommendations(candidates, limitPerDay, index);
+            }
             recommendations.add(new CafeteriaDayRecommendationDto(day.getDay(), day.getDate(), avoidMenu, selected));
         }
 
@@ -257,6 +268,42 @@ public class CafeteriaRecommendationService {
             .filter(menu -> containsAnyKeyword(menu, dislikedKeywords))
             .collect(Collectors.joining(", "));
         return matched.isBlank() ? "-" : matched;
+    }
+
+    private List<CafeteriaRestaurantRecommendationDto> pickRandomCheapestCandidates(
+        List<CafeteriaRestaurantProjection> candidates,
+        int limit
+    ) {
+        if (limit <= 0 || candidates == null || candidates.isEmpty()) {
+            return List.of();
+        }
+        List<CafeteriaRestaurantProjection> priced = candidates.stream()
+            .filter(candidate -> candidate.getAvgMainPrice() != null)
+            .sorted((a, b) -> comparePrice(a.getAvgMainPrice(), b.getAvgMainPrice()))
+            .toList();
+        List<CafeteriaRestaurantProjection> pool = priced.isEmpty()
+            ? new ArrayList<>(candidates)
+            : new ArrayList<>(priced);
+        int poolSize = Math.min(pool.size(), Math.max(limit * 5, 5));
+        pool = new ArrayList<>(pool.subList(0, poolSize));
+        java.util.Collections.shuffle(pool);
+        return pool.stream()
+            .limit(limit)
+            .map(this::toRecommendation)
+            .toList();
+    }
+
+    private int comparePrice(Integer left, Integer right) {
+        if (left == null && right == null) {
+            return 0;
+        }
+        if (left == null) {
+            return 1;
+        }
+        if (right == null) {
+            return -1;
+        }
+        return Integer.compare(left, right);
     }
 
     private boolean containsAnyKeyword(String menu, List<String> keywords) {

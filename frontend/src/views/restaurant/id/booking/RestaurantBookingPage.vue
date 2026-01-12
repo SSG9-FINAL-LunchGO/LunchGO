@@ -155,7 +155,12 @@ const handleProceed = async () => {
       },
     });
   } catch (e) {
-    createErrorMessage.value = e?.message || '예약 생성 중 오류가 발생했습니다.';
+    if (e.response?.status === 409) {
+      alert(e.response?.data?.message || '이미 처리된 예약이거나 잔여석이 부족합니다.');
+      router.push('/');
+    } else {
+      createErrorMessage.value = e.response?.data?.message || e?.message || '예약 생성 중 오류가 발생했습니다.';
+    }
   } finally {
     isCreatingReservation.value = false;
   }

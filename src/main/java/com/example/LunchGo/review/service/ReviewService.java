@@ -19,6 +19,10 @@ public interface ReviewService {
 
     ReviewDetailResponse getReviewDetail(Long restaurantId, Long reviewId);
 
+    RestaurantReviewListResponse getOwnerRestaurantReviews(Long restaurantId, int page, int size, ReviewSort sort, List<Long> tagIds);
+
+    ReviewDetailResponse getOwnerReviewDetail(Long restaurantId, Long reviewId);
+
     ReviewEditResponse getReviewEdit(Long restaurantId, Long reviewId);
 
     UpdateReviewResponse updateReview(Long restaurantId, Long reviewId, UpdateReviewRequest request);
