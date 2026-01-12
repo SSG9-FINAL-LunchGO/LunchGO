@@ -1,6 +1,7 @@
 package com.example.LunchGo.reservation.service;
 
 import com.example.LunchGo.common.util.RedisUtil;
+import com.example.LunchGo.reservation.annotation.DistributedLock;
 import com.example.LunchGo.reservation.domain.*;
 import com.example.LunchGo.reservation.dto.ReservationCreateRequest;
 import com.example.LunchGo.reservation.dto.ReservationCreateResponse;
@@ -29,11 +30,6 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class ReservationServiceImpl implements ReservationService {
 
-    // 클래스 레벨에 상수 선언
-    private static final String RESERVATION_LOCK_KEY_FORMAT = "reservation_lock:%s:%s:%s:%s";
-    private static final String RESERVATION_LOCK_VALUE = "processing";
-    private static final long RESERVATION_LOCK_TIMEOUT_MS = 3000L;
-
     private static final DateTimeFormatter CODE_DATE = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final int DEPOSIT_PER_PERSON_DEFAULT = 5000;
     private static final int DEPOSIT_PER_PERSON_LARGE = 10000;
@@ -46,15 +42,20 @@ public class ReservationServiceImpl implements ReservationService {
 
     @Override
     @Transactional
+    /**
+     * 분산 락(AOP)을 사용하여 예약을 안전하게 생성합니다.(동시성 락 처리 관련 코드는 DistributedLockAop 클래스에서 확인 가능)
+     * 
+     * [이중 락 구조]
+     * 1. userLockKey: 동일 유저의 5초 내 중복 요청(따닥)을 즉시 차단 (Fail-Fast)
+     * 2. lockKey: 해당 식당의 전체 예약 처리를 순차적으로 제어하여 DB 부하 방지 및 데이터 정합성 보장 (Waiting Queue)
+     */
+    @DistributedLock(
+            lockKey = "'reservation_process_lock:restaurant:' + #request.restaurantId",
+            userLockKey = "'reservation_lock:' + #request.userId + ':' + #request.restaurantId + ':' + #request.slotDate + ':' + #request.slotTime",
+            userLockTime = 5000L
+    )
     public ReservationCreateResponse create(ReservationCreateRequest request) {
         validate(request);
-
-        // Redis 락을 사용하여 짧은 시간(5초 이내) 동안 중복해서 전달되는 예약 요청을 처리
-        // (이 코드가 있어야 애플리케이션 레벨에서 중복 예약 요청이 들어오는 것을 방어 가능 - 결제 만료 시간 체크와는 별개이므로 삭제 X)
-        String lockKey = String.format(RESERVATION_LOCK_KEY_FORMAT, request.getUserId(), request.getRestaurantId(), request.getSlotDate(), request.getSlotTime());
-        if (!redisUtil.setIfAbsent(lockKey, RESERVATION_LOCK_VALUE, RESERVATION_LOCK_TIMEOUT_MS)) {
-            throw new DuplicateReservationException("이미 처리 중인 예약 요청입니다. 잠시 후 다시 시도해주세요.");
-        }
 
         // 지정한 날짜+시간대의 예약슬롯을 불러오는 서비스 로직(없으면 신규 생성)
         ReservationSlot slot = reservationSlotService.getValidatedSlot(
@@ -103,7 +104,6 @@ public class ReservationServiceImpl implements ReservationService {
         reservation.setRequestMessage(trimToNull(request.getRequestMessage()));
         reservation.setHoldExpiresAt(LocalDateTime.now().plusMinutes(7));
         reservation.setVisitStatus(VisitStatus.PENDING);
-
 
         if (ReservationType.RESERVATION_DEPOSIT.equals(request.getReservationType())) {
             int perPerson = request.getPartySize() >= DEPOSIT_LARGE_THRESHOLD
@@ -171,11 +171,21 @@ public class ReservationServiceImpl implements ReservationService {
     }
 
     private static void validate(ReservationCreateRequest request) {
-        if (request == null) throw new IllegalArgumentException("request is null");
-        if (request.getUserId() == null) throw new IllegalArgumentException("userId is required");
-        if (request.getRestaurantId() == null) throw new IllegalArgumentException("restaurantId is required");
-        if (request.getSlotDate() == null) throw new IllegalArgumentException("slotDate is required");
-        if (request.getSlotTime() == null) throw new IllegalArgumentException("slotTime is required");
+        if (request == null) {
+            throw new IllegalArgumentException("request is null");
+        }
+        if (request.getUserId() == null) {
+            throw new IllegalArgumentException("userId is required");
+        }
+        if (request.getRestaurantId() == null) {
+            throw new IllegalArgumentException("restaurantId is required");
+        }
+        if (request.getSlotDate() == null) {
+            throw new IllegalArgumentException("slotDate is required");
+        }
+        if (request.getSlotTime() == null) {
+            throw new IllegalArgumentException("slotTime is required");
+        }
 
         if (request.getPartySize() == null || request.getPartySize() <= 0) {
             throw new IllegalArgumentException("partySize must be positive");
@@ -207,7 +217,9 @@ public class ReservationServiceImpl implements ReservationService {
     }
 
     private static String trimToNull(String s) {
-        if (s == null) return null;
+        if (s == null) {
+            return null;
+        }
         String t = s.trim();
         return t.isEmpty() ? null : t;
     }

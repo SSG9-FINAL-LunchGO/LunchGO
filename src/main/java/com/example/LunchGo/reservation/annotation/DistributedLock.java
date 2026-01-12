@@ -1,0 +1,40 @@
+package com.example.LunchGo.reservation.annotation;
+
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
+import java.util.concurrent.TimeUnit;
+
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface DistributedLock {
+
+    /**
+     * 식당 대기열 락 (Redisson) 키 (SpEL 지원)
+     */
+    String lockKey();
+
+    /**
+     * 개인 중복 방지 락 (Lettuce) 키 (SpEL 지원)
+     * 값이 비어있으면 개인 락은 사용하지 않음
+     */
+    String userLockKey() default "";
+
+    /**
+     * 식당 락 대기 시간 (Redisson)
+     */
+    long waitTime() default 2L;
+
+    /**
+     * 식당 락 점유 시간 (Redisson)
+     */
+    long leaseTime() default 5L;
+
+    /**
+     * 개인 락 점유 시간 (Lettuce)
+     */
+    long userLockTime() default 3000L;
+
+    TimeUnit timeUnit() default TimeUnit.SECONDS;
+}
