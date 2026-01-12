@@ -102,7 +102,7 @@ scrape_configs:
 ### MySQL exporter 계정 생성
 ```bash
 # DB 컨테이너 진입
-docker exec -it lunchgo-db mysql -uroot -pmysql1234!
+docker exec -it lunchgo-db mysql -uroot -p<YOUR_ROOT_PASSWORD>
 
 # MySQL 내부에서 실행
 CREATE USER 'exporter'@'%' IDENTIFIED BY 'exporter1234!';
