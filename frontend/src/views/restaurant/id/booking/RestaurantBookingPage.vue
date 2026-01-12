@@ -4,8 +4,10 @@ import { RouterLink, useRoute, useRouter } from 'vue-router';
 import { ArrowLeft, CalendarIcon, Users } from 'lucide-vue-next';
 import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
+import WaitingModal from '@/components/ui/WaitingModal.vue';
 import httpRequest from '@/router/httpRequest';
 import { useAccountStore } from '@/stores/account';
+import { useReservationQueue } from '@/composables/useReservationQueue';
 
 const route = useRoute();
 const router = useRouter();
@@ -74,6 +76,21 @@ const canProceed = computed(() => selectedDateIndex.value !== null && selectedTi
 const isCreatingReservation = ref(false);
 const createErrorMessage = ref('');
 
+const { 
+  isWaiting, 
+  modalType, 
+  modalMessage, 
+  queueErrorMessage, 
+  processQueue, 
+  handleQueueModalClose 
+} = useReservationQueue();
+
+// queueErrorMessage 변경 시 로컬 에러 메시지 업데이트 (필요 시)
+import { watch } from 'vue';
+watch(queueErrorMessage, (newVal) => {
+  if (newVal) createErrorMessage.value = newVal;
+});
+
 const selectedSlotDate = computed(() => {
   if (selectedDateIndex.value === null) return null;
   const d = new Date();
@@ -121,49 +138,42 @@ const handleProceed = async () => {
   isCreatingReservation.value = true;
   createErrorMessage.value = '';
 
-  try {
-    if (isPreorder.value) {
-      router.push({
-        path: `/restaurant/${restaurantId}/menu`,
-        query: {
-          type: 'preorder',
-          partySize: String(partySize.value),
-          requestNote: String(requestNote.value || ''),
-          dateIndex: String(selectedDateIndex.value),
-          time: String(selectedTime.value),
-        },
-      });
-      return;
-    }
-
-    const created = await createReservation();
-    const reservationId = created?.reservationId;
-
-    if (!reservationId) {
-      throw new Error('예약 생성에 실패했습니다. 다시 시도해 주세요.');
-    }
-
+  // 선주문인 경우 바로 이동 (기존 로직 유지)
+  if (isPreorder.value) {
     router.push({
-      path: `/restaurant/${restaurantId}/payment`,
+      path: `/restaurant/${restaurantId}/menu`,
       query: {
-        type: 'deposit',
+        type: 'preorder',
         partySize: String(partySize.value),
         requestNote: String(requestNote.value || ''),
         dateIndex: String(selectedDateIndex.value),
         time: String(selectedTime.value),
-        reservationId: String(reservationId),
       },
     });
-  } catch (e) {
-    if (e.response?.status === 409) {
-      alert(e.response?.data?.message || '이미 처리된 예약이거나 잔여석이 부족합니다.');
-      router.push('/');
-    } else {
-      createErrorMessage.value = e.response?.data?.message || e?.message || '예약 생성 중 오류가 발생했습니다.';
-    }
-  } finally {
-    isCreatingReservation.value = false;
+    return;
   }
+
+  // 일반 예약: 대기열 처리 로직 사용
+  await processQueue(
+    createReservation, 
+    (created) => {
+      const reservationId = created?.reservationId;
+      if (!reservationId) throw new Error('예약 생성 실패');
+      
+      router.push({
+        path: `/restaurant/${restaurantId}/payment`,
+        query: {
+          type: 'deposit',
+          partySize: String(partySize.value),
+          requestNote: String(requestNote.value || ''),
+          dateIndex: String(selectedDateIndex.value),
+          time: String(selectedTime.value),
+          reservationId: String(reservationId),
+        },
+      });
+    },
+    isCreatingReservation
+  );
 };
 
 const selectDate = (idx) => {
@@ -336,6 +346,13 @@ const selectDate = (idx) => {
         </Button>
       </div>
     </div>
+
+    <WaitingModal 
+      :isOpen="isWaiting" 
+      :type="modalType"
+      :message="modalMessage || undefined"
+      @close="() => handleQueueModalClose(isCreatingReservation)"
+    />
   </div>
 </template>
 

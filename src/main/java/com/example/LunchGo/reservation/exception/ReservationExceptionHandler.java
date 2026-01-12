@@ -11,7 +11,11 @@ import java.util.Map;
 @RestControllerAdvice(basePackages = "com.example.LunchGo.reservation")
 public class ReservationExceptionHandler {
 
-    @ExceptionHandler({DuplicateReservationException.class, SlotCapacityExceededException.class})
+    @ExceptionHandler({
+            DuplicateReservationException.class,
+            SlotCapacityExceededException.class,
+            WaitingReservationException.class
+    })
     public ResponseEntity<Map<String, String>> handleReservationExceptions(RuntimeException e) {
         Map<String, String> response = new HashMap<>();
         response.put("message", e.getMessage());

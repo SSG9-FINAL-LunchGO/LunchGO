@@ -1,6 +1,9 @@
 package com.example.LunchGo.common.util;
 
 import lombok.RequiredArgsConstructor;
+import org.redisson.api.RLock;
+import org.redisson.api.RScoredSortedSet;
+import org.redisson.api.RedissonClient;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.stereotype.Service;
@@ -15,6 +18,7 @@ public class RedisUtil {
      * 스프링이 제공하는 Redis 클라이언트,  Redis 명령어를 자바 코드로 보낼 수 있음
      * */
     private final StringRedisTemplate template;
+    private final RedissonClient redissonClient;
 
     public String getData(String key){
         ValueOperations<String, String> ops = template.opsForValue();
@@ -61,5 +65,19 @@ public class RedisUtil {
     public boolean setIfAbsent(String key, String value, long duration) {
         Boolean result = template.opsForValue().setIfAbsent(key, value, Duration.ofMillis(duration));
         return Boolean.TRUE.equals(result);
+    }
+
+    /**
+     * 특정 키에 대한 분산 락을 가져옵니다.
+     */
+    public RLock getLock(String lockKey) {
+        return redissonClient.getLock(lockKey);
+    }
+
+    /**
+     * 대기열(Sorted Set)을 가져옵니다.
+     */
+    public RScoredSortedSet<String> getScoredSortedSet(String key) {
+        return redissonClient.getScoredSortedSet(key);
     }
 }

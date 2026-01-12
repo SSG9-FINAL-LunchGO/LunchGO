@@ -4,8 +4,10 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'; // Import useRoute
 import { ArrowLeft, Plus, Minus, ShoppingCart } from 'lucide-vue-next';
 import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
+import WaitingModal from '@/components/ui/WaitingModal.vue';
 import httpRequest from '@/router/httpRequest';
 import { useAccountStore } from '@/stores/account';
+import { useReservationQueue } from '@/composables/useReservationQueue';
 
 const route = useRoute();
 const router = useRouter();
@@ -110,6 +112,20 @@ const partySize = computed(() => {
 const isSubmitting = ref(false);
 const submitErrorMessage = ref('');
 
+const { 
+  isWaiting, 
+  modalType, 
+  modalMessage, 
+  queueErrorMessage, 
+  processQueue, 
+  handleQueueModalClose 
+} = useReservationQueue();
+
+import { watch } from 'vue';
+watch(queueErrorMessage, (newVal) => {
+  if (newVal) submitErrorMessage.value = newVal;
+});
+
 const resolveUserId = () => {
   const storeMemberId = accountStore.member?.id;
   if (storeMemberId) return storeMemberId;
@@ -175,31 +191,27 @@ const handleProceed = async () => {
   submitErrorMessage.value = '';
   isSubmitting.value = true;
 
-  try {
-    const created = await createReservation();
-    const reservationId = created?.reservationId;
+  await processQueue(
+    createReservation,
+    (created) => {
+      const reservationId = created?.reservationId;
+      if (!reservationId) throw new Error('예약 생성 실패');
 
-    if (!reservationId) {
-      throw new Error('예약 생성에 실패했습니다. 다시 시도해 주세요.');
-    }
-
-    router.push({
-      path: `/restaurant/${restaurantId}/payment`,
-      query: {
-        type: 'full',
-        totalAmount: totalAmount.value,
-        partySize: route.query.partySize,
-        requestNote: route.query.requestNote,
-        dateIndex: route.query.dateIndex,
-        time: route.query.time,
-        reservationId: String(reservationId),
-      },
-    });
-  } catch (e) {
-    submitErrorMessage.value = e?.message || '예약 생성 중 오류가 발생했습니다.';
-  } finally {
-    isSubmitting.value = false;
-  }
+      router.push({
+        path: `/restaurant/${restaurantId}/payment`,
+        query: {
+          type: 'full',
+          totalAmount: totalAmount.value,
+          partySize: route.query.partySize,
+          requestNote: route.query.requestNote,
+          dateIndex: route.query.dateIndex,
+          time: route.query.time,
+          reservationId: String(reservationId),
+        },
+      });
+    },
+    isSubmitting
+  );
 };
 </script>
 
@@ -298,6 +310,13 @@ const handleProceed = async () => {
         </Button>
       </div>
     </div>
+
+    <WaitingModal 
+      :isOpen="isWaiting" 
+      :type="modalType"
+      :message="modalMessage || undefined"
+      @close="() => handleQueueModalClose(isSubmitting)"
+    />
   </div>
 </template>
 
