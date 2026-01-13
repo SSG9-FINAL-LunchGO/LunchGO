@@ -76,10 +76,16 @@ export const useTagMappingRecommendation = () => {
       tagMappingRaw.value = mappings;
       tagMappingRecommendations.value = mapToRestaurants(mappings);
     } catch (error) {
+      const status = error?.response?.status;
       console.error("Errors occurs: ", error);
-      tagMappingError.value = "Failed to fetch tag mapping recommendations";
       tagMappingRecommendations.value = [];
       tagMappingRaw.value = [];
+      if (status === 404) {
+        tagMappingMessageCode.value = "SPECIALITY_REQUIRED";
+        tagMappingError.value = null;
+      } else {
+        tagMappingError.value = "Failed to fetch tag mapping recommendations";
+      }
     } finally {
       isTagMappingLoading.value = false;
     }
