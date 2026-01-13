@@ -240,6 +240,9 @@ const restaurantGeocodeCache = new Map();
 
 const handleMapMarkerClick = (restaurants = []) => {
   if (!restaurants.length) return;
+  restaurants.forEach((restaurant) => {
+    fetchRestaurantImage(restaurant.id);
+  });
   updateSelectedMapRestaurants(restaurants);
   restaurants.forEach((restaurant) => {
     ensureReviewSummary(restaurant);
@@ -848,6 +851,13 @@ const updateSelectedMapRestaurants = (restaurants) => {
 const refreshSelectedMapRestaurants = () => {
   if (!selectedMapRestaurants.value.length) return;
   selectedMapRestaurants.value = selectedMapRestaurants.value.map(normalizeMapRestaurant);
+};
+
+const formatRating = (value) => {
+  if (value == null) return "0.0";
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "0.0";
+  return parsed.toFixed(1);
 };
 
 const ensureReviewSummary = async (restaurant) => {
@@ -1683,7 +1693,7 @@ onBeforeUnmount(() => {
                         class="flex items-center gap-1 text-[#1e3a5f] font-semibold"
                     >
                       <Star class="w-3.5 h-3.5 fill-[#ffc107] text-[#ffc107]" />
-                      {{ restaurant.rating }}
+                      {{ formatRating(restaurant.rating) }}
                     </span>
                     <span
                         v-if="favoriteIdSet.has(Number(restaurant.id))"
