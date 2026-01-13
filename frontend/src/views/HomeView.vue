@@ -27,6 +27,7 @@ import { restaurants as restaurantData } from "@/data/restaurants";
 import AppHeader from "@/components/ui/AppHeader.vue";
 import HomeSearchBar from "@/components/ui/HomeSearchBar.vue";
 import HomeRecommendationContent from "@/components/ui/HomeRecommendationContent.vue";
+import HomeRecommendationHeader from "@/components/ui/HomeRecommendationHeader.vue";
 import HomePagination from "@/components/ui/HomePagination.vue";
 import { useCafeteriaRecommendation } from "@/composables/useCafeteriaRecommendation";
 import { useTrendingRestaurants } from "@/composables/useTrendingRestaurants";
@@ -518,6 +519,48 @@ const isRecommendationLoading = computed(() => {
     return isBudgetLoading.value;
   }
   return false;
+});
+const activeRecommendationHeader = computed(() => {
+  if (
+    selectedRecommendation.value === RECOMMEND_CAFETERIA ||
+    cafeteriaRecommendations.value.length ||
+    isCafeteriaLoading.value
+  ) {
+    return {
+      title: "구내식당 대체 추천",
+      onClear: () => clearRecommendation(RECOMMEND_CAFETERIA),
+    };
+  }
+  if (isTrendingSort.value) {
+    return {
+      title: "이달의 회식 맛집 추천",
+      onClear: clearTrendingRecommendation,
+      isLoading: isTrendingLoading.value,
+    };
+  }
+  if (selectedRecommendation.value === RECOMMEND_WEATHER) {
+    return {
+      title: "날씨 추천",
+      onClear: () => clearRecommendation(RECOMMEND_WEATHER),
+    };
+  }
+  if (selectedRecommendation.value === RECOMMEND_TASTE) {
+    return {
+      title: "취향 맞춤 추천",
+      subtitle: tasteRecommendationSummary.value,
+      description:
+        "나와 팀원의 특이사항 태그를 기반으로 매칭 점수가 높은 식당을 골랐어요.",
+      onClear: () => clearRecommendation(RECOMMEND_TASTE),
+    };
+  }
+  if (selectedRecommendation.value === RECOMMEND_BUDGET) {
+    return {
+      title: "예산 맞춤 추천",
+      subtitle: `1인당 ${filterPerPersonBudgetDisplay.value}`,
+      onClear: () => clearRecommendation(RECOMMEND_BUDGET),
+    };
+  }
+  return null;
 });
 
 const restaurantsPerPage = 10;
@@ -1774,7 +1817,17 @@ onBeforeUnmount(() => {
           />
         </div>
 
-        <div class="max-h-[60vh] overflow-y-auto px-4 pb-6">
+        <div v-if="activeRecommendationHeader" class="mt-3 px-4">
+          <HomeRecommendationHeader
+              :title="activeRecommendationHeader.title"
+              :subtitle="activeRecommendationHeader.subtitle"
+              :description="activeRecommendationHeader.description"
+              :isLoading="activeRecommendationHeader.isLoading"
+              :onClear="activeRecommendationHeader.onClear"
+          />
+        </div>
+
+        <div class="mt-4 max-h-[60vh] overflow-y-auto px-4 pb-6">
           <HomeRecommendationContent
               :isLoggedIn="isLoggedIn"
               :cafeteriaRecommendations="cafeteriaRecommendations"
@@ -1797,7 +1850,8 @@ onBeforeUnmount(() => {
               :onCheckRoute="handleCheckRoute"
               :routeLoadingId="routeLoadingId"
               :routeInfo="routeInfo"
-              :stickyHeaders="true"
+              :stickyHeaders="false"
+              :hideHeaders="true"
               :onSelectRecommendation="handleRecommendationQuickSelect"
               :onOpenSearch="() => (isSearchOpen = true)"
               :onClearCafeteria="() => clearRecommendation(RECOMMEND_CAFETERIA)"

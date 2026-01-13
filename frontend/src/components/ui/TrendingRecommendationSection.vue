@@ -52,12 +52,17 @@ defineProps({
     type: Boolean,
     default: false,
   },
+  hideHeader: {
+    type: Boolean,
+    default: false,
+  },
 });
 </script>
 
 <template>
   <section v-if="isActive" class="space-y-3">
     <div
+      v-if="!hideHeader"
       :class="stickyHeader
         ? 'sticky -top-px z-30 bg-[#f8f9fa] pt-2 pb-3 shadow-header-seam'
         : 'mb-3'"

@@ -126,6 +126,10 @@ defineProps({
     type: Boolean,
     default: false,
   },
+  hideHeaders: {
+    type: Boolean,
+    default: false,
+  },
   isCafeteriaOcrLoading: {
     type: Boolean,
     default: false,
@@ -181,6 +185,7 @@ defineProps({
       :routeLoadingId="routeLoadingId"
       :routeInfo="routeInfo"
       :stickyHeader="stickyHeaders"
+      :hideHeader="hideHeaders"
       :isLoading="isCafeteriaLoading"
       :isModalOpen="isCafeteriaModalOpen"
       :isProcessing="isCafeteriaOcrLoading"
@@ -211,10 +216,11 @@ defineProps({
       :routeLoadingId="routeLoadingId"
       :routeInfo="routeInfo"
       :stickyHeader="stickyHeaders"
+      :hideHeader="hideHeaders"
     />
 
     <div
-      v-if="!cafeteriaRecommendations.length && selectedRecommendation === recommendWeatherKey"
+      v-if="!hideHeaders && !cafeteriaRecommendations.length && selectedRecommendation === recommendWeatherKey"
       :class="stickyHeaders
         ? 'sticky -top-px z-30 bg-[#f8f9fa] pt-2 pb-3 shadow-header-seam'
         : 'mb-3'"
@@ -226,7 +232,7 @@ defineProps({
     </div>
 
     <div
-      v-if="!cafeteriaRecommendations.length && selectedRecommendation === recommendTasteKey"
+      v-if="!hideHeaders && !cafeteriaRecommendations.length && selectedRecommendation === recommendTasteKey"
       :class="stickyHeaders
         ? 'sticky -top-px z-30 bg-[#f8f9fa] pt-2 pb-3 shadow-header-seam'
         : 'mb-3'"
@@ -240,7 +246,7 @@ defineProps({
     </div>
 
     <div
-      v-if="!cafeteriaRecommendations.length && selectedRecommendation === recommendBudgetKey"
+      v-if="!hideHeaders && !cafeteriaRecommendations.length && selectedRecommendation === recommendBudgetKey"
       :class="stickyHeaders
         ? 'sticky -top-px z-30 bg-[#f8f9fa] pt-2 pb-3 shadow-header-seam'
         : 'mb-3'"

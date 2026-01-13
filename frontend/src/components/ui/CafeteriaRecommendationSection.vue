@@ -53,6 +53,10 @@ defineProps({
     type: Boolean,
     default: false,
   },
+  hideHeader: {
+    type: Boolean,
+    default: false,
+  },
   isLoading: {
     type: Boolean,
     default: false,
@@ -103,7 +107,7 @@ defineProps({
 <template>
   <div>
     <div
-      v-if="recommendations.length || showButtons"
+      v-if="!hideHeader && (recommendations.length || showButtons)"
       :class="stickyHeader
         ? 'sticky -top-px z-30 bg-[#f8f9fa] pt-2 pb-3 shadow-header-seam'
         : 'mb-3'"
