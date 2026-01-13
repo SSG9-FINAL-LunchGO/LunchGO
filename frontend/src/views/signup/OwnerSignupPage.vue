@@ -204,7 +204,7 @@ const handleLoginIdDuplicateCheck = async () => {
         alert("[400 Bad Request] 잘못된 요청입니다. 입력값을 확인해주세요.");
         break;
       case 409:
-        alert("이미 사용중인 이메일입니다.");
+        alert("이미 사용중인 아이디입니다.");
         loginId.value = '';
         break;
       default:

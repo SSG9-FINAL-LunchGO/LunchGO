@@ -1,5 +1,6 @@
 package com.example.LunchGo.email.controller;
 
+import com.example.LunchGo.account.dto.CustomUserDetails;
 import com.example.LunchGo.email.dto.EmailDTO;
 import com.example.LunchGo.email.dto.PromotionDTO;
 import com.example.LunchGo.email.service.EmailService;
@@ -8,6 +9,7 @@ import jakarta.mail.MessagingException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -32,11 +34,17 @@ public class EmailController {
     }
 
     @PostMapping("/email/verify")
-    public ResponseEntity<Boolean> verifyEmail(@RequestBody EmailDTO emailDTO) {
+    public ResponseEntity<Boolean> verifyEmail(@RequestBody EmailDTO emailDTO, @AuthenticationPrincipal CustomUserDetails customUserDetails) {
         if(!StringUtils.hasLength(emailDTO.getMail()) || !StringUtils.hasLength(emailDTO.getVerifyCode())) {
             return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
         }
-        boolean isVerify = emailService.verifyEmailCode(emailDTO.getMail(), emailDTO.getVerifyCode());
+        if (customUserDetails == null) {
+            return new ResponseEntity<>(HttpStatus.UNAUTHORIZED);
+        }
+        if(customUserDetails.getRole() == null || !customUserDetails.getRole().equals("ROLE_USER")) {
+            return new ResponseEntity<>(HttpStatus.FORBIDDEN); //권한이 다르면 403
+        }
+        boolean isVerify = emailService.verifyEmailCode(customUserDetails.getId(),emailDTO.getMail(), emailDTO.getVerifyCode());
         return ResponseEntity.ok(isVerify);
     }
 

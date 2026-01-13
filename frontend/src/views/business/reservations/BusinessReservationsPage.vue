@@ -346,6 +346,8 @@ const downloadWeeklyReport = async () => {
     return;
   }
 
+  if(userRole.value === 'ROLE_STAFF') return alert("사업자만 요약서 확인이 가능합니다.");
+
   try {
     const response = await httpRequest.get(
       `/api/business/restaurants/${rid}/stats/weekly.pdf`,
@@ -494,6 +496,7 @@ const settlementChartOptions = {
           <div class="flex flex-wrap items-center justify-between gap-4">
             <h2 class="text-3xl font-bold text-[#1e3a5f]">전체 예약 관리</h2>
             <button
+              v-if="userRole === 'owner'"
               type="button"
               @click="downloadWeeklyReport"
               class="px-4 py-2 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-[#6366F1] via-[#EC4899] to-[#F97316] hover:opacity-90 cursor-pointer"
