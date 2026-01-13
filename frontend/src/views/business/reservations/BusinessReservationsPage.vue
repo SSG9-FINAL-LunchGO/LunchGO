@@ -319,7 +319,7 @@ const downloadWeeklyReport = async () => {
     return;
   }
 
-  if(userRole === 'ROLE_STAFF') return alert("사업자만 요약서 확인이 가능합니다.");
+  if(userRole.value === 'ROLE_STAFF') return alert("사업자만 요약서 확인이 가능합니다.");
 
   try {
     const response = await httpRequest.get(
