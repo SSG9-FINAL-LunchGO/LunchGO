@@ -237,9 +237,12 @@ const selectedDistanceKm = computed(() => {
 
 const restaurantGeocodeCache = new Map();
 
-const handleMapMarkerClick = (restaurant) => {
-  updateSelectedMapRestaurant(restaurant);
-  ensureReviewSummary(restaurant);
+const handleMapMarkerClick = (restaurants = []) => {
+  if (!restaurants.length) return;
+  updateSelectedMapRestaurants(restaurants);
+  restaurants.forEach((restaurant) => {
+    ensureReviewSummary(restaurant);
+  });
 };
 
 async function resolveRestaurantCoords(restaurant) {
@@ -308,6 +311,7 @@ const {
   selectedDistanceKm,
   resolveRestaurantCoords,
   onMarkerClick: handleMapMarkerClick,
+  favoriteIdSet,
   restaurants: restaurantData,
 });
 
