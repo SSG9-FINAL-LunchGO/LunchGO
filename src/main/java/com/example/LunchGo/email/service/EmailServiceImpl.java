@@ -94,7 +94,8 @@ public class EmailServiceImpl implements EmailService {
         String codeFoundByEmail = redisUtil.getData(email);
         log.info("code found by email: "+ codeFoundByEmail);
         if(codeFoundByEmail == null) return false; //코드가 null인 경우
-        if(codeFoundByEmail.equals(code)) {
+        if (codeFoundByEmail.equals(code)) {
+            redisUtil.deleteData(email);
             taskExecutor.execute(() -> { //일단 응답 먼저 반환 후 DB 반영
                 TransactionTemplate template = new TransactionTemplate(transactionManager);
                 template.executeWithoutResult(status -> userRepository.updateEmailAuthentication(id));
