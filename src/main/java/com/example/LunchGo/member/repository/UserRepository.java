@@ -56,4 +56,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * 사업자에게 예약 완료 문자 알림시 사용자 정보 필요
      * */
     Optional<User> findByUserId(Long userId);
+
+    /**
+     * 이메일 인증 후 바로 DB에 email_authentication 반영
+     * */
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE User u SET u.emailAuthentication = true WHERE u.userId = :userId")
+    int updateEmailAuthentication(@Param("userId") Long userId);
 }
