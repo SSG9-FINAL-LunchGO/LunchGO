@@ -2,22 +2,27 @@ package com.example.LunchGo.email.service;
 
 import com.example.LunchGo.common.util.RedisUtil;
 import com.example.LunchGo.email.dto.PromotionDTO;
+import com.example.LunchGo.member.repository.UserRepository;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.log4j.Log4j2;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.server.ResponseStatusException;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.Executor;
 
 @Log4j2
 @Service
@@ -27,6 +32,9 @@ public class EmailServiceImpl implements EmailService {
     private final JavaMailSender javaMailSender;
     private final RedisUtil redisUtil;
     private final SpringTemplateEngine templateEngine;
+    private final UserRepository userRepository;
+    private final PlatformTransactionManager transactionManager;
+    private final Executor taskExecutor;
 
     @Value("${spring.mail.username}")
     private String senderEmail;
@@ -82,11 +90,18 @@ public class EmailServiceImpl implements EmailService {
 
     //코드 검증
     @Override
-    public Boolean verifyEmailCode(String email, String code) {
+    public Boolean verifyEmailCode(Long id, String email, String code) {
         String codeFoundByEmail = redisUtil.getData(email);
         log.info("code found by email: "+ codeFoundByEmail);
         if(codeFoundByEmail == null) return false; //코드가 null인 경우
-        return codeFoundByEmail.equals(code);
+        if(codeFoundByEmail.equals(code)) {
+            taskExecutor.execute(() -> { //일단 응답 먼저 반환 후 DB 반영
+                TransactionTemplate template = new TransactionTemplate(transactionManager);
+                template.executeWithoutResult(status -> userRepository.updateEmailAuthentication(id));
+            });
+            return true;
+        }
+        return false;
     }
 
     /**

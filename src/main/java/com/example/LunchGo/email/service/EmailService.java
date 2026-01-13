@@ -15,7 +15,7 @@ public interface EmailService {
 
     void sendEmail(String toEmail) throws MessagingException;
 
-    Boolean verifyEmailCode(String email, String code);
+    Boolean verifyEmailCode(Long id, String email, String code);
 
     String setPromotionContext(String promotionContext);
 
