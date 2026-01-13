@@ -21,7 +21,7 @@ import {
 import Button from "@/components/ui/Button.vue"; // Import our custom Button component
 import AppFooter from "@/components/ui/AppFooter.vue";
 import BottomNav from "@/components/ui/BottomNav.vue";
-import { RouterLink } from "vue-router"; // Import Vue RouterLink
+import { RouterLink, useRouter } from "vue-router"; // Import Vue RouterLink
 import { geocodeAddress } from "@/utils/kakao";
 import { restaurants as restaurantData } from "@/data/restaurants";
 import AppHeader from "@/components/ui/AppHeader.vue";
@@ -42,6 +42,7 @@ import axios from "axios";
 import httpRequest from "@/router/httpRequest.js";
 
 const accountStore = useAccountStore();
+const router = useRouter();
 const isLoggedIn = computed(() =>
     Boolean(accountStore.accessToken || localStorage.getItem("accessToken"))
 );
@@ -344,10 +345,14 @@ const tagMappingNotice = computed(() => {
     return "";
   }
   if (tagMappingError.value) {
-    return TAG_MESSAGE_ERROR;
+    return "";
   }
   return "";
 });
+
+const goToSpeciality = () => {
+  router.push({ path: "/mypage", hash: "#speciality-section" });
+};
 const tasteRecommendationSummary = computed(() => {
   if (selectedRecommendation.value !== RECOMMEND_TASTE) {
     return "";
@@ -1583,9 +1588,11 @@ onBeforeUnmount(() => {
             :trendingCards="trendingCards"
             :isWeatherLoading="isWeatherLoading"
             :tagMappingNotice="tagMappingNotice"
+            :tagMappingError="tagMappingError"
             :tasteRecommendationSummary="tasteRecommendationSummary"
             :filterPerPersonBudgetDisplay="filterPerPersonBudgetDisplay"
             :paginatedRestaurants="paginatedRestaurants"
+            @goToSpeciality="goToSpeciality"
             :onSelectRecommendation="handleRecommendationQuickSelect"
             :onOpenSearch="() => (isSearchOpen = true)"
             :onClearCafeteria="() => clearRecommendation(RECOMMEND_CAFETERIA)"
