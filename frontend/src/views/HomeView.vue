@@ -1703,126 +1703,133 @@ onBeforeUnmount(() => {
       </div>
 
       <div
-        class="px-4 py-5 relative overflow-hidden"
+        class="relative overflow-hidden"
         :class="weatherThemeStyle ? `rounded-3xl ${weatherThemeStyle.wrapperClass}` : ''"
       >
-        <div
-            v-if="!isLoggedIn"
-            class="mb-3 rounded-2xl border border-[#e9ecef] bg-white py-2 px-4 text-[13px] text-gray-700 whitespace-nowrap text-center"
-        >
-          로그인하면 취향/예산/구내식당 등 다양한 추천을 받을 수 있어요.
-        </div>
-
-        <div v-if="isLoggedIn" class="mb-3">
-          <div class="flex items-center gap-2">
-            <button
-              v-for="option in recommendationButtons"
-              :key="option.value"
-              type="button"
-              @click="handleRecommendationQuickSelect(option.value)"
-              :class="`px-2.5 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap transition-colors ${
-                selectedRecommendation === option.value
-                  ? 'gradient-primary text-white border border-transparent'
-                  : 'bg-white text-gray-700 border border-[#dee2e6] hover:bg-[#f8f9fa]'
-              }`"
-            >
-              <span class="inline-flex items-center gap-1">
-                <span v-if="option.emoji">{{ option.emoji }}</span>
-                <span>{{ option.label }}</span>
-              </span>
-            </button>
+        <div class="px-4 pt-5 pb-0 shrink-0 bg-[#f8f9fa] -mb-px">
+          <div
+              v-if="!isLoggedIn"
+              class="mb-3 rounded-2xl border border-[#e9ecef] bg-white py-2 px-4 text-[13px] text-gray-700 whitespace-nowrap text-center"
+          >
+            로그인하면 취향/예산/구내식당 등 다양한 추천을 받을 수 있어요.
           </div>
-        </div>
 
-        <div
-          v-if="weatherThemeStyle && selectedRecommendation === RECOMMEND_WEATHER && weatherSummary"
-          class="mb-3 rounded-2xl border border-white/60 bg-white/70 backdrop-blur px-4 py-3"
-        >
-          <div class="flex items-center justify-between gap-4">
-            <div class="flex items-center gap-3">
-              <span class="text-2xl">{{ weatherThemeStyle.emoji }}</span>
-              <div>
-                <p class="text-sm font-semibold" :class="weatherThemeStyle.accentClass">
-                  오늘 날씨
+          <div v-if="isLoggedIn" class="mb-3">
+            <div class="flex items-center gap-2">
+              <button
+                v-for="option in recommendationButtons"
+                :key="option.value"
+                type="button"
+                @click="handleRecommendationQuickSelect(option.value)"
+                :class="`px-2.5 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap transition-colors ${
+                  selectedRecommendation === option.value
+                    ? 'gradient-primary text-white border border-transparent'
+                    : 'bg-white text-gray-700 border border-[#dee2e6] hover:bg-[#f8f9fa]'
+                }`"
+              >
+                <span class="inline-flex items-center gap-1">
+                  <span v-if="option.emoji">{{ option.emoji }}</span>
+                  <span>{{ option.label }}</span>
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <div
+            v-if="weatherThemeStyle && selectedRecommendation === RECOMMEND_WEATHER && weatherSummary"
+            class="mb-3 rounded-2xl border border-white/60 bg-white/70 backdrop-blur px-4 py-3"
+          >
+            <div class="flex items-center justify-between gap-4">
+              <div class="flex items-center gap-3">
+                <span class="text-2xl">{{ weatherThemeStyle.emoji }}</span>
+                <div>
+                  <p class="text-sm font-semibold" :class="weatherThemeStyle.accentClass">
+                    오늘 날씨
+                  </p>
+                  <p class="text-xs text-gray-700">
+                    {{ weatherDisplayLabel }}
+                  </p>
+                </div>
+              </div>
+              <div class="text-right">
+                <p class="text-lg font-semibold text-[#1e3a5f]">
+                  {{ formatTemp(weatherSummary.temp) }}
                 </p>
-                <p class="text-xs text-gray-700">
-                  {{ weatherDisplayLabel }}
+                <p class="text-xs text-gray-600">
+                  체감 {{ formatTemp(weatherSummary.feelsLike) }}
                 </p>
               </div>
             </div>
-            <div class="text-right">
-              <p class="text-lg font-semibold text-[#1e3a5f]">
-                {{ formatTemp(weatherSummary.temp) }}
-              </p>
-              <p class="text-xs text-gray-600">
-                체감 {{ formatTemp(weatherSummary.feelsLike) }}
-              </p>
-            </div>
           </div>
+          <div
+            v-else-if="selectedRecommendation === RECOMMEND_WEATHER && weatherError"
+            class="mb-3 rounded-2xl border border-[#e9ecef] bg-white px-4 py-3 text-sm text-gray-700"
+          >
+            {{ weatherError }}
+          </div>
+
+          <HomeSearchBar
+              :onOpenFilter="openFilterModal"
+              :onOpenSearch="openSearchModal"
+          />
         </div>
-        <div
-          v-else-if="selectedRecommendation === RECOMMEND_WEATHER && weatherError"
-          class="mb-3 rounded-2xl border border-[#e9ecef] bg-white px-4 py-3 text-sm text-gray-700"
-        >
-          {{ weatherError }}
+
+        <div class="max-h-[60vh] overflow-y-auto px-4 pb-6">
+          <HomeRecommendationContent
+              :isLoggedIn="isLoggedIn"
+              :cafeteriaRecommendations="cafeteriaRecommendations"
+              :recommendationButtons="recommendationButtons"
+              :selectedRecommendation="selectedRecommendation"
+              :recommendWeatherKey="RECOMMEND_WEATHER"
+              :recommendTasteKey="RECOMMEND_TASTE"
+              :recommendBudgetKey="RECOMMEND_BUDGET"
+              :isTrendingSort="isTrendingSort"
+              :isTrendingLoading="isTrendingLoading"
+              :trendingError="trendingError"
+              :trendingCards="trendingCards"
+              :isRecommendationLoading="isRecommendationLoading"
+              :isCafeteriaLoading="isCafeteriaLoading"
+              :tagMappingNotice="tagMappingNotice"
+              :tasteRecommendationSummary="tasteRecommendationSummary"
+              :filterPerPersonBudgetDisplay="filterPerPersonBudgetDisplay"
+              :paginatedRestaurants="paginatedRestaurants"
+              :showRouteButton="Boolean(selectedRecommendation)"
+              :onCheckRoute="handleCheckRoute"
+              :routeLoadingId="routeLoadingId"
+              :routeInfo="routeInfo"
+              :stickyHeaders="true"
+              :onSelectRecommendation="handleRecommendationQuickSelect"
+              :onOpenSearch="() => (isSearchOpen = true)"
+              :onClearCafeteria="() => clearRecommendation(RECOMMEND_CAFETERIA)"
+              :onClearTrending="clearTrendingRecommendation"
+              :onClearWeather="() => clearRecommendation(RECOMMEND_WEATHER)"
+              :onClearTaste="() => clearRecommendation(RECOMMEND_TASTE)"
+              :onClearBudget="() => clearRecommendation(RECOMMEND_BUDGET)"
+              :isCafeteriaModalOpen="isCafeteriaModalOpen"
+              :isCafeteriaOcrLoading="isCafeteriaOcrLoading"
+              :cafeteriaOcrResult="cafeteriaOcrResult"
+              :cafeteriaDaysDraft="cafeteriaDaysDraft"
+              :cafeteriaOcrError="cafeteriaOcrError"
+              :cafeteriaImageUrl="cafeteriaImageUrl"
+              :onCafeteriaModalClose="() => (isCafeteriaModalOpen = false)"
+              :onCafeteriaFileChange="handleCafeteriaFileChange"
+              :onCafeteriaOcr="() => handleCafeteriaOcr(resolveCafeteriaBaseDate())"
+              :onCafeteriaConfirm="handleCafeteriaConfirmAndClose"
+          />
+
+          <HomePagination
+              :show="!cafeteriaRecommendations.length && !isTrendingSort && totalPages > 1"
+              :pageNumbers="pageNumbers"
+              :currentPage="currentPage"
+              :canGoPrevious="canGoPrevious"
+              :canGoNext="canGoNext"
+              :onGoPrevious="goToPreviousPage"
+              :onGoNext="goToNextPage"
+              :onGoToPage="goToPage"
+          />
         </div>
 
-        <HomeSearchBar
-            :onOpenFilter="openFilterModal"
-            :onOpenSearch="openSearchModal"
-        />
-
-        <HomeRecommendationContent
-            :isLoggedIn="isLoggedIn"
-            :cafeteriaRecommendations="cafeteriaRecommendations"
-            :recommendationButtons="recommendationButtons"
-            :selectedRecommendation="selectedRecommendation"
-            :recommendWeatherKey="RECOMMEND_WEATHER"
-            :recommendTasteKey="RECOMMEND_TASTE"
-            :recommendBudgetKey="RECOMMEND_BUDGET"
-            :isTrendingSort="isTrendingSort"
-            :isTrendingLoading="isTrendingLoading"
-            :trendingError="trendingError"
-            :trendingCards="trendingCards"
-            :isRecommendationLoading="isRecommendationLoading"
-            :isCafeteriaLoading="isCafeteriaLoading"
-            :tagMappingNotice="tagMappingNotice"
-            :tasteRecommendationSummary="tasteRecommendationSummary"
-            :filterPerPersonBudgetDisplay="filterPerPersonBudgetDisplay"
-            :paginatedRestaurants="paginatedRestaurants"
-            :showRouteButton="Boolean(selectedRecommendation)"
-            :onCheckRoute="handleCheckRoute"
-            :routeLoadingId="routeLoadingId"
-            :routeInfo="routeInfo"
-            :onSelectRecommendation="handleRecommendationQuickSelect"
-            :onOpenSearch="() => (isSearchOpen = true)"
-            :onClearCafeteria="() => clearRecommendation(RECOMMEND_CAFETERIA)"
-            :onClearTrending="clearTrendingRecommendation"
-            :onClearWeather="() => clearRecommendation(RECOMMEND_WEATHER)"
-            :onClearTaste="() => clearRecommendation(RECOMMEND_TASTE)"
-            :onClearBudget="() => clearRecommendation(RECOMMEND_BUDGET)"
-            :isCafeteriaModalOpen="isCafeteriaModalOpen"
-            :isCafeteriaOcrLoading="isCafeteriaOcrLoading"
-            :cafeteriaOcrResult="cafeteriaOcrResult"
-            :cafeteriaDaysDraft="cafeteriaDaysDraft"
-            :cafeteriaOcrError="cafeteriaOcrError"
-            :cafeteriaImageUrl="cafeteriaImageUrl"
-            :onCafeteriaModalClose="() => (isCafeteriaModalOpen = false)"
-            :onCafeteriaFileChange="handleCafeteriaFileChange"
-            :onCafeteriaOcr="() => handleCafeteriaOcr(resolveCafeteriaBaseDate())"
-            :onCafeteriaConfirm="handleCafeteriaConfirmAndClose"
-        />
-
-        <HomePagination
-            :show="!cafeteriaRecommendations.length && !isTrendingSort && totalPages > 1"
-            :pageNumbers="pageNumbers"
-            :currentPage="currentPage"
-            :canGoPrevious="canGoPrevious"
-            :canGoNext="canGoNext"
-            :onGoPrevious="goToPreviousPage"
-            :onGoNext="goToNextPage"
-            :onGoToPage="goToPage"
-        />
+        <AppFooter />
       </div>
 
       <div
@@ -1877,7 +1884,6 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <AppFooter />
     </main>
 
     <BottomNav @home="resetMapToHome" />

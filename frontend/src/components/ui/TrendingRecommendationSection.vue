@@ -48,16 +48,26 @@ defineProps({
     type: Function,
     required: true,
   },
+  stickyHeader: {
+    type: Boolean,
+    default: false,
+  },
 });
 </script>
 
 <template>
   <section v-if="isActive" class="space-y-3">
-    <HomeRecommendationHeader
-      title="이달의 회식 맛집 추천"
-      :isLoading="isLoading"
-      :onClear="onClear"
-    />
+    <div
+      :class="stickyHeader
+        ? 'sticky -top-px z-30 bg-[#f8f9fa] pt-2 pb-3 shadow-header-seam'
+        : 'mb-3'"
+    >
+      <HomeRecommendationHeader
+        title="이달의 회식 맛집 추천"
+        :isLoading="isLoading"
+        :onClear="onClear"
+      />
+    </div>
     <p v-if="error" class="text-xs text-[#e03131]">
       {{ error }}
     </p>
@@ -75,3 +85,9 @@ defineProps({
     />
   </section>
 </template>
+
+<style scoped>
+.shadow-header-seam {
+  box-shadow: 0 1px 0 #f8f9fa;
+}
+</style>

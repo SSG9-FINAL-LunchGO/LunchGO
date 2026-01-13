@@ -122,6 +122,10 @@ defineProps({
     type: Boolean,
     default: false,
   },
+  stickyHeaders: {
+    type: Boolean,
+    default: false,
+  },
   isCafeteriaOcrLoading: {
     type: Boolean,
     default: false,
@@ -162,7 +166,7 @@ defineProps({
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div :class="stickyHeaders ? 'space-y-0' : 'space-y-4'">
     <CafeteriaRecommendationSection
       v-if="isLoggedIn"
       :recommendations="cafeteriaRecommendations"
@@ -176,6 +180,7 @@ defineProps({
       :onCheckRoute="onCheckRoute"
       :routeLoadingId="routeLoadingId"
       :routeInfo="routeInfo"
+      :stickyHeader="stickyHeaders"
       :isLoading="isCafeteriaLoading"
       :isModalOpen="isCafeteriaModalOpen"
       :isProcessing="isCafeteriaOcrLoading"
@@ -205,28 +210,47 @@ defineProps({
       :onCheckRoute="onCheckRoute"
       :routeLoadingId="routeLoadingId"
       :routeInfo="routeInfo"
+      :stickyHeader="stickyHeaders"
     />
 
-    <HomeRecommendationHeader
+    <div
       v-if="!cafeteriaRecommendations.length && selectedRecommendation === recommendWeatherKey"
-      title="날씨 추천"
-      :onClear="onClearWeather"
-    />
+      :class="stickyHeaders
+        ? 'sticky -top-px z-30 bg-[#f8f9fa] pt-2 pb-3 shadow-header-seam'
+        : 'mb-3'"
+    >
+      <HomeRecommendationHeader
+        title="날씨 추천"
+        :onClear="onClearWeather"
+      />
+    </div>
 
-    <HomeRecommendationHeader
+    <div
       v-if="!cafeteriaRecommendations.length && selectedRecommendation === recommendTasteKey"
-      title="취향 맞춤 추천"
-      :subtitle="tasteRecommendationSummary"
-      description="나와 팀원의 특이사항 태그를 기반으로 매칭 점수가 높은 식당을 골랐어요."
-      :onClear="onClearTaste"
-    />
+      :class="stickyHeaders
+        ? 'sticky -top-px z-30 bg-[#f8f9fa] pt-2 pb-3 shadow-header-seam'
+        : 'mb-3'"
+    >
+      <HomeRecommendationHeader
+        title="취향 맞춤 추천"
+        :subtitle="tasteRecommendationSummary"
+        description="나와 팀원의 특이사항 태그를 기반으로 매칭 점수가 높은 식당을 골랐어요."
+        :onClear="onClearTaste"
+      />
+    </div>
 
-    <HomeRecommendationHeader
+    <div
       v-if="!cafeteriaRecommendations.length && selectedRecommendation === recommendBudgetKey"
-      title="예산 맞춤 추천"
-      :subtitle="`1인당 ${filterPerPersonBudgetDisplay}`"
-      :onClear="onClearBudget"
-    />
+      :class="stickyHeaders
+        ? 'sticky -top-px z-30 bg-[#f8f9fa] pt-2 pb-3 shadow-header-seam'
+        : 'mb-3'"
+    >
+      <HomeRecommendationHeader
+        title="예산 맞춤 추천"
+        :subtitle="`1인당 ${filterPerPersonBudgetDisplay}`"
+        :onClear="onClearBudget"
+      />
+    </div>
 
     <RestaurantCardSkeletonList
       v-if="!cafeteriaRecommendations.length && !isTrendingSort && isRecommendationLoading"
@@ -249,3 +273,9 @@ defineProps({
     />
   </div>
 </template>
+
+<style scoped>
+.shadow-header-seam {
+  box-shadow: 0 1px 0 #f8f9fa;
+}
+</style>
