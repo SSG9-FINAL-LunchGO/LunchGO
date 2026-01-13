@@ -11,6 +11,7 @@ import com.example.LunchGo.reservation.mapper.row.ReservationCreateRow;
 import com.example.LunchGo.restaurant.entity.Menu;
 import com.example.LunchGo.restaurant.repository.MenuRepository;
 import lombok.RequiredArgsConstructor;
+import org.apache.ibatis.exceptions.PersistenceException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -143,7 +144,7 @@ public class ReservationServiceImpl implements ReservationService {
 
         try {
             reservationMapper.insertReservation(reservation);
-        } catch (DataIntegrityViolationException e) {
+        } catch (DataIntegrityViolationException | PersistenceException e) {
             // 결제 대기 시간 만료 전, 약간의 텀을 두고 중복된 예약 요청이 발생했을 때의 중복 예약 방지
             throw new DuplicateReservationException("이미 결제 대기 중인 예약 요청입니다.");
         }
