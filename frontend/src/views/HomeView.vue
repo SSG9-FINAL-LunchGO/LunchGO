@@ -39,6 +39,10 @@ import { useHomePersistence } from "@/composables/useHomePersistence";
 import { useHomeMap } from "@/composables/useHomeMap";
 import { useAccountStore } from "@/stores/account";
 import { useFavorites } from "@/composables/useFavorites";
+import {
+  formatRouteDistance,
+  formatRouteDurationDetailed,
+} from "@/utils/formatters";
 import axios from "axios";
 import httpRequest from "@/router/httpRequest.js";
 
@@ -511,19 +515,7 @@ const weatherThemeStyle = computed(() => {
 const formatTemp = (value) =>
   Number.isFinite(value) ? `${Math.round(value)}°` : "--°";
 const weatherDisplayLabel = computed(() => weatherThemeStyle.value?.label || "");
-const formatRouteDistance = (meters) => {
-  if (!Number.isFinite(meters)) return "-";
-  if (meters < 1000) return `${Math.round(meters)}m`;
-  return `${(meters / 1000).toFixed(1)}km`;
-};
-const formatRouteDuration = (seconds) => {
-  if (!Number.isFinite(seconds)) return "-";
-  const totalMinutes = Math.round(seconds / 60);
-  if (totalMinutes < 60) return `${totalMinutes}분`;
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  return `${hours}시간 ${minutes}분`;
-};
+const formatRouteDuration = formatRouteDurationDetailed;
 const isRecommendationLoading = computed(() => {
   if (selectedRecommendation.value === RECOMMEND_WEATHER) {
     return isWeatherLoading.value;

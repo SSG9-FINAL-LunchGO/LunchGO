@@ -20,6 +20,10 @@ import Card from '@/components/ui/Card.vue';
 import FavoriteStarButton from "@/components/ui/FavoriteStarButton.vue";
 import { useFavorites } from "@/composables/useFavorites";
 import { loadKakaoMaps, geocodeAddress } from '@/utils/kakao';
+import {
+  formatRouteDistance,
+  formatRouteDurationMinutes,
+} from '@/utils/formatters';
 import { useAccountStore } from '@/stores/account';
 import httpRequest from "@/router/httpRequest.js";
 import axios from "axios";
@@ -125,17 +129,7 @@ const detailDistanceSliderFill = computed(() => {
   );
 });
 
-const formatRouteDistance = (meters) => {
-  if (!Number.isFinite(meters)) return '-';
-  if (meters < 1000) return `${Math.round(meters)}m`;
-  return `${(meters / 1000).toFixed(1)}km`;
-};
-
-const formatRouteDuration = (seconds) => {
-  if (!Number.isFinite(seconds)) return '-';
-  const totalMinutes = Math.max(1, Math.round(seconds / 60));
-  return `${totalMinutes}분`;
-};
+const formatRouteDuration = formatRouteDurationMinutes;
 
 const representativeReviews = ref([]);
 const restaurantReviewSummary = ref(null);

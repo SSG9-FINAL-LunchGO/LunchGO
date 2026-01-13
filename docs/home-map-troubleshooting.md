@@ -73,3 +73,30 @@
 
 ### 적용 파일
 - `frontend/src/composables/useHomeMap.js`
+
+---
+
+## 문제 4: 홈 추천 스티키 헤더 틈(줌 94%) 발생
+
+### 증상
+- 100% 줌에서는 정상이나 94% 줌에서 추천 리스트 스크롤 중 헤더 상단에 1px 틈이 발생
+- 스크롤을 멈추면 틈이 사라짐
+- 구내식당/취향/인기 추천에서만 발생하고 예산 추천은 상대적으로 영향이 적음
+
+### 원인
+- 스크롤 컨테이너 내부의 `position: sticky` 헤더가 줌 비율에서 서브픽셀 라운딩을 일으킴
+- 헤더가 리스트 흐름 안에 있어서 스크롤 중 layout round-off가 반복 발생
+
+### 해결
+- 스티키 헤더를 스크롤 컨테이너 밖으로 분리해 상단 고정 영역에서 렌더링
+- 리스트 내부 헤더는 렌더링하지 않도록 `hideHeaders` 플래그로 비활성화
+
+### 해결 과정
+- 스티키 헤더의 pseudo-element/보더/섀도우로 틈 덮기 시도 → 줌 94%에서 지속 발생
+- 스크롤 컨테이너 바깥으로 헤더를 분리하는 방식으로 구조 변경 후 해결
+
+### 적용 파일
+- `frontend/src/views/HomeView.vue`
+- `frontend/src/components/ui/HomeRecommendationContent.vue`
+- `frontend/src/components/ui/CafeteriaRecommendationSection.vue`
+- `frontend/src/components/ui/TrendingRecommendationSection.vue`

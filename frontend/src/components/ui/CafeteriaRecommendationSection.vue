@@ -39,7 +39,7 @@ defineProps({
   },
   onCheckRoute: {
     type: Function,
-    default: null,
+    default: () => {},
   },
   routeLoadingId: {
     type: [Number, String],
