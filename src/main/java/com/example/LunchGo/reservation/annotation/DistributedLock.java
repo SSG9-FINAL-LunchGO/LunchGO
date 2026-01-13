@@ -23,8 +23,9 @@ public @interface DistributedLock {
 
     /**
      * 식당 락 대기 시간 (Redisson)
+     * 0L로 설정하여 락 획득 실패 시 즉시 예외를 발생시킴 (Fail-Fast)
      */
-    long waitTime() default 2L;
+    long waitTime() default 0L;
 
     /**
      * 식당 락 점유 시간 (Redisson)
