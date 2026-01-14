@@ -29,6 +29,7 @@ import HomeSearchBar from "@/components/ui/HomeSearchBar.vue";
 import HomeRecommendationContent from "@/components/ui/HomeRecommendationContent.vue";
 import HomeRecommendationHeader from "@/components/ui/HomeRecommendationHeader.vue";
 import HomePagination from "@/components/ui/HomePagination.vue";
+import MapMarkerLegendIcon from "@/components/ui/MapMarkerLegendIcon.vue";
 import { useCafeteriaRecommendation } from "@/composables/useCafeteriaRecommendation";
 import { useTrendingRestaurants } from "@/composables/useTrendingRestaurants";
 import { useBudgetRecommendation, extractPriceValue } from "@/composables/useBudgetRecommendation";
@@ -1803,47 +1804,13 @@ onBeforeUnmount(() => {
             <span
                 class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-white"
             >
-              <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="20"
-                  viewBox="0 0 32 46"
-                  aria-hidden="true"
-              >
-                <path
-                    d="M16 1C8.8 1 3 6.8 3 14c0 9.3 13 30 13 30s13-20.7 13-30C29 6.8 23.2 1 16 1z"
-                    fill="#007bff"
-                    stroke="white"
-                    stroke-width="2"
-                />
-                <path
-                    d="M16 8.5l2.1 4.3 4.7.7-3.4 3.3.8 4.7-4.2-2.2-4.2 2.2.8-4.7-3.4-3.3 4.7-.7z"
-                    fill="white"
-                />
-              </svg>
+              <MapMarkerLegendIcon fill="#007bff" star-fill="white" />
               나의 즐겨찾기
             </span>
             <span
                 class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-white"
             >
-              <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="20"
-                  viewBox="0 0 32 46"
-                  aria-hidden="true"
-              >
-                <path
-                    d="M16 1C8.8 1 3 6.8 3 14c0 9.3 13 30 13 30s13-20.7 13-30C29 6.8 23.2 1 16 1z"
-                    fill="#ffc107"
-                    stroke="white"
-                    stroke-width="2"
-                />
-                <path
-                    d="M16 8.5l2.1 4.3 4.7.7-3.4 3.3.8 4.7-4.2-2.2-4.2 2.2.8-4.7-3.4-3.3 4.7-.7z"
-                    fill="white"
-                />
-              </svg>
+              <MapMarkerLegendIcon fill="#ffc107" star-fill="white" />
               공유 즐겨찾기
             </span>
           </div>

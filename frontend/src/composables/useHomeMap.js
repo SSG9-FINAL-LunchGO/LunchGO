@@ -1,5 +1,11 @@
 import { ref, computed, watch, nextTick, onBeforeUnmount } from "vue";
 import { loadKakaoMaps } from "@/utils/kakao";
+import {
+  buildMarkerBody,
+  buildMarkerCircle,
+  buildMarkerDataUri,
+  buildMarkerStar,
+} from "@/utils/mapMarkerSvgs";
 
 export const useHomeMap = ({
   isLoggedIn,
@@ -149,25 +155,17 @@ export const useHomeMap = ({
       }
     }
 
-    const buildMarkerSvg = (body) =>
-      `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
-        `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="46" viewBox="0 0 32 46">${body}</svg>`
-      )}`;
-    const markerSvg = buildMarkerSvg(
-      '<path d="M16 1C8.8 1 3 6.8 3 14c0 9.3 13 30 13 30s13-20.7 13-30C29 6.8 23.2 1 16 1z" fill="#ff6b4a" stroke="white" stroke-width="2"/>' +
-        '<circle cx="16" cy="14" r="5" fill="white"/>'
+    const markerSvg = buildMarkerDataUri(
+      buildMarkerBody("#ff6b4a", buildMarkerCircle("white"))
     );
-    const favoriteMarkerSvg = buildMarkerSvg(
-      '<path d="M16 1C8.8 1 3 6.8 3 14c0 9.3 13 30 13 30s13-20.7 13-30C29 6.8 23.2 1 16 1z" fill="#007bff" stroke="white" stroke-width="2"/>' +
-        '<path d="M16 8.5l2.1 4.3 4.7.7-3.4 3.3.8 4.7-4.2-2.2-4.2 2.2.8-4.7-3.4-3.3 4.7-.7z" fill="white"/>'
+    const favoriteMarkerSvg = buildMarkerDataUri(
+      buildMarkerBody("#007bff", buildMarkerStar("white"))
     );
-    const sharedMarkerSvg = buildMarkerSvg(
-      '<path d="M16 1C8.8 1 3 6.8 3 14c0 9.3 13 30 13 30s13-20.7 13-30C29 6.8 23.2 1 16 1z" fill="#ffc107" stroke="white" stroke-width="2"/>' +
-        '<path d="M16 8.5l2.1 4.3 4.7.7-3.4 3.3.8 4.7-4.2-2.2-4.2 2.2.8-4.7-3.4-3.3 4.7-.7z" fill="white"/>'
+    const sharedMarkerSvg = buildMarkerDataUri(
+      buildMarkerBody("#ffc107", buildMarkerStar("white"))
     );
-    const sharedFavoriteMarkerSvg = buildMarkerSvg(
-      '<path d="M16 1C8.8 1 3 6.8 3 14c0 9.3 13 30 13 30s13-20.7 13-30C29 6.8 23.2 1 16 1z" fill="#007bff" stroke="white" stroke-width="2"/>' +
-        '<path d="M16 8.5l2.1 4.3 4.7.7-3.4 3.3.8 4.7-4.2-2.2-4.2 2.2.8-4.7-3.4-3.3 4.7-.7z" fill="#ffc107"/>'
+    const sharedFavoriteMarkerSvg = buildMarkerDataUri(
+      buildMarkerBody("#007bff", buildMarkerStar("#ffc107"))
     );
     const markerImage = new kakaoMaps.MarkerImage(
       markerSvg,
@@ -189,12 +187,9 @@ export const useHomeMap = ({
       new kakaoMaps.Size(32, 46),
       { offset: new kakaoMaps.Point(16, 46) }
     );
-    const originMarkerSvg =
-      "data:image/svg+xml;utf8," +
-      "<svg xmlns='http://www.w3.org/2000/svg' width='32' height='46' viewBox='0 0 32 46'>" +
-      "<path d='M16 1C8.8 1 3 6.8 3 14c0 9.3 13 30 13 30s13-20.7 13-30C29 6.8 23.2 1 16 1z' fill='%231e3a5f' stroke='white' stroke-width='2'/>" +
-      "<circle cx='16' cy='14' r='5' fill='white'/>" +
-      "</svg>";
+    const originMarkerSvg = buildMarkerDataUri(
+      buildMarkerBody("#1e3a5f", buildMarkerCircle("white"))
+    );
     const originMarkerImage = new kakaoMaps.MarkerImage(
       originMarkerSvg,
       new kakaoMaps.Size(32, 46),
@@ -219,15 +214,10 @@ export const useHomeMap = ({
       groupRestaurants.forEach((item) => {
         const id = Number(item.id ?? item.restaurantId);
         const entry = sharedNameLookup?.[id];
-        if (Array.isArray(entry)) {
-          entry.forEach((name) => {
-            if (name) names.add(String(name));
-          });
-          return;
-        }
-        if (entry) {
-          names.add(String(entry));
-        }
+        if (!Array.isArray(entry)) return;
+        entry.forEach((name) => {
+          if (name) names.add(String(name));
+        });
       });
       const list = Array.from(names);
       if (!list.length) return "";
@@ -361,11 +351,10 @@ export const useHomeMap = ({
         }
 
         if (flags.hasSharedFavorite && labelText) {
+          const overlayContent = `<div style="transform: translate(14px, -36px); background: #ffc107; color: #1e3a5f; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 999px; border: 1px solid #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.15); white-space: nowrap; pointer-events: none;">${labelText}</div>`;
           const existingOverlay = overlayRegistry.get(key);
           if (existingOverlay) {
-            existingOverlay.setContent(
-              `<div style="transform: translate(14px, -36px); background: #ffc107; color: #1e3a5f; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 999px; border: 1px solid #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.15); white-space: nowrap; pointer-events: none;">${labelText}</div>`
-            );
+            existingOverlay.setContent(overlayContent);
             existingOverlay.setPosition(
               new kakaoMaps.LatLng(coords.lat, coords.lng)
             );
@@ -373,7 +362,7 @@ export const useHomeMap = ({
           } else {
             const overlay = new kakaoMaps.CustomOverlay({
               position: new kakaoMaps.LatLng(coords.lat, coords.lng),
-              content: `<div style="transform: translate(14px, -36px); background: #ffc107; color: #1e3a5f; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 999px; border: 1px solid #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.15); white-space: nowrap; pointer-events: none;">${labelText}</div>`,
+              content: overlayContent,
               yAnchor: 1,
               xAnchor: 0,
             });
