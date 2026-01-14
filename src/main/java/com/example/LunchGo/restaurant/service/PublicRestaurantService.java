@@ -65,7 +65,9 @@ public class PublicRestaurantService {
 
     // 실제 비즈니스 로직 (DB 조회 + 좌표 변환) 추출
     private List<RestaurantSummaryResponse> fetchSummariesFromDb() {
-        return restaurantSummaryRepository.findAll().parallelStream()
+        // [개선] 외부 API 호출(I/O-bound)이 포함되어 있으므로, 공용 ForkJoinPool 고갈 방지를 위해 
+        // parallelStream() 대신 일반 stream()을 사용합니다. 캐시 워밍 시 성능보다 안정성을 우선합니다.
+        return restaurantSummaryRepository.findAll().stream()
                 .map(entity -> {
                     // 1. 엔티티를 DTO로 변환
                     RestaurantSummaryResponse response = mapToResponse(entity);
