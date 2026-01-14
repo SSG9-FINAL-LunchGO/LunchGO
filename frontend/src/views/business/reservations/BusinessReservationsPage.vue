@@ -504,6 +504,7 @@ const settlementChartOptions = {
               주간 예약 통계 AI 요약 분석서
             </button>
           </div>
+        </div>
 
         <div class="max-w-7xl mx-auto space-y-8">
           <!-- 정산(최근 30일) 요약 + 추이 -->
