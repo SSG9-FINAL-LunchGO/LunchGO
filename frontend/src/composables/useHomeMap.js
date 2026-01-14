@@ -153,6 +153,11 @@ export const useHomeMap = ({
       new kakaoMaps.Size(32, 46),
       { offset: new kakaoMaps.Point(16, 46) }
     );
+    const favoriteMarkerImage = new kakaoMaps.MarkerImage(
+      favoriteMarkerSvg,
+      new kakaoMaps.Size(32, 46),
+      { offset: new kakaoMaps.Point(16, 46) }
+    );
     const originMarkerSvg =
       "data:image/svg+xml;utf8," +
       "<svg xmlns='http://www.w3.org/2000/svg' width='32' height='46' viewBox='0 0 32 46'>" +
@@ -161,20 +166,28 @@ export const useHomeMap = ({
       "</svg>";
     const originMarkerImage = new kakaoMaps.MarkerImage(
       originMarkerSvg,
-    const favoriteMarkerImage = new kakaoMaps.MarkerImage(
-      favoriteMarkerSvg,
       new kakaoMaps.Size(32, 46),
       { offset: new kakaoMaps.Point(16, 46) }
     );
 
     const distanceLimit = selectedDistanceKm.value;
-    const applyMarkerStyle = (key, marker) => {
-      if (!marker) return;
-      const isSelected = key && selectedMarkerKey.value === key;
-      marker.setImage(isSelected ? selectedMarkerImage : markerImage);
-    };
     const favoriteIds = favoriteIdSet?.value ?? new Set();
-    const markerGroups = new Map();
+    const applyMarkerStyle = (key, marker, restaurantId) => {
+      if (!marker) return;
+      if (key && selectedMarkerKey.value === key) {
+        marker.setImage(selectedMarkerImage);
+        return;
+      }
+      if (
+        restaurantId !== undefined &&
+        restaurantId !== null &&
+        favoriteIds.has(Number(restaurantId))
+      ) {
+        marker.setImage(favoriteMarkerImage);
+        return;
+      }
+      marker.setImage(markerImage);
+    };
 
     if (routeFocus.value && isValidCoords(routeFocus.value)) {
       markerRegistry.forEach((entry) => setMarkerVisible(entry.marker, false));
@@ -209,14 +222,6 @@ export const useHomeMap = ({
       if (distanceLimit && !isWithinDistance(coords, distanceLimit)) {
         continue;
       }
-      const coordKey = `${coords.lat.toFixed(6)},${coords.lng.toFixed(6)}`;
-      const group = markerGroups.get(coordKey) ?? {
-        coords,
-        restaurants: [],
-      };
-      group.restaurants.push(restaurant);
-      markerGroups.set(coordKey, group);
-    }
 
       const key = getRestaurantKey(restaurant);
       nextKeys.add(key);
@@ -237,7 +242,7 @@ export const useHomeMap = ({
           } else if (!existing.marker.getMap()) {
             existing.marker.setMap(mapInstance.value);
           }
-          applyMarkerStyle(key, existing.marker);
+          applyMarkerStyle(key, existing.marker, restaurant?.id);
         } else {
           const marker = new kakaoMaps.Marker({
             position: new kakaoMaps.LatLng(coords.lat, coords.lng),
@@ -251,7 +256,11 @@ export const useHomeMap = ({
               if (entry?.restaurant) {
                 selectedMarkerKey.value = key;
                 markerRegistry.forEach((value, entryKey) => {
-                  applyMarkerStyle(entryKey, value.marker);
+                  applyMarkerStyle(
+                    entryKey,
+                    value.marker,
+                    value.restaurant?.id
+                  );
                 });
                 onMarkerClick(entry.restaurant);
               }
@@ -266,26 +275,10 @@ export const useHomeMap = ({
           } else {
             markerRegistry.set(key, { marker, restaurant, coordsKey });
           }
-          applyMarkerStyle(key, marker);
+          applyMarkerStyle(key, marker, restaurant?.id);
         }
-    for (const group of markerGroups.values()) {
-      const hasFavorite = group.restaurants.some((item) =>
-        favoriteIds.has(Number(item.id))
-      );
-      const marker = new kakaoMaps.Marker({
-        position: new kakaoMaps.LatLng(group.coords.lat, group.coords.lng),
-        title: group.restaurants[0]?.name ?? "",
-        image: hasFavorite ? favoriteMarkerImage : markerImage,
-      });
-
-      try {
-        marker.setMap(mapInstance.value);
-        kakaoMaps.event.addListener(marker, "click", () => {
-          onMarkerClick?.(group.restaurants);
-        });
-        mapMarkers.push(marker);
       } catch (error) {
-        console.error("지도 마커 표시 실패:", group?.restaurants?.[0]?.name, error);
+        console.error("지도 마커 표시 실패:", restaurant?.name, error);
       }
     }
 
