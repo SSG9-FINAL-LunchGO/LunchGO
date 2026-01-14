@@ -47,8 +47,8 @@ const transformRestaurantData = (backendData) => {
     
     // [중요] 좌표 구조 변환 (latitude, longitude -> coords: { lat, lng })
     coords: {
-      lat: backendData.latitude || 0,
-      lng: backendData.longitude || 0,
+      lat: backendData.latitude ?? null,
+      lng: backendData.longitude ?? null,
     },
     
     // 상세 정보 필드들은 목록 조회 시에는 없으므로 기본값 처리
