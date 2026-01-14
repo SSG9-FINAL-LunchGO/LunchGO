@@ -471,9 +471,6 @@ const goToSpeciality = () => {
   router.push({ path: "/mypage", hash: "#speciality-section" });
 };
 
-const openChatbot = async () => {
-  router.push("/chatbot");
-};
 
 const tasteRecommendationSummary = computed(() => {
   if (selectedRecommendation.value !== RECOMMEND_TASTE) {
@@ -2154,7 +2151,7 @@ onBeforeUnmount(() => {
 
     </main>
 
-    <BottomNav @home="resetMapToHome" @chatbot="openChatbot" />
+    <BottomNav @home="resetMapToHome" />
 
     <!-- Filter Modal -->
     <div
