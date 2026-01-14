@@ -59,7 +59,7 @@ ncp.chatbot.secret-key=YOUR_NCP_CHATBOT_SECRET_KEY
   path: '/chatbot',
   name: 'chatbot',
   component: () => import('../views/chatbot/ChatBotPage.vue'),
-  meta: { requiredAuth: false },
+  meta: { requiredAuth: true, roles: ['ROLE_USER'] },
 }
 ```
 
