@@ -24,6 +24,8 @@ public class BusinessReservationCancelService {
     private final ReservationSlotRepository reservationSlotRepository;
     private final BusinessRestaurantService businessRestaurantService;
     private final ReservationCancellationRepository reservationCancellationRepository;
+    private final ReservationRefundService reservationRefundService;
+
 
     @Transactional
     public void cancel(Long reservationId, Long ownerId, BusinessCancelReservationRequest request) {
@@ -61,7 +63,7 @@ public class BusinessReservationCancelService {
                 .build();
         reservationCancellationRepository.save(cancellation);
 
-        reservation.setStatus(ReservationStatus.CANCELLED);
+        reservationRefundService.cancelByOwner(reservationId, reason);
     }
 
     private void ensureCancellable(ReservationStatus status) {
