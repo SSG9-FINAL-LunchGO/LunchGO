@@ -11,6 +11,8 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import java.util.List;
 import com.example.LunchGo.reservation.mapper.row.ReservationMenuItemRow;
+import org.apache.ibatis.annotations.Param;
+import com.example.LunchGo.reservation.mapper.row.ReminderSendRow;
 
 
 @Mapper
@@ -100,4 +102,5 @@ public interface ReservationMapper {
 
     List<ReservationDailyTypeStatsRow> selectLast30DaysReservationTypeStats(@Param("restaurantId") Long restaurantId);
 
+    ReminderSendRow selectCancelNoticeTarget(@Param("reservationId") Long reservationId);
 }
