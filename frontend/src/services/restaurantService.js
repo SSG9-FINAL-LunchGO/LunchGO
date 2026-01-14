@@ -42,8 +42,10 @@ const transformRestaurantData = (backendData) => {
     
     image: backendData.image || "/placeholder.svg",
     
-    // [중요] 필드명 매핑 (roadAddress -> address)
-    address: backendData.roadAddress || "",
+    // [중요] 필드명 매핑 (roadAddress + detailAddress -> address)
+    address: [backendData.roadAddress, backendData.detailAddress]
+      .filter(Boolean)
+      .join(" "),
     
     // [중요] 좌표 구조 변환 (latitude, longitude -> coords: { lat, lng })
     coords: {
