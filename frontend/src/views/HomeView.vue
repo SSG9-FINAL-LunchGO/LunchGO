@@ -27,6 +27,7 @@ import { restaurants as restaurantData } from "@/data/restaurants";
 import AppHeader from "@/components/ui/AppHeader.vue";
 import HomeSearchBar from "@/components/ui/HomeSearchBar.vue";
 import HomeRecommendationContent from "@/components/ui/HomeRecommendationContent.vue";
+import HomeRecommendationHeader from "@/components/ui/HomeRecommendationHeader.vue";
 import HomePagination from "@/components/ui/HomePagination.vue";
 import { useCafeteriaRecommendation } from "@/composables/useCafeteriaRecommendation";
 import { useTrendingRestaurants } from "@/composables/useTrendingRestaurants";
@@ -38,6 +39,10 @@ import { useHomePersistence } from "@/composables/useHomePersistence";
 import { useHomeMap } from "@/composables/useHomeMap";
 import { useAccountStore } from "@/stores/account";
 import { useFavorites } from "@/composables/useFavorites";
+import {
+  formatRouteDistance,
+  formatRouteDurationDetailed,
+} from "@/utils/formatters";
 import axios from "axios";
 import httpRequest from "@/router/httpRequest.js";
 
@@ -160,6 +165,87 @@ const categories = ref([]);
 const restaurantTags = ref([]);
 const ingredients = ref([]);
 const hasAutoRefreshedCafeteria = ref(false);
+const isBudgetLoading = ref(false);
+const isCafeteriaLoading = ref(false);
+const ingredientEmojiMap = {
+  계란: "🥚",
+  우유: "🥛",
+  유제품: "🥛",
+  치즈: "🧀",
+  땅콩: "🥜",
+  견과류: "🥜",
+  아몬드: "🥜",
+  호두: "🥜",
+  대두: "🫘",
+  콩: "🫘",
+  밀: "🌾",
+  메밀: "🌾",
+  새우: "🦐",
+  게: "🦀",
+  갑각류: "🦐",
+  오징어: "🦑",
+  생선: "🐟",
+  조개: "🐚",
+  굴: "🦪",
+  토마토: "🍅",
+  복숭아: "🍑",
+  닭: "🍗",
+  돼지: "🐷",
+  소고기: "🥩",
+  고수: "🌿",
+  오이: "🥒",
+  비건: "🥗",
+  매운: "🌶️",
+  매운맛: "🌶️",
+};
+
+const getIngredientEmoji = (ingredient) => {
+  if (!ingredient) return "";
+  const match = Object.entries(ingredientEmojiMap).find(([key]) =>
+    ingredient.includes(key)
+  );
+  return match ? match[1] : "";
+};
+
+const restaurantTagEmojiMap = {
+  단체: "👥",
+  회식: "🍻",
+  모임: "🧑‍🤝‍🧑",
+  혼밥: "🍽️",
+  가족: "👨‍👩‍👧‍👦",
+  데이트: "💕",
+  뷰: "🌆",
+  경치: "🌆",
+  분위기: "🕯️",
+  조용: "🤫",
+  활기: "🎉",
+  룸: "🚪",
+  프라이빗: "🔒",
+  와인: "🍷",
+  주류: "🍺",
+  가성비: "💸",
+  예약: "📌",
+  주차: "🅿️",
+  포장: "🥡",
+  배달: "🛵",
+  반려동물: "🐾",
+  키즈: "🧒",
+  휠체어: "♿",
+  장애인: "♿",
+  콜키지: "🍷",
+  와이파이: "📶",
+  WiFi: "📶",
+  와이파이존: "📶",
+  "24시간": "🕒",
+};
+
+const getRestaurantTagEmoji = (tag) => {
+  if (!tag) return "";
+  const match = Object.entries(restaurantTagEmojiMap).find(([key]) =>
+    tag.includes(key)
+  );
+  return match ? match[1] : "";
+};
 
 const fetchSearchTags = async () => {
   try {
@@ -307,6 +393,10 @@ const {
   applyUserMapCenter,
   isWithinDistance,
   calculateDistanceKm,
+  drawRoute,
+  clearRoute,
+  setRouteFocus,
+  clearRouteFocus,
 } = useHomeMap({
   isLoggedIn,
   fetchUserAddress,
@@ -425,9 +515,67 @@ const weatherThemeStyle = computed(() => {
 const formatTemp = (value) =>
   Number.isFinite(value) ? `${Math.round(value)}°` : "--°";
 const weatherDisplayLabel = computed(() => weatherThemeStyle.value?.label || "");
+const formatRouteDuration = formatRouteDurationDetailed;
+const isRecommendationLoading = computed(() => {
+  if (selectedRecommendation.value === RECOMMEND_WEATHER) {
+    return isWeatherLoading.value;
+  }
+  if (selectedRecommendation.value === RECOMMEND_TASTE) {
+    return isTagMappingLoading.value;
+  }
+  if (selectedRecommendation.value === RECOMMEND_BUDGET) {
+    return isBudgetLoading.value;
+  }
+  return false;
+});
+const activeRecommendationHeader = computed(() => {
+  if (
+    selectedRecommendation.value === RECOMMEND_CAFETERIA ||
+    cafeteriaRecommendations.value.length ||
+    isCafeteriaLoading.value
+  ) {
+    return {
+      title: "구내식당 대체 추천",
+      onClear: () => clearRecommendation(RECOMMEND_CAFETERIA),
+    };
+  }
+  if (isTrendingSort.value) {
+    return {
+      title: "이달의 회식 맛집 추천",
+      onClear: clearTrendingRecommendation,
+      isLoading: isTrendingLoading.value,
+    };
+  }
+  if (selectedRecommendation.value === RECOMMEND_WEATHER) {
+    return {
+      title: "날씨 추천",
+      onClear: () => clearRecommendation(RECOMMEND_WEATHER),
+    };
+  }
+  if (selectedRecommendation.value === RECOMMEND_TASTE) {
+    return {
+      title: "취향 맞춤 추천",
+      subtitle: tasteRecommendationSummary.value,
+      description:
+        "나와 팀원의 특이사항 태그를 기반으로 매칭 점수가 높은 식당을 골랐어요.",
+      onClear: () => clearRecommendation(RECOMMEND_TASTE),
+    };
+  }
+  if (selectedRecommendation.value === RECOMMEND_BUDGET) {
+    return {
+      title: "예산 맞춤 추천",
+      subtitle: `1인당 ${filterPerPersonBudgetDisplay.value}`,
+      onClear: () => clearRecommendation(RECOMMEND_BUDGET),
+    };
+  }
+  return null;
+});
 
 const restaurantsPerPage = 10;
 const currentPage = ref(1);
+const routeInfo = ref(null);
+const routeError = ref("");
+const routeLoadingId = ref(null);
 const isTrendingSort = computed(() => selectedRecommendation.value === RECOMMEND_TRENDING);
 const restaurantIndexById = new Map(
     restaurants.map((restaurant) => [String(restaurant.id), restaurant])
@@ -473,6 +621,59 @@ const getSortId = (restaurant) => {
   const value = Number(restaurant?.id);
   return Number.isFinite(value) ? value : 0;
 };
+const handleCheckRoute = async (restaurant) => {
+  if (!restaurant) return;
+  routeError.value = "";
+  routeInfo.value = null;
+  routeLoadingId.value = restaurant.id ?? restaurant.restaurantId ?? null;
+
+  try {
+    const coords = await resolveRestaurantCoords(restaurant);
+    if (!coords) {
+      routeError.value = "경로를 확인할 수 없습니다.";
+      return;
+    }
+    setRouteFocus(coords, restaurant.name);
+    if (
+      !Number.isFinite(mapCenter.value?.lat) ||
+      !Number.isFinite(mapCenter.value?.lng)
+    ) {
+      routeError.value = "회사 위치를 확인할 수 없습니다.";
+      return;
+    }
+    const response = await httpRequest.post("/api/map/route", {
+      origin: { lat: mapCenter.value.lat, lng: mapCenter.value.lng },
+      destination: { lat: coords.lat, lng: coords.lng },
+    });
+    const data = response?.data || {};
+    if (Array.isArray(data.path) && data.path.length) {
+      drawRoute(data.path);
+    }
+    setRouteFocus(coords, restaurant.name);
+    routeInfo.value = {
+      restaurantId: restaurant.id ?? restaurant.restaurantId ?? null,
+      restaurantName: restaurant.name,
+      distanceMeters: data.distanceMeters ?? null,
+      durationSeconds: data.durationSeconds ?? null,
+    };
+  } catch (error) {
+    routeError.value = "경로를 불러오지 못했습니다.";
+  } finally {
+    routeLoadingId.value = null;
+  }
+};
+
+const clearRouteInfo = () => {
+  routeInfo.value = null;
+  routeError.value = "";
+  routeLoadingId.value = null;
+  clearRoute();
+  clearRouteFocus();
+};
+
+watch(selectedRecommendation, () => {
+  clearRouteInfo();
+});
 const processedRestaurants = computed(() => {
   let result = activeRestaurantSource.value.slice();
 
@@ -1050,6 +1251,23 @@ const resetFilters = () => {
   clearTagMappingRecommendations();
 };
 
+const runBudgetRecommendations = (budget) => {
+  isBudgetLoading.value = true;
+  setTimeout(() => {
+    fetchBudgetRecommendations(budget);
+    isBudgetLoading.value = false;
+  }, 0);
+};
+
+const runCafeteriaRecommendations = async (baseDate) => {
+  isCafeteriaLoading.value = true;
+  try {
+    await requestCafeteriaRecommendations(baseDate);
+  } finally {
+    isCafeteriaLoading.value = false;
+  }
+};
+
 const closeFilterModal = () => {
   resetFilters();
   selectedSort.value = sortOptions[0];
@@ -1072,7 +1290,7 @@ const handleCafeteriaMenuEdit = () => {
 };
 
 const handleCafeteriaRecommendNow = async () => {
-  await requestCafeteriaRecommendations(resolveCafeteriaBaseDate());
+  await runCafeteriaRecommendations(resolveCafeteriaBaseDate());
   isFilterOpen.value = false;
 };
 
@@ -1347,7 +1565,7 @@ onMounted(async () => {
         }
       }
       if (selectedRecommendation.value === RECOMMEND_BUDGET) {
-        fetchBudgetRecommendations(filterPerPersonBudget.value);
+        runBudgetRecommendations(filterPerPersonBudget.value);
       }
       if (selectedRecommendation.value === RECOMMEND_WEATHER) {
         fetchWeatherRecommendationsForCenter();
@@ -1411,7 +1629,7 @@ const {
   filterForm,
   sortOptions,
   filterPerPersonBudget,
-  fetchBudgetRecommendations,
+  fetchBudgetRecommendations: runBudgetRecommendations,
   clearBudgetRecommendations,
   fetchWeatherRecommendations: fetchWeatherRecommendationsForCenter,
   clearWeatherRecommendations,
@@ -1423,7 +1641,7 @@ const {
   resolveCafeteriaBaseDate,
   checkCafeteriaMenuStatus,
   openCafeteriaModal,
-  requestCafeteriaRecommendations,
+  requestCafeteriaRecommendations: runCafeteriaRecommendations,
   hasConfirmedMenus,
   currentPage,
   isFilterOpen,
@@ -1492,10 +1710,10 @@ onBeforeUnmount(() => {
       <div class="relative h-64">
         <div ref="mapContainer" class="w-full h-full" />
         <div
-            class="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/20 via-transparent to-transparent"
+            class="absolute inset-0 pointer-events-none bg-gradient-to-t from-black/20 via-transparent to-transparent z-0"
         />
         <div
-            class="absolute top-4 right-4 z-10 pointer-events-auto flex flex-col items-center gap-2"
+            class="absolute top-4 right-4 z-20 pointer-events-auto flex flex-col items-center gap-2"
         >
           <button
               @click="changeMapDistance(-1)"
@@ -1524,131 +1742,172 @@ onBeforeUnmount(() => {
           </div>
         </div>
         <div
-            class="absolute bottom-4 left-4 bg-white/90 backdrop-blur px-4 py-2 rounded-full shadow-card flex items-center gap-2 text-sm text-[#1e3a5f]"
+          v-if="routeInfo || routeError"
+          class="absolute bottom-4 right-4 z-20 max-w-[220px] bg-white/95 backdrop-blur px-3 py-2 rounded-xl shadow-card text-xs text-[#1e3a5f]"
         >
-          <MapPin class="w-4 h-4 text-[#ff6b4a]" />
-          <span>{{ currentLocation }} · {{ currentDistanceLabel }} 반경</span>
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <p v-if="routeInfo" class="font-semibold truncate">
+                {{ routeInfo.restaurantName }}
+              </p>
+              <p v-if="routeError" class="text-red-500">
+                {{ routeError }}
+              </p>
+              <p v-else class="text-[11px] text-[#6c757d] mt-1">
+                거리 {{ formatRouteDistance(routeInfo?.distanceMeters) }} ·
+                예상 {{ formatRouteDuration(routeInfo?.durationSeconds) }}
+              </p>
+            </div>
+            <button
+              type="button"
+              class="text-[#adb5bd] hover:text-[#6c757d]"
+              @click="clearRouteInfo"
+            >
+              <X class="w-3 h-3" />
+            </button>
+          </div>
         </div>
       </div>
 
       <div
-        class="px-4 py-5 relative overflow-hidden"
+        class="relative overflow-hidden"
         :class="weatherThemeStyle ? `rounded-3xl ${weatherThemeStyle.wrapperClass}` : ''"
       >
-        <div
-            v-if="!isLoggedIn"
-            class="mb-3 rounded-2xl border border-[#e9ecef] bg-white py-2 px-4 text-[13px] text-gray-700 whitespace-nowrap text-center"
-        >
-          로그인하면 취향/예산/구내식당 등 다양한 추천을 받을 수 있어요.
-        </div>
-
-        <div v-if="isLoggedIn" class="mb-3">
-          <div class="flex items-center gap-2">
-            <button
-              v-for="option in recommendationButtons"
-              :key="option.value"
-              type="button"
-              @click="handleRecommendationQuickSelect(option.value)"
-              :class="`px-2.5 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap transition-colors ${
-                selectedRecommendation === option.value
-                  ? 'gradient-primary text-white border border-transparent'
-                  : 'bg-white text-gray-700 border border-[#dee2e6] hover:bg-[#f8f9fa]'
-              }`"
-            >
-              <span class="inline-flex items-center gap-1">
-                <span v-if="option.emoji">{{ option.emoji }}</span>
-                <span>{{ option.label }}</span>
-              </span>
-            </button>
+        <div class="px-4 pt-5 pb-0 shrink-0 bg-[#f8f9fa] -mb-px">
+          <div
+              v-if="!isLoggedIn"
+              class="mb-3 rounded-2xl border border-[#e9ecef] bg-white py-2 px-4 text-[13px] text-gray-700 whitespace-nowrap text-center"
+          >
+            로그인하면 취향/예산/구내식당 등 다양한 추천을 받을 수 있어요.
           </div>
-        </div>
 
-        <div
-          v-if="weatherThemeStyle && selectedRecommendation === RECOMMEND_WEATHER && weatherSummary"
-          class="mb-3 rounded-2xl border border-white/60 bg-white/70 backdrop-blur px-4 py-3"
-        >
-          <div class="flex items-center justify-between gap-4">
-            <div class="flex items-center gap-3">
-              <span class="text-2xl">{{ weatherThemeStyle.emoji }}</span>
-              <div>
-                <p class="text-sm font-semibold" :class="weatherThemeStyle.accentClass">
-                  오늘 날씨
+          <div v-if="isLoggedIn" class="mb-3">
+            <div class="flex items-center gap-2">
+              <button
+                v-for="option in recommendationButtons"
+                :key="option.value"
+                type="button"
+                @click="handleRecommendationQuickSelect(option.value)"
+                :class="`px-2.5 py-1 rounded-md text-[11px] font-semibold whitespace-nowrap transition-colors ${
+                  selectedRecommendation === option.value
+                    ? 'gradient-primary text-white border border-transparent'
+                    : 'bg-white text-gray-700 border border-[#dee2e6] hover:bg-[#f8f9fa]'
+                }`"
+              >
+                <span class="inline-flex items-center gap-1">
+                  <span v-if="option.emoji">{{ option.emoji }}</span>
+                  <span>{{ option.label }}</span>
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <div
+            v-if="weatherThemeStyle && selectedRecommendation === RECOMMEND_WEATHER && weatherSummary"
+            class="mb-3 rounded-2xl border border-white/60 bg-white/70 backdrop-blur px-4 py-3"
+          >
+            <div class="flex items-center justify-between gap-4">
+              <div class="flex items-center gap-3">
+                <span class="text-2xl">{{ weatherThemeStyle.emoji }}</span>
+                <div>
+                  <p class="text-sm font-semibold" :class="weatherThemeStyle.accentClass">
+                    오늘 날씨
+                  </p>
+                  <p class="text-xs text-gray-700">
+                    {{ weatherDisplayLabel }}
+                  </p>
+                </div>
+              </div>
+              <div class="text-right">
+                <p class="text-lg font-semibold text-[#1e3a5f]">
+                  {{ formatTemp(weatherSummary.temp) }}
                 </p>
-                <p class="text-xs text-gray-700">
-                  {{ weatherDisplayLabel }}
+                <p class="text-xs text-gray-600">
+                  체감 {{ formatTemp(weatherSummary.feelsLike) }}
                 </p>
               </div>
             </div>
-            <div class="text-right">
-              <p class="text-lg font-semibold text-[#1e3a5f]">
-                {{ formatTemp(weatherSummary.temp) }}
-              </p>
-              <p class="text-xs text-gray-600">
-                체감 {{ formatTemp(weatherSummary.feelsLike) }}
-              </p>
-            </div>
           </div>
+          <div
+            v-else-if="selectedRecommendation === RECOMMEND_WEATHER && weatherError"
+            class="mb-3 rounded-2xl border border-[#e9ecef] bg-white px-4 py-3 text-sm text-gray-700"
+          >
+            {{ weatherError }}
+          </div>
+
+          <HomeSearchBar
+              :onOpenFilter="openFilterModal"
+              :onOpenSearch="openSearchModal"
+          />
         </div>
-        <div
-          v-else-if="selectedRecommendation === RECOMMEND_WEATHER && weatherError"
-          class="mb-3 rounded-2xl border border-[#e9ecef] bg-white px-4 py-3 text-sm text-gray-700"
-        >
-          {{ weatherError }}
+
+        <div v-if="activeRecommendationHeader" class="mt-3 px-4">
+          <HomeRecommendationHeader
+              :title="activeRecommendationHeader.title"
+              :subtitle="activeRecommendationHeader.subtitle"
+              :description="activeRecommendationHeader.description"
+              :isLoading="activeRecommendationHeader.isLoading"
+              :onClear="activeRecommendationHeader.onClear"
+          />
         </div>
 
-        <HomeSearchBar
-            :onOpenFilter="openFilterModal"
-            :onOpenSearch="openSearchModal"
-        />
+        <div class="mt-4 max-h-[60vh] overflow-y-auto px-4 pb-6">
+          <HomeRecommendationContent
+              :isLoggedIn="isLoggedIn"
+              :cafeteriaRecommendations="cafeteriaRecommendations"
+              :recommendationButtons="recommendationButtons"
+              :selectedRecommendation="selectedRecommendation"
+              :recommendWeatherKey="RECOMMEND_WEATHER"
+              :recommendTasteKey="RECOMMEND_TASTE"
+              :recommendBudgetKey="RECOMMEND_BUDGET"
+              :isTrendingSort="isTrendingSort"
+              :isTrendingLoading="isTrendingLoading"
+              :trendingError="trendingError"
+              :trendingCards="trendingCards"
+              :isRecommendationLoading="isRecommendationLoading"
+              :isCafeteriaLoading="isCafeteriaLoading"
+              :tagMappingNotice="tagMappingNotice"
+              :tasteRecommendationSummary="tasteRecommendationSummary"
+              :filterPerPersonBudgetDisplay="filterPerPersonBudgetDisplay"
+              :paginatedRestaurants="paginatedRestaurants"
+              :showRouteButton="Boolean(selectedRecommendation)"
+              :onCheckRoute="handleCheckRoute"
+              :routeLoadingId="routeLoadingId"
+              :routeInfo="routeInfo"
+              :stickyHeaders="false"
+              :hideHeaders="true"
+              :onSelectRecommendation="handleRecommendationQuickSelect"
+              :onOpenSearch="() => (isSearchOpen = true)"
+              :onClearCafeteria="() => clearRecommendation(RECOMMEND_CAFETERIA)"
+              :onClearTrending="clearTrendingRecommendation"
+              :onClearWeather="() => clearRecommendation(RECOMMEND_WEATHER)"
+              :onClearTaste="() => clearRecommendation(RECOMMEND_TASTE)"
+              :onClearBudget="() => clearRecommendation(RECOMMEND_BUDGET)"
+              :isCafeteriaModalOpen="isCafeteriaModalOpen"
+              :isCafeteriaOcrLoading="isCafeteriaOcrLoading"
+              :cafeteriaOcrResult="cafeteriaOcrResult"
+              :cafeteriaDaysDraft="cafeteriaDaysDraft"
+              :cafeteriaOcrError="cafeteriaOcrError"
+              :cafeteriaImageUrl="cafeteriaImageUrl"
+              :onCafeteriaModalClose="() => (isCafeteriaModalOpen = false)"
+              :onCafeteriaFileChange="handleCafeteriaFileChange"
+              :onCafeteriaOcr="() => handleCafeteriaOcr(resolveCafeteriaBaseDate())"
+              :onCafeteriaConfirm="handleCafeteriaConfirmAndClose"
+          />
 
-        <HomeRecommendationContent
-            :isLoggedIn="isLoggedIn"
-            :cafeteriaRecommendations="cafeteriaRecommendations"
-            :recommendationButtons="recommendationButtons"
-            :selectedRecommendation="selectedRecommendation"
-            :recommendWeatherKey="RECOMMEND_WEATHER"
-            :recommendTasteKey="RECOMMEND_TASTE"
-            :recommendBudgetKey="RECOMMEND_BUDGET"
-            :isTrendingSort="isTrendingSort"
-            :isTrendingLoading="isTrendingLoading"
-            :trendingError="trendingError"
-            :trendingCards="trendingCards"
-            :isWeatherLoading="isWeatherLoading"
-            :tagMappingNotice="tagMappingNotice"
-            :tagMappingError="tagMappingError"
-            :tasteRecommendationSummary="tasteRecommendationSummary"
-            :filterPerPersonBudgetDisplay="filterPerPersonBudgetDisplay"
-            :paginatedRestaurants="paginatedRestaurants"
-            @goToSpeciality="goToSpeciality"
-            :onSelectRecommendation="handleRecommendationQuickSelect"
-            :onOpenSearch="() => (isSearchOpen = true)"
-            :onClearCafeteria="() => clearRecommendation(RECOMMEND_CAFETERIA)"
-            :onClearTrending="clearTrendingRecommendation"
-            :onClearWeather="() => clearRecommendation(RECOMMEND_WEATHER)"
-            :onClearTaste="() => clearRecommendation(RECOMMEND_TASTE)"
-            :onClearBudget="() => clearRecommendation(RECOMMEND_BUDGET)"
-            :isCafeteriaModalOpen="isCafeteriaModalOpen"
-            :isCafeteriaOcrLoading="isCafeteriaOcrLoading"
-            :cafeteriaOcrResult="cafeteriaOcrResult"
-            :cafeteriaDaysDraft="cafeteriaDaysDraft"
-            :cafeteriaOcrError="cafeteriaOcrError"
-            :cafeteriaImageUrl="cafeteriaImageUrl"
-            :onCafeteriaModalClose="() => (isCafeteriaModalOpen = false)"
-            :onCafeteriaFileChange="handleCafeteriaFileChange"
-            :onCafeteriaOcr="() => handleCafeteriaOcr(resolveCafeteriaBaseDate())"
-            :onCafeteriaConfirm="handleCafeteriaConfirmAndClose"
-        />
+          <HomePagination
+              :show="!cafeteriaRecommendations.length && !isTrendingSort && totalPages > 1"
+              :pageNumbers="pageNumbers"
+              :currentPage="currentPage"
+              :canGoPrevious="canGoPrevious"
+              :canGoNext="canGoNext"
+              :onGoPrevious="goToPreviousPage"
+              :onGoNext="goToNextPage"
+              :onGoToPage="goToPage"
+          />
+        </div>
 
-        <HomePagination
-            :show="!cafeteriaRecommendations.length && !isTrendingSort && totalPages > 1"
-            :pageNumbers="pageNumbers"
-            :currentPage="currentPage"
-            :canGoPrevious="canGoPrevious"
-            :canGoNext="canGoNext"
-            :onGoPrevious="goToPreviousPage"
-            :onGoNext="goToNextPage"
-            :onGoToPage="goToPage"
-        />
+        <AppFooter />
       </div>
 
       <div
@@ -1714,7 +1973,6 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <AppFooter />
     </main>
 
     <BottomNav @home="resetMapToHome" />
@@ -2110,7 +2368,12 @@ onBeforeUnmount(() => {
                     : 'bg-[#f8f9fa] text-gray-700 hover:bg-[#e9ecef]'
                 }`"
               >
-                {{ tag }}
+                <span class="inline-flex items-center gap-2">
+                  <span v-if="getRestaurantTagEmoji(tag)" class="text-base">
+                    {{ getRestaurantTagEmoji(tag) }}
+                  </span>
+                  <span>{{ tag }}</span>
+                </span>
               </button>
             </div>
           </div>
@@ -2129,7 +2392,12 @@ onBeforeUnmount(() => {
                     : 'bg-[#f8f9fa] text-gray-700 hover:bg-[#e9ecef]'
                 }`"
               >
-                {{ ingredient }}
+                <span class="inline-flex items-center gap-2">
+                  <span v-if="getIngredientEmoji(ingredient)" class="text-base">
+                    {{ getIngredientEmoji(ingredient) }}
+                  </span>
+                  <span>{{ ingredient }}</span>
+                </span>
               </button>
             </div>
           </div>

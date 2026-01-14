@@ -2,6 +2,7 @@
 import Button from "@/components/ui/Button.vue";
 import CafeteriaMenuUploadModal from "@/components/ui/CafeteriaMenuUploadModal.vue";
 import RestaurantCardList from "@/components/ui/RestaurantCardList.vue";
+import RestaurantCardSkeletonList from "@/components/ui/RestaurantCardSkeletonList.vue";
 
 defineProps({
   recommendations: {
@@ -31,6 +32,34 @@ defineProps({
   onClearRecommendations: {
     type: Function,
     required: true,
+  },
+  showRouteButton: {
+    type: Boolean,
+    default: false,
+  },
+  onCheckRoute: {
+    type: Function,
+    default: () => {},
+  },
+  routeLoadingId: {
+    type: [Number, String],
+    default: null,
+  },
+  routeInfo: {
+    type: Object,
+    default: null,
+  },
+  stickyHeader: {
+    type: Boolean,
+    default: false,
+  },
+  hideHeader: {
+    type: Boolean,
+    default: false,
+  },
+  isLoading: {
+    type: Boolean,
+    default: false,
   },
   isModalOpen: {
     type: Boolean,
@@ -77,7 +106,13 @@ defineProps({
 
 <template>
   <div>
-    <div v-if="recommendations.length || showButtons" class="flex items-center justify-between mb-3">
+    <div
+      v-if="!hideHeader && (recommendations.length || showButtons)"
+      :class="stickyHeader
+        ? 'sticky -top-px z-30 bg-[#f8f9fa] pt-2 pb-3 shadow-header-seam'
+        : 'mb-3'"
+      class="flex items-center justify-between"
+    >
       <template v-if="recommendations.length">
         <h3 class="text-base font-semibold text-[#1e3a5f]">
           구내식당 대체 추천
@@ -113,7 +148,9 @@ defineProps({
       </template>
     </div>
 
-    <div v-if="recommendations.length" class="space-y-5">
+    <RestaurantCardSkeletonList v-if="isLoading" :count="3" />
+
+    <div v-else-if="recommendations.length" class="space-y-5">
       <div
         v-for="day in recommendations"
         :key="`${day.day}-${day.date}`"
@@ -134,7 +171,13 @@ defineProps({
             본인+팀 선호 반영
           </span>
         </div>
-        <RestaurantCardList :restaurants="day.restaurants || []" />
+        <RestaurantCardList
+          :restaurants="day.restaurants || []"
+          :showRouteButton="showRouteButton"
+          :onCheckRoute="onCheckRoute"
+          :routeLoadingId="routeLoadingId"
+          :routeInfo="routeInfo"
+        />
       </div>
     </div>
 
@@ -152,3 +195,9 @@ defineProps({
     />
   </div>
 </template>
+
+<style scoped>
+.shadow-header-seam {
+  box-shadow: 0 1px 0 #f8f9fa;
+}
+</style>

@@ -44,6 +44,14 @@ defineProps({
     type: Boolean,
     default: false,
   },
+  isRecommendationLoading: {
+    type: Boolean,
+    default: false,
+  },
+  isCafeteriaLoading: {
+    type: Boolean,
+    default: false,
+  },
   trendingError: {
     type: String,
     default: "",
@@ -51,10 +59,6 @@ defineProps({
   trendingCards: {
     type: Array,
     default: () => [],
-  },
-  isWeatherLoading: {
-    type: Boolean,
-    default: false,
   },
   tagMappingNotice: {
     type: String,
@@ -75,6 +79,22 @@ defineProps({
   paginatedRestaurants: {
     type: Array,
     default: () => [],
+  },
+  showRouteButton: {
+    type: Boolean,
+    default: false,
+  },
+  onCheckRoute: {
+    type: Function,
+    default: () => {},
+  },
+  routeLoadingId: {
+    type: [Number, String],
+    default: null,
+  },
+  routeInfo: {
+    type: Object,
+    default: null,
   },
   onSelectRecommendation: {
     type: Function,
@@ -105,6 +125,14 @@ defineProps({
     required: true,
   },
   isCafeteriaModalOpen: {
+    type: Boolean,
+    default: false,
+  },
+  stickyHeaders: {
+    type: Boolean,
+    default: false,
+  },
+  hideHeaders: {
     type: Boolean,
     default: false,
   },
@@ -148,7 +176,7 @@ defineProps({
 </script>
 
 <template>
-  <div class="space-y-4">
+  <div :class="stickyHeaders ? 'space-y-0' : 'space-y-4'">
     <CafeteriaRecommendationSection
       v-if="isLoggedIn"
       :recommendations="cafeteriaRecommendations"
@@ -158,6 +186,13 @@ defineProps({
       :show-buttons="false"
       :onOpenSearch="onOpenSearch"
       :onClearRecommendations="onClearCafeteria"
+      :showRouteButton="showRouteButton"
+      :onCheckRoute="onCheckRoute"
+      :routeLoadingId="routeLoadingId"
+      :routeInfo="routeInfo"
+      :stickyHeader="stickyHeaders"
+      :hideHeader="hideHeaders"
+      :isLoading="isCafeteriaLoading"
       :isModalOpen="isCafeteriaModalOpen"
       :isProcessing="isCafeteriaOcrLoading"
       :ocrResult="cafeteriaOcrResult"
@@ -182,35 +217,57 @@ defineProps({
       :error="trendingError"
       :cards="trendingCards"
       :onClear="onClearTrending"
-    />
-
-    <HomeRecommendationHeader
-      v-if="!cafeteriaRecommendations.length && selectedRecommendation === recommendWeatherKey"
-      title="날씨 추천"
-      :onClear="onClearWeather"
-    />
-
-    <HomeRecommendationHeader
-      v-if="!cafeteriaRecommendations.length && selectedRecommendation === recommendTasteKey"
-      title="취향 맞춤 추천"
-      :subtitle="tasteRecommendationSummary"
-      description="나와 팀원의 특이사항 태그를 기반으로 매칭 점수가 높은 식당을 골랐어요."
-      :onClear="onClearTaste"
-    />
-
-    <HomeRecommendationHeader
-      v-if="!cafeteriaRecommendations.length && selectedRecommendation === recommendBudgetKey"
-      title="예산 맞춤 추천"
-      :subtitle="`1인당 ${filterPerPersonBudgetDisplay}`"
-      :onClear="onClearBudget"
+      :showRouteButton="showRouteButton"
+      :onCheckRoute="onCheckRoute"
+      :routeLoadingId="routeLoadingId"
+      :routeInfo="routeInfo"
+      :stickyHeader="stickyHeaders"
+      :hideHeader="hideHeaders"
     />
 
     <div
-      v-if="!cafeteriaRecommendations.length && selectedRecommendation === recommendWeatherKey && isWeatherLoading"
-      class="px-4"
+      v-if="!hideHeaders && !cafeteriaRecommendations.length && selectedRecommendation === recommendWeatherKey"
+      :class="stickyHeaders
+        ? 'sticky -top-px z-30 bg-[#f8f9fa] pt-2 pb-3 shadow-header-seam'
+        : 'mb-3'"
     >
-      <RestaurantCardSkeletonList :count="3" />
+      <HomeRecommendationHeader
+        title="날씨 추천"
+        :onClear="onClearWeather"
+      />
     </div>
+
+    <div
+      v-if="!hideHeaders && !cafeteriaRecommendations.length && selectedRecommendation === recommendTasteKey"
+      :class="stickyHeaders
+        ? 'sticky -top-px z-30 bg-[#f8f9fa] pt-2 pb-3 shadow-header-seam'
+        : 'mb-3'"
+    >
+      <HomeRecommendationHeader
+        title="취향 맞춤 추천"
+        :subtitle="tasteRecommendationSummary"
+        description="나와 팀원의 특이사항 태그를 기반으로 매칭 점수가 높은 식당을 골랐어요."
+        :onClear="onClearTaste"
+      />
+    </div>
+
+    <div
+      v-if="!hideHeaders && !cafeteriaRecommendations.length && selectedRecommendation === recommendBudgetKey"
+      :class="stickyHeaders
+        ? 'sticky -top-px z-30 bg-[#f8f9fa] pt-2 pb-3 shadow-header-seam'
+        : 'mb-3'"
+    >
+      <HomeRecommendationHeader
+        title="예산 맞춤 추천"
+        :subtitle="`1인당 ${filterPerPersonBudgetDisplay}`"
+        :onClear="onClearBudget"
+      />
+    </div>
+
+    <RestaurantCardSkeletonList
+      v-if="!cafeteriaRecommendations.length && !isTrendingSort && isRecommendationLoading"
+      :count="3"
+    />
 
     <div
       v-else-if="!cafeteriaRecommendations.length && !isTrendingSort && !paginatedRestaurants.length"
@@ -229,6 +286,16 @@ defineProps({
     <RestaurantCardList
       v-else-if="!cafeteriaRecommendations.length && !isTrendingSort"
       :restaurants="paginatedRestaurants"
+      :showRouteButton="showRouteButton"
+      :onCheckRoute="onCheckRoute"
+      :routeLoadingId="routeLoadingId"
+      :routeInfo="routeInfo"
     />
   </div>
 </template>
+
+<style scoped>
+.shadow-header-seam {
+  box-shadow: 0 1px 0 #f8f9fa;
+}
+</style>
