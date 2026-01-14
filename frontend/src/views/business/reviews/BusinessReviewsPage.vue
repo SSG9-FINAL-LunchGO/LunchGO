@@ -38,7 +38,6 @@ const pageSize = 10;
 const currentPage = ref(1);
 const totalReviews = ref(0);
 const reviewSummary = ref(null);
-const statsReviews = ref([]);
 
 // 모달 상태
 const isImageModalOpen = ref(false);
@@ -79,9 +78,7 @@ const getReportStatusFromReviewStatus = (status) => {
 
 // 통계 계산
 const stats = computed(() => {
-  const baseReviews =
-    statsReviews.value.length > 0 ? statsReviews.value : reviews.value;
-  const validReviews = baseReviews.filter((r) => !r.author.isBlind);
+  const validReviews = reviews.value.filter((r) => !r.author.isBlind);
   const summary = reviewSummary.value;
   const totalReviewCount =
     summary?.reviewCount ?? totalReviews.value ?? validReviews.length;
@@ -92,11 +89,11 @@ const stats = computed(() => {
         validReviews.length
       : 0);
   const avgRating = Number(avgValue).toFixed(1);
-  const totalComments = baseReviews.filter((r) => r.comments.length > 0).length;
-  const needsResponse = baseReviews.filter(
-    (r) => !r.author.isBlind && r.comments.length === 0
+  const totalComments = reviews.value.filter((r) => (r.commentCount ?? 0) > 0).length;
+  const needsResponse = reviews.value.filter(
+    (r) => !r.author.isBlind && (r.commentCount ?? 0) === 0
   ).length;
-  const reportedReviews = baseReviews.filter(
+  const reportedReviews = reviews.value.filter(
     (r) => r.reportStatus === "pending"
   ).length;
 
@@ -121,9 +118,11 @@ const filteredReviews = computed(() => {
 
   // 답변 상태 필터
   if (selectedResponseStatus.value === "need-response") {
-    result = result.filter((r) => !r.author.isBlind && r.comments.length === 0);
+    result = result.filter(
+      (r) => !r.author.isBlind && (r.commentCount ?? 0) === 0
+    );
   } else if (selectedResponseStatus.value === "responded") {
-    result = result.filter((r) => r.comments.length > 0);
+    result = result.filter((r) => (r.commentCount ?? 0) > 0);
   }
 
   // 신고 상태 필터
@@ -180,9 +179,24 @@ const openImageModal = (images, index) => {
   isImageModalOpen.value = true;
 };
 
-const openDetailModal = (review) => {
+const openDetailModal = async (review) => {
   selectedReview.value = review;
   isDetailModalOpen.value = true;
+  if (!review?.id || review.detailLoaded) return;
+  if (!restaurantId.value) return;
+  try {
+    const detail = await httpRequest.get(
+      `/api/owners/restaurants/${restaurantId.value}/reviews/${review.id}`
+    );
+    const mapped = mapReviewDetail(detail.data);
+    review.detailLoaded = true;
+    Object.assign(review, mapped);
+    if (selectedReview.value?.id === review.id) {
+      selectedReview.value = review;
+    }
+  } catch (error) {
+    console.error("리뷰 상세 조회 실패:", error);
+  }
 };
 
 const closeDetailModal = () => {
@@ -261,6 +275,42 @@ const mapReviewDetail = (detail) => ({
   reportReason: "",
   reportedAt: null,
   comments: (detail.comments || []).map(mapCommentResponse),
+  commentCount: (detail.comments || []).length,
+  detailLoaded: true,
+});
+
+const mapReviewItem = (item) => ({
+  id: item.reviewId,
+  restaurantId: restaurantId.value,
+  author: {
+    name: item.author || "익명",
+    company: item.company || "",
+    isBlind: Boolean(item.isBlinded),
+  },
+  rating: item.rating ?? 0,
+  visitCount: item.visitCount ?? null,
+  visitInfo:
+    item.visitDate || item.visitPartySize || item.visitTotalAmount
+      ? {
+          date: item.visitDate,
+          partySize: item.visitPartySize ?? 0,
+          totalAmount: item.visitTotalAmount ?? 0,
+          menuItems: [],
+        }
+      : null,
+  images: item.images || [],
+  tags: (item.tags || []).map((tag) => tag.name),
+  content: item.isBlinded ? "" : item.content || "",
+  blindReason: item.blindReason || "",
+  createdAt: item.createdAt,
+  status: item.status || "PUBLIC",
+  reportStatus: getReportStatusFromReviewStatus(item.status),
+  reportTag: "",
+  reportReason: "",
+  reportedAt: item.blindRequestedAt || null,
+  comments: [],
+  commentCount: item.commentCount ?? 0,
+  detailLoaded: false,
 });
 
 const ensureRestaurantId = async () => {
@@ -298,70 +348,9 @@ const loadReviews = async () => {
   const items = data?.items || [];
   reviewSummary.value = data?.summary ?? null;
   totalReviews.value = data?.page?.total ?? items.length;
-  const details = await Promise.all(
-    items.map((item) =>
-      httpRequest.get(
-        `/api/owners/restaurants/${restaurantId.value}/reviews/${item.reviewId}`
-      )
-    )
-  );
-  reviews.value = details.map((detail) => mapReviewDetail(detail.data));
+  reviews.value = items.map(mapReviewItem);
 };
 
-const loadReviewStats = async () => {
-  if (!restaurantId.value) return;
-  const statsPageSize = 50;
-  const response = await httpRequest.get(
-    `/api/owners/restaurants/${restaurantId.value}/reviews`,
-    {
-      page: 1,
-      size: statsPageSize,
-      sort: "LATEST",
-    }
-  );
-  const data = response.data?.data ?? response.data;
-  const initialItems = data?.items || [];
-  reviewSummary.value = data?.summary ?? reviewSummary.value;
-  const total = data?.page?.total ?? initialItems.length;
-  const totalPagesForStats = Math.max(
-    1,
-    Math.ceil(total / statsPageSize)
-  );
-
-  let allItems = [...initialItems];
-  if (totalPagesForStats > 1) {
-    const morePages = await Promise.all(
-      Array.from({ length: totalPagesForStats - 1 }, (_, idx) =>
-        httpRequest.get(`/api/owners/restaurants/${restaurantId.value}/reviews`, {
-          page: idx + 2,
-          size: statsPageSize,
-          sort: "LATEST",
-        })
-      )
-    );
-    morePages.forEach((pageResponse) => {
-      const pageData = pageResponse.data?.data ?? pageResponse.data;
-      const pageItems = pageData?.items || [];
-      allItems = allItems.concat(pageItems);
-    });
-  }
-
-  if (allItems.length === 0) {
-    statsReviews.value = [];
-    return;
-  }
-
-  const details = await Promise.all(
-    allItems.map((item) =>
-      httpRequest.get(
-        `/api/owners/restaurants/${restaurantId.value}/reviews/${item.reviewId}`
-      )
-    )
-  );
-  statsReviews.value = details.map((detail) =>
-    mapReviewDetail(detail.data)
-  );
-};
 
 const handlePageChange = async (page) => {
   if (page < 1 || page > totalPages.value) return;
@@ -388,10 +377,7 @@ const addComment = async (reviewId) => {
     );
     const newComment = mapCommentResponse(response.data);
     review.comments.push(newComment);
-    const statsReview = statsReviews.value.find((r) => r.id === reviewId);
-    if (statsReview) {
-      statsReview.comments.push(newComment);
-    }
+    review.commentCount = (review.commentCount ?? 0) + 1;
 
     // 입력 초기화
     commentInputs.value[reviewId] = "";
@@ -416,12 +402,7 @@ const deleteComment = async (reviewId, commentId) => {
       `/api/owners/restaurants/${restaurantId.value}/reviews/${reviewId}/comments/${commentId}`
     );
     review.comments = review.comments.filter((c) => c.id !== commentId);
-    const statsReview = statsReviews.value.find((r) => r.id === reviewId);
-    if (statsReview) {
-      statsReview.comments = statsReview.comments.filter(
-        (c) => c.id !== commentId
-      );
-    }
+    review.commentCount = Math.max(0, (review.commentCount ?? 1) - 1);
   } catch (error) {
     console.error("댓글 삭제 실패:", error);
     alert("댓글 삭제에 실패했습니다. 잠시 후 다시 시도해주세요.");
@@ -544,7 +525,7 @@ onMounted(async () => {
   try {
     const rid = await ensureRestaurantId();
     if (!rid) return;
-    await Promise.all([loadReviews(), loadReviewStats()]);
+    await loadReviews();
   } catch (error) {
     console.error("리뷰 데이터를 불러오지 못했습니다:", error);
   }
@@ -799,7 +780,10 @@ onMounted(async () => {
                         {{ review.visitInfo.totalAmount.toLocaleString() }}원
                       </div>
                     </div>
-                    <div class="border-t border-[#dee2e6] pt-3">
+                    <div
+                      v-if="review.visitInfo.menuItems.length > 0"
+                      class="border-t border-[#dee2e6] pt-3"
+                    >
                       <table class="w-full text-sm">
                         <thead class="text-[#6c757d] text-xs">
                           <tr>
