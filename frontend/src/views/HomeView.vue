@@ -23,7 +23,7 @@ import AppFooter from "@/components/ui/AppFooter.vue";
 import BottomNav from "@/components/ui/BottomNav.vue";
 import { RouterLink, useRouter } from "vue-router"; // Import Vue RouterLink
 import { geocodeAddress } from "@/utils/kakao";
-import { restaurants as restaurantData } from "@/data/restaurants";
+import { restaurants as restaurantData, loadRestaurants } from "@/data/restaurants";
 import AppHeader from "@/components/ui/AppHeader.vue";
 import HomeSearchBar from "@/components/ui/HomeSearchBar.vue";
 import HomeRecommendationContent from "@/components/ui/HomeRecommendationContent.vue";
@@ -1782,6 +1782,7 @@ const refreshCafeteriaRecommendationsIfNeeded = async () => {
 };
 
 onMounted(async () => {
+  await loadRestaurants(); // Load data from API
   void restoreSearchState();
   await applyUserMapCenter();
   await initializeMap();
