@@ -28,6 +28,57 @@ const searchQuery = ref("");
 const selectedSort = ref("latest"); // 'latest', 'most-commented'
 const selectedResponseStatus = ref("all"); // 'all', 'need-response', 'responded'
 const selectedReportStatus = ref("all"); // 'all', 'none', 'pending', 'approved', 'rejected'
+const openFilterKey = ref(null);
+
+const ratingOptions = [
+  { value: "all", label: "전체 평점" },
+  { value: "5", label: "⭐ 5점" },
+  { value: "4", label: "⭐ 4점" },
+  { value: "3", label: "⭐ 3점" },
+  { value: "2", label: "⭐ 2점" },
+  { value: "1", label: "⭐ 1점" },
+];
+
+const responseStatusOptions = [
+  { value: "all", label: "전체 답변 상태" },
+  { value: "need-response", label: "답변 필요" },
+  { value: "responded", label: "답변 완료" },
+];
+
+const reportStatusOptions = [
+  { value: "all", label: "전체 신고 상태" },
+  { value: "none", label: "신고 안됨" },
+  { value: "pending", label: "검토 중" },
+  { value: "approved", label: "승인됨" },
+  { value: "rejected", label: "거부됨" },
+];
+
+const sortOptions = [
+  { value: "latest", label: "최신순" },
+  { value: "most-commented", label: "댓글 많은순" },
+];
+
+const toggleFilterDropdown = (key) => {
+  openFilterKey.value = openFilterKey.value === key ? null : key;
+};
+
+const filterModelMap = {
+  rating: selectedRating,
+  response: selectedResponseStatus,
+  report: selectedReportStatus,
+  sort: selectedSort,
+};
+
+const selectFilterOption = (modelKey, value) => {
+  const modelRef = filterModelMap[modelKey];
+  if (!modelRef) return;
+  modelRef.value = value;
+  openFilterKey.value = null;
+};
+
+const getOptionLabel = (options, value) => {
+  return options.find((option) => option.value === value)?.label ?? "";
+};
 
 // 댓글 입력 상태
 const commentInputs = ref({});
@@ -502,13 +553,20 @@ onMounted(() => {
   };
   window.addEventListener("keydown", handleKeydown);
   const handleClickOutside = (e) => {
-    if (!isReportTagOpen.value) return;
     const target = e.target;
+    if (isReportTagOpen.value) {
+      if (
+        reportTagDropdownRef.value &&
+        !reportTagDropdownRef.value.contains(target)
+      ) {
+        isReportTagOpen.value = false;
+      }
+    }
     if (
-      reportTagDropdownRef.value &&
-      !reportTagDropdownRef.value.contains(target)
+      openFilterKey.value !== null &&
+      !target.closest(".review-filter-dropdown")
     ) {
-      isReportTagOpen.value = false;
+      openFilterKey.value = null;
     }
   };
   window.addEventListener("click", handleClickOutside);
@@ -609,49 +667,138 @@ onMounted(async () => {
               <!-- 평점 필터 -->
               <div class="flex items-center gap-2">
                 <Filter class="w-5 h-5 text-[#6c757d]" />
-                <select
-                  v-model="selectedRating"
-                  class="px-4 py-2 border border-[#dee2e6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff6b4a] focus:border-transparent"
-                >
-                  <option value="all">전체 평점</option>
-                  <option value="5">⭐ 5점</option>
-                  <option value="4">⭐ 4점</option>
-                  <option value="3">⭐ 3점</option>
-                  <option value="2">⭐ 2점</option>
-                  <option value="1">⭐ 1점</option>
-                </select>
+                <div class="review-filter-dropdown">
+                  <button
+                    type="button"
+                    class="filter-dropdown-trigger"
+                    @click.stop="toggleFilterDropdown('rating')"
+                  >
+                    <span class="truncate">
+                      {{ getOptionLabel(ratingOptions, selectedRating) }}
+                    </span>
+                    <ChevronDown class="w-4 h-4 text-[#1E3A5F]" />
+                  </button>
+                  <div
+                    v-if="openFilterKey === 'rating'"
+                    class="filter-dropdown-menu"
+                  >
+                    <button
+                      v-for="option in ratingOptions"
+                      :key="option.value"
+                      :class="[
+                        'filter-dropdown-option',
+                        option.value === selectedRating ? 'is-active' : '',
+                      ]"
+                      @click.stop="selectFilterOption('rating', option.value)"
+                    >
+                      {{ option.label }}
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <!-- 답변 상태 필터 -->
-              <select
-                v-model="selectedResponseStatus"
-                class="px-4 py-2 border border-[#dee2e6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff6b4a] focus:border-transparent"
-              >
-                <option value="all">전체 답변 상태</option>
-                <option value="need-response">답변 필요</option>
-                <option value="responded">답변 완료</option>
-              </select>
+              <div class="review-filter-dropdown">
+                <button
+                  type="button"
+                  class="filter-dropdown-trigger"
+                  @click.stop="toggleFilterDropdown('response')"
+                >
+                  <span class="truncate">
+                    {{
+                      getOptionLabel(
+                        responseStatusOptions,
+                        selectedResponseStatus
+                      )
+                    }}
+                  </span>
+                  <ChevronDown class="w-4 h-4 text-[#1E3A5F]" />
+                </button>
+                <div
+                  v-if="openFilterKey === 'response'"
+                  class="filter-dropdown-menu"
+                >
+                  <button
+                    v-for="option in responseStatusOptions"
+                    :key="option.value"
+                    :class="[
+                      'filter-dropdown-option',
+                      option.value === selectedResponseStatus
+                        ? 'is-active'
+                        : '',
+                    ]"
+                    @click.stop="
+                      selectFilterOption('response', option.value)
+                    "
+                  >
+                    {{ option.label }}
+                  </button>
+                </div>
+              </div>
 
               <!-- 신고 상태 필터 -->
-              <select
-                v-model="selectedReportStatus"
-                class="px-4 py-2 border border-[#dee2e6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff6b4a] focus:border-transparent"
-              >
-                <option value="all">전체 신고 상태</option>
-                <option value="none">신고 안됨</option>
-                <option value="pending">검토 중</option>
-                <option value="approved">승인됨</option>
-                <option value="rejected">거부됨</option>
-              </select>
+              <div class="review-filter-dropdown">
+                <button
+                  type="button"
+                  class="filter-dropdown-trigger"
+                  @click.stop="toggleFilterDropdown('report')"
+                >
+                  <span class="truncate">
+                    {{
+                      getOptionLabel(reportStatusOptions, selectedReportStatus)
+                    }}
+                  </span>
+                  <ChevronDown class="w-4 h-4 text-[#1E3A5F]" />
+                </button>
+                <div
+                  v-if="openFilterKey === 'report'"
+                  class="filter-dropdown-menu"
+                >
+                  <button
+                    v-for="option in reportStatusOptions"
+                    :key="option.value"
+                    :class="[
+                      'filter-dropdown-option',
+                      option.value === selectedReportStatus ? 'is-active' : '',
+                    ]"
+                    @click.stop="
+                      selectFilterOption('report', option.value)
+                    "
+                  >
+                    {{ option.label }}
+                  </button>
+                </div>
+              </div>
 
               <!-- 정렬 -->
-              <select
-                v-model="selectedSort"
-                class="px-4 py-2 border border-[#dee2e6] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#ff6b4a] focus:border-transparent"
-              >
-                <option value="latest">최신순</option>
-                <option value="most-commented">댓글 많은순</option>
-              </select>
+              <div class="review-filter-dropdown">
+                <button
+                  type="button"
+                  class="filter-dropdown-trigger"
+                  @click.stop="toggleFilterDropdown('sort')"
+                >
+                  <span class="truncate">
+                    {{ getOptionLabel(sortOptions, selectedSort) }}
+                  </span>
+                  <ChevronDown class="w-4 h-4 text-[#1E3A5F]" />
+                </button>
+                <div
+                  v-if="openFilterKey === 'sort'"
+                  class="filter-dropdown-menu"
+                >
+                  <button
+                    v-for="option in sortOptions"
+                    :key="option.value"
+                    :class="[
+                      'filter-dropdown-option',
+                      option.value === selectedSort ? 'is-active' : '',
+                    ]"
+                    @click.stop="selectFilterOption('sort', option.value)"
+                  >
+                    {{ option.label }}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1370,5 +1517,71 @@ onMounted(async () => {
 
 .overflow-x-auto::-webkit-scrollbar-thumb:hover {
   background: #e55a39;
+}
+
+.review-filter-dropdown {
+  position: relative;
+  min-width: 160px;
+}
+
+.filter-dropdown-trigger {
+  width: 100%;
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid #dee2e6;
+  border-radius: 10px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  color: #1e3a5f;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.filter-dropdown-trigger:hover {
+  background: #f8f9fa;
+}
+
+.filter-dropdown-trigger:focus {
+  outline: none;
+  border-color: #ff6b4a;
+  box-shadow: 0 0 0 2px rgba(255, 107, 74, 0.25);
+}
+
+.filter-dropdown-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  margin-top: 8px;
+  background: #ffffff;
+  border: 1px solid #e9ecef;
+  border-radius: 12px;
+  box-shadow: 0 10px 20px rgba(30, 58, 95, 0.08);
+  z-index: 20;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.filter-dropdown-option {
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #1e3a5f;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.filter-dropdown-option:hover {
+  background: #f8f9fa;
+}
+
+.filter-dropdown-option.is-active {
+  background: #fff4f1;
+  color: #ff6b4a;
+  font-weight: 600;
 }
 </style>
