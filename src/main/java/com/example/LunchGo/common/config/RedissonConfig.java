@@ -20,10 +20,10 @@ public class RedissonConfig {
 
     private static final String REDIS_PROTOCOL_FORMAT = "redis://%s:%d";
 
-    @Value("${spring.redis.redisson.pool.size:8}")
+    @Value("${spring.redis.redisson.pool.size:64}")
     private int connectionPoolSize;
 
-    @Value("${spring.redis.redisson.pool.min-idle-size:4}")
+    @Value("${spring.redis.redisson.pool.min-idle-size:24}")
     private int connectionMinIdleSize;
 
     private final RedisProperties redisProperties;
