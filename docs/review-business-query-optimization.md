@@ -41,6 +41,17 @@
 - 백엔드: 1번을 위해 리스트 DTO와 매퍼를 확장하고 불필요한 상세 쿼리를 제거합니다.
 - 프론트엔드: 2~4번을 적용해 로딩 흐름을 개선하고, 상세 모달을 지연 로딩으로 전환합니다.
 - 측정: 네트워크 인스펙터로 요청 건수·총 latency를 기록하며 개선 효과를 확인합니다.
+
+## 패치 적용 사항
+- 댓글 수 조회는 상관 서브쿼리 대신 `comments` 집계 서브쿼리를 `LEFT JOIN`으로 연결해 commentCount를 계산합니다.
+
+## EXPLAIN 비교 (commentCount 개선)
+| 항목 | Before (상관 서브쿼리) | After (집계 JOIN) |
+| --- | --- | --- |
+| 경고/특이사항 | `Field or reference ... resolved in SELECT #1` 경고 | 경고 없음 |
+| 서브쿼리 형태 | `DEPENDENT SUBQUERY` | `DERIVED` + `LEFT JOIN` |
+| comments 접근 | reviewId마다 상관 서브쿼리 실행 | 집계 서브쿼리 1회 스캔 |
+| 측정 (DataGrip) | 203 ms (exec 73 ms, fetch 130 ms) | 112 ms (exec 55 ms, fetch 57 ms) |
 ## 추가 개선 방향
 5. 다이내믹화한 리스트 응답의 상세 정보 최소화
    - 방문/영수증 조인을 아예 제외하고, 댓글 개수와 방문 날짜/인원/총액 같은 요약만 포함합니다.
@@ -48,11 +59,16 @@
    - 필요시 모달 열릴 때 사용자 행동을 기록해 두고 추가적인 접속 통계 캐싱 전략을 적용합니다.
 
 ## 측정값 (패치 전/후 비교)
-| Metric | Baseline (before) | After Patch 1 (stats 제거) | After Patch 2 (lazy detail) | After Patch 3 (backend DTO) |
-| --- | --- | --- | --- | --- |
-| 총 요청 수 | 130 | 89 | 79 | 79 |
-| 전체 로딩 완료 시간 | 7.22초 | 1.12초 | 0.47초 | 0.35초 |
-| 리스트 API 응답 시간 | 약 600ms | 약 197ms | 약 219ms | 약 201ms |
-| 상세 API 응답 시간 | 500~1000ms | 400~700ms | 약 274ms (모달에서만, 첫 요청 후 캐시) | 약 274ms (모달에서만, 캐시 유지) |
-| 페이지당 리스트 API 호출 수 | 2 | 1 | 1 | 1 |
-| 페이지당 상세 API 호출 수 | 약 2×N | N | 0 (모달 열릴 때만 호출) | 0 (모달 열릴 때만 호출) |
+| Metric | Baseline (before) | After Patch 1 (stats 제거) | After Patch 2 (lazy detail) | After Patch 3 (backend DTO) | Recent |
+| --- | --- | --- | --- | --- | --- |
+| 총 요청 수 | 130 | 89 | 79 | 79 | 79 |
+| 전체 로딩 완료 시간 | 7.22초 | 1.12초 | 0.47초 | 0.35초 | 0.34초 |
+| 리스트 API 응답 시간 | 약 600ms | 약 197ms | 약 219ms | 약 201ms | 173ms |
+| 상세 API 응답 시간 | 500~1000ms | 400~700ms | 약 274ms (모달에서만, 첫 요청 후 캐시) | 약 274ms (모달에서만, 캐시 유지) | - |
+| 페이지당 리스트 API 호출 수 | 2 | 1 | 1 | 1 | 1 |
+| 페이지당 상세 API 호출 수 | 약 2×N | N | 0 (모달 열릴 때만 호출) | 0 (모달 열릴 때만 호출) | 0 (모달 열릴 때만 호출) |
+
+## 추가 측정 (최근)
+- 요청: 79 requests, 19.2 kB transferred, 6.4 MB resources
+- 타이밍: Finish 340 ms, DOMContentLoaded 122 ms, Load 129 ms
+- 리스트 API: `GET /api/owners/restaurants/96/reviews?page=1&size=10&sort=LATEST` 173 ms

@@ -191,9 +191,6 @@ const openDetailModal = async (review) => {
     const mapped = mapReviewDetail(detail.data);
     review.detailLoaded = true;
     Object.assign(review, mapped);
-    if (selectedReview.value?.id === review.id) {
-      selectedReview.value = review;
-    }
   } catch (error) {
     console.error("리뷰 상세 조회 실패:", error);
   }
@@ -402,7 +399,7 @@ const deleteComment = async (reviewId, commentId) => {
       `/api/owners/restaurants/${restaurantId.value}/reviews/${reviewId}/comments/${commentId}`
     );
     review.comments = review.comments.filter((c) => c.id !== commentId);
-    review.commentCount = Math.max(0, (review.commentCount ?? 1) - 1);
+    review.commentCount = Math.max(0, (review.commentCount ?? 0) - 1);
   } catch (error) {
     console.error("댓글 삭제 실패:", error);
     alert("댓글 삭제에 실패했습니다. 잠시 후 다시 시도해주세요.");
