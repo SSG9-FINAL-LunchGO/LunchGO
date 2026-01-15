@@ -2,6 +2,7 @@ package com.example.LunchGo.restaurant.service;
 
 import com.example.LunchGo.restaurant.domain.RestaurantStatus;
 import com.example.LunchGo.restaurant.mapper.RestaurantStatusMapper;
+import java.time.ZoneId;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -24,12 +25,12 @@ public class RestaurantStatusScheduler {
      * - 나머지 영업 가능한 식당은 'OPEN'으로 변경합니다.
      * - 'DELETED' 상태의 식당은 변경 대상에서 제외합니다.
      */
-    @Scheduled(cron = "0 0 6 * * *")
+    @Scheduled(cron = "0 0 6 * * *", zone = "Asia/Seoul")
     @Transactional
     public void updateRestaurantStatus() {
         log.info("매일 오전 6시 식당 영업상태 업데이트 스케줄러 시작 (MyBatis)");
 
-        DayOfWeek today = LocalDate.now().getDayOfWeek();
+        DayOfWeek today = LocalDate.now(ZoneId.of("Asia/Seoul")).getDayOfWeek();
         // MySQL DAYOFWEEK() 함수 기준 (일요일=1, 월요일=2 ... 토요일=7)으로 변환
         int todayValue = today.getValue() % 7 + 1;
 
