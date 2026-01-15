@@ -33,9 +33,13 @@ public class RestaurantStatusScheduler {
         // MySQL DAYOFWEEK() 함수 기준 (일요일=1, 월요일=2 ... 토요일=7)으로 변환
         int todayValue = today.getValue() % 7 + 1;
 
-        int closedCount = restaurantStatusMapper.updateHolidayRestaurants(todayValue, RestaurantStatus.CLOSED);
-        int openCount = restaurantStatusMapper.updateNonHolidayRestaurants(todayValue, RestaurantStatus.OPEN);
+        int closedCount = restaurantStatusMapper.updateHolidayRestaurants(todayValue);
+        int openCount = restaurantStatusMapper.updateNonHolidayRestaurants(todayValue);
 
-        log.info("식당 영업상태 업데이트 완료. OPEN으로 변경: {}곳, CLOSED로 변경: {}곳", openCount, closedCount);
+        if (closedCount > 0 || openCount > 0) {
+            log.info("식당 영업상태 업데이트 완료. OPEN으로 변경: {}곳, CLOSED로 변경: {}곳", openCount, closedCount);
+        } else {
+            log.info("식당 영업상태 변경 사항 없음.");
+        }
     }
 }

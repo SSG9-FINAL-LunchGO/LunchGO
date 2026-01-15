@@ -14,14 +14,13 @@ public interface RestaurantStatusMapper {
      * @param status    변경할 식당 상태
      * @return 영향을 받은 행의 수
      */
-    int updateHolidayRestaurants(@Param("dayOfWeek") int dayOfWeek, @Param("status") RestaurantStatus status);
+    int updateHolidayRestaurants(@Param("dayOfWeek") int dayOfWeek);
 
     /**
      * 특정 요일에 정기 휴무일이 아닌 식당의 상태를 대량으로 업데이트합니다.
      *
      * @param dayOfWeek MySQL DAYOFWEEK() 기준 요일
-     * @param status    변경할 식당 상태
      * @return 영향을 받은 행의 수
      */
-    int updateNonHolidayRestaurants(@Param("dayOfWeek") int dayOfWeek, @Param("status") RestaurantStatus status);
+    int updateNonHolidayRestaurants(@Param("dayOfWeek") int dayOfWeek);
 }

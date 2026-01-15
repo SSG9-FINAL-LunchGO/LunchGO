@@ -4,7 +4,7 @@
 
     <update id="updateHolidayRestaurants" parameterType="map">
         UPDATE restaurants r
-        SET r.status = #{status}
+        SET r.status = 'CLOSED'
         WHERE EXISTS (
             SELECT 1
             FROM regular_holidays rh
@@ -16,7 +16,7 @@
 
     <update id="updateNonHolidayRestaurants" parameterType="map">
         UPDATE restaurants r
-        SET r.status = #{status}
+        SET r.status = 'OPEN'
         WHERE NOT EXISTS (
             SELECT 1
             FROM regular_holidays rh
