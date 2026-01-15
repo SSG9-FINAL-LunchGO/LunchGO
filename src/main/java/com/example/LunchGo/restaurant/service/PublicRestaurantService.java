@@ -70,7 +70,7 @@ public class PublicRestaurantService {
         return restaurantSummaryRepository.findAll().stream()
                 .map(entity -> {
                     // 1. 엔티티를 DTO로 변환
-                    RestaurantSummaryResponse response = mapToResponse(entity);
+                    RestaurantSummaryResponse response = modelMapper.map(entity, RestaurantSummaryResponse.class);
                     
                     // 2. 순수 도로명 주소로 좌표 조회
                     KakaoGeoService.GeoCoordinate coords = kakaoGeoService.getCoordinateByAddress(entity.getRoadAddress());
@@ -86,25 +86,6 @@ public class PublicRestaurantService {
                 })
                 .filter(Objects::nonNull)
                 .collect(Collectors.toList());
-    }
-
-    private RestaurantSummaryResponse mapToResponse(RestaurantSummary entity) {
-        String fullAddress = entity.getRoadAddress();
-        if (entity.getDetailAddress() != null && !entity.getDetailAddress().isBlank()) {
-            fullAddress += " " + entity.getDetailAddress();
-        }
-
-        return RestaurantSummaryResponse.builder()
-                .id(entity.getId())
-                .name(entity.getName())
-                .image(entity.getImage())
-                .roadAddress(fullAddress) // 화면 표시용 (전체 주소)
-                .detailAddress(entity.getDetailAddress())
-                .rating(entity.getRating())
-                .reviews(entity.getReviews())
-                .category(entity.getCategory())
-                .price(entity.getPrice())
-                .build();
     }
 
     public RestaurantDetailResponse getRestaurantDetail(Long restaurantId, String userKey) {
