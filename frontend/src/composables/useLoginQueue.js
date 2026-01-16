@@ -140,6 +140,8 @@ export const useLoginQueue = () => {
               );
               clearPolling();
               reject(new Error("queue-status-missing"));
+              pendingResolve = null;
+              pendingReject = null;
               return;
             }
 
@@ -160,6 +162,9 @@ export const useLoginQueue = () => {
                 "대기열 시간이 만료되었습니다.\n다시 시도해주세요."
               );
               reject(new Error("queue-expired"));
+              pendingResolve = null;
+              pendingReject = null;
+              return;
             }
           } catch (error) {
             clearPolling();
@@ -167,6 +172,9 @@ export const useLoginQueue = () => {
               "대기열 상태를 확인할 수 없습니다.\n다시 시도해주세요."
             );
             reject(error);
+            pendingResolve = null;
+            pendingReject = null;
+            return;
           }
         }, POLL_INTERVAL_MS);
       });
