@@ -1,5 +1,6 @@
 package com.example.LunchGo.reservation.service;
 
+import com.example.LunchGo.common.util.RedisUtil;
 import com.example.LunchGo.reservation.domain.ReservationStatus;
 import com.example.LunchGo.reservation.entity.Payment;
 import com.example.LunchGo.reservation.entity.Reservation;
@@ -13,6 +14,8 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +33,7 @@ public class ReservationRefundService {
     private final ReservationSlotRepository reservationSlotRepository;
     private final PaymentRepository paymentRepository;
     private final PortoneCancelService portoneCancelService;
+    private final RedisUtil redisUtil; // Redis 좌석 카운터 관리를 위해 추가
 
     //회원(사용자) 취소
     @Transactional
@@ -131,6 +135,21 @@ public class ReservationRefundService {
         reservation.setStatus(
                 refundedTotal > 0 ? ReservationStatus.REFUNDED : ReservationStatus.CANCELLED
         );
+
+        // --- Redis 좌석 카운터 업데이트 (트랜잭션 커밋 후) ---
+        // DB 트랜잭션이 성공적으로 커밋된 후에만 Redis 좌석 카운터를 증가시켜 일관성을 유지합니다.
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                // 예약 슬롯 정보 (restaurantId, slotDate, slotTime) 및 partySize를 가져와 Redis 키 생성
+                String redisSeatKey = RedisUtil.generateSeatKey(slot.getRestaurantId(), slot.getSlotDate(), slot.getSlotTime());
+                int partySize = reservation.getPartySize() != null ? reservation.getPartySize() : 0;
+
+                // Redis 좌석 카운터에 partySize만큼 좌석 반환 (증가)
+                // 만약 Redis 키가 중간에 만료되었더라도, increment는 0에서부터 시작하여 값을 추가하므로 문제 없음
+                redisUtil.increment(redisSeatKey, partySize);
+            }
+        });
 
         return refundedTotal;
     }
