@@ -93,17 +93,17 @@ public class RedisUtil {
     }
 
     /**
-     * 키의 값을 1 증가시키고 증가된 값을 반환합니다.
+     * 키의 값을 주어진 delta만큼 증가시키고 증가된 값을 반환합니다. (Redis INCRBY)
      */
-    public Long increment(String key) {
-        return template.opsForValue().increment(key);
+    public Long increment(String key, long delta) {
+        return template.opsForValue().increment(key, delta);
     }
 
     /**
-     * 키의 값을 1 감소시키고 감소된 값을 반환합니다.
+     * 키의 값을 주어진 delta만큼 감소시키고 감소된 값을 반환합니다. (Redis DECRBY)
      */
-    public Long decrement(String key) {
-        return template.opsForValue().decrement(key);
+    public Long decrement(String key, long delta) {
+        return template.opsForValue().increment(key, -delta);
     }
 
     /**

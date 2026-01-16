@@ -64,7 +64,7 @@ public class DistributedLockAop {
 
         try {
             // 대기열 진입: 카운트 증가
-            redisUtil.increment(waitingCountKey);
+            redisUtil.increment(waitingCountKey, 1L);
 
             boolean available = rLock.tryLock(distributedLock.waitTime(), distributedLock.leaseTime(), distributedLock.timeUnit());
             
@@ -96,7 +96,7 @@ public class DistributedLockAop {
                 rLock.unlock();
             }
             // 작업 종료(성공/실패/포기) 후 대기열 이탈: 카운트 감소
-            redisUtil.decrement(waitingCountKey);
+            redisUtil.decrement(waitingCountKey, 1L);
             
             // 개인 락은 성공 시 해제하지 않음 (TTL 유지)
             // 단, 예외가 발생해서 여기까지 왔다면(catch 블록을 거치지 않은 런타임 예외 등) 해제해야 할 수도 있지만,

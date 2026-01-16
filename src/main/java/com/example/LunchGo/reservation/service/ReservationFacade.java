@@ -8,6 +8,8 @@ import com.example.LunchGo.reservation.dto.ReservationCreateRequest;
 import com.example.LunchGo.reservation.dto.ReservationCreateResponse;
 import com.example.LunchGo.restaurant.entity.Menu;
 import com.example.LunchGo.restaurant.repository.MenuRepository;
+import com.example.LunchGo.reservation.exception.SlotCapacityExceededException;
+import com.example.LunchGo.restaurant.repository.RestaurantRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -36,6 +38,7 @@ public class ReservationFacade {
 
     private final ReservationService reservationService; // 수정된 ReservationService (락 핵심 로직 담당)
     private final MenuRepository menuRepository; // 메뉴 정보 조회 (선주문 처리용)
+    private final RestaurantRepository restaurantRepository; // 식당의 최대 정원 조회용
     private final RedisUtil redisUtil; // 후처리: Redis 저장용
 
     /**
@@ -53,6 +56,27 @@ public class ReservationFacade {
 
         // 요청 유효성 검증 (ServiceImpl에서 이동)
         validate(request);
+
+        // Just-in-Time Redis Counter Initialization & Pre-Check
+        // 1. 이 슬롯의 최대 정원을 DB에서 조회 (락 없이)
+        Integer maxCapacity = restaurantRepository.findReservationLimitByRestaurantId(request.getRestaurantId())
+                .orElse(20); // 기본값 20 (ReservationSlotService와 동일하게)
+
+        // 2. Redis 키 정의
+        String redisSeatKey = "seats:" + request.getRestaurantId() + ":" + request.getSlotDate() + ":" + request.getSlotTime();
+
+        // 3. SETNX를 사용한 원자적 초기화 (키가 없을 때만 실행)
+        // TTL은 24시간으로 넉넉하게 설정
+        redisUtil.setIfAbsent(redisSeatKey, String.valueOf(maxCapacity), 24 * 60 * 60 * 1000L);
+
+        // 4. Redis 좌석 사전 검증 (빠른 Fail-Fast)
+        Long remainingSeats = redisUtil.decrement(redisSeatKey, request.getPartySize());
+
+        if (remainingSeats < 0) {
+            // 좌석이 부족하면 Redis 카운터를 다시 원상 복구하고 예외 발생
+            redisUtil.increment(redisSeatKey, request.getPartySize());
+            throw new SlotCapacityExceededException("잔여석이 부족합니다. (Redis 사전 검증)");
+        }
 
         // 선주문/선결제 메뉴 처리 및 금액 계산 (ServiceImpl에서 이동)
         List<MenuSnapshot> menuSnapshots = new ArrayList<>();
