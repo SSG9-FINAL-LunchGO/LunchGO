@@ -79,6 +79,7 @@
 
 ### 구현 코드
 
+- frontend/src/composables/useReservationQueue.js에서 구현
 
 <details>
   <summary>전체 구현 코드</summary>
@@ -221,13 +222,22 @@
 
 ### 백엔드에서의 예약 대기 - waiting
 
-1. 1차 락 설정: 개인 중복 요청 방지 (Lettuce - Fail-Fast)
+1. 1차 락 설정: 개인 중복 요청 방지 (Lettuce - Fail-Fast) - DistributedLockAop 클래스의 54~58번 라인
   * userLockKey를 사용하여 Redis에 SETNX 명령을 실행 (setIfAbsent 메서드)
     * 락의 유효 시간(`userLockTime`)은 5초로 짧게 설정
   * 목적: 한 명의 사용자가 예약 버튼을 빠르게 두 번 이상 누르는 것과 같은 중복 요청을 즉시 차단
   * 동작: 만약 userLockKey가 이미 존재하면, DuplicateReservationException을 발생시켜 즉시 요청을 실패 처리하고 에러 메시지를 반환
+    ```java
+      // 1. [개인 락] Lettuce (Fail-Fast)
+      if (userLockKey != null) {
+          if (!redisUtil.setIfAbsent(userLockKey, "processing", distributedLock.userLockTime())) {
+              throw new DuplicateReservationException("이미 처리 중인 예약 요청입니다. 잠시 후 다시 시도해주세요.");
+          }
+      }
+    ```
 
-2. 2차 잠금: 식당 시간대별 대기열 (Redisson FairLock - FIFO)
+
+2. 2차 잠금: 식당 시간대별 대기열 (Redisson FairLock - FIFO) - DistributedLockAop 클래스의 try 블록
   * 서버 내부에서 신규 예약 생성용 락을 획득하기 위한 실질적인 예약 대기열
   * 대기열 진입: lockKey(식당+시간대)에 대한 락을 시도하기 직전, waiting_count: 라는 접두사가 붙은 Redis 카운터의 값을 1 증가
     * 지정한 시간대에 예약을 시도하는 총 사용자 수를 의미
@@ -243,17 +253,69 @@
       * 지정한 waitTime(기본 2초)이 끝나기 전에 락을 획득하면 예약 생성 트랜잭션 실행
       * 락을 획득하지 못하고 waitTime이 종료되면 `WaitReservationException`을 발생시켜 프론트엔드에게 409 상태코드 전송
         * 프론트엔드에서는 백엔드 서버로부터 전달받은 409 상태코드를 바탕으로 재시도 로직 진행
+      ```java
+        try {
+            // 대기열 진입: 카운트 증가
+            redisUtil.increment(waitingCountKey, 1L);
 
-3. 최종 처리
+            boolean available;
+            if (distributedLock.leaseTime() == -1L) {
+                // leaseTime이 -1L이면 Redisson Watchdog 사용
+                // Watchdog은 락을 획득한 스레드가 살아있는 동안 락 만료 시간을 자동으로 연장함.
+                // Redisson의 기본 Watchdog 타임아웃은 30초이며, 10초마다 갱신 시도.
+                // (참고: Watchdog은 락을 연장해주지만, 비즈니스 로직 및 트랜잭션 완료 후 finally 블록에서
+                // rLock.unlock()을 통해 명시적으로 해제되므로 불필요하게 락이 유지되지 않음.)
+                available = rLock.tryLock(distributedLock.waitTime(), distributedLock.timeUnit());
+            } else {
+                // leaseTime이 명시된 경우 해당 시간만큼만 락 점유
+                available = rLock.tryLock(distributedLock.waitTime(), distributedLock.leaseTime(), distributedLock.timeUnit());
+            }
+        
+            if (!available) {
+                // 대기열 진입 실패 시 (타임아웃)
+                // 개인 락 해제하여 재시도 허용
+                if (userLockKey != null) {
+                    redisUtil.deleteData(userLockKey);
+                }
+            
+                // 현재 대기 인원 조회
+                long currentWaitingCount = redisUtil.getCount(waitingCountKey);
+                throw new WaitingReservationException("접속자가 많아 대기 중입니다. 잠시 후 자동으로 재시도합니다.", currentWaitingCount);
+            }
+
+            // --- 비즈니스 로직 실행 ---
+            return joinPoint.proceed();
+
+        }
+      ```
+
+3. 최종 처리 - DistributedLockAop 클래스의 finally 블록 부분
 
 - finally 블록 내부에서 예약 대기열 로직의 성공/실패에 관계없이 항상 실행
   * waiting_count: 카운터를 1 감소시켜 사용자가 대기열에서 이탈했음을 나타냄.
   * 획득했던 FairLock이 있다면 unlock() -> 다음 대기자가 락 획득
     * 락 유효시간(leaseTime)을 별도로 지정하지 않았더라도 예약 생성 트랜잭션이 종료되면 락도 자동 반납됨을 보장
+```java
+  ... 코드 생략
+  
+  } finally {
+      // 식당 락 해제
+      if (rLock != null && rLock.isHeldByCurrentThread()) {
+          rLock.unlock();
+      }
+      // 작업 종료(성공/실패/포기) 후 대기열 이탈: 카운트 감소
+      redisUtil.decrement(waitingCountKey, 1L);
+      
+      // 개인 락은 성공 시 해제하지 않음 (TTL 유지)
+      // 단, 예외가 발생해서 여기까지 왔다면(catch 블록을 거치지 않은 런타임 예외 등) 해제해야 할 수도 있지만,
+      // 현재 로직상 성공 시에는 유지하는 것이 정책이므로 그대로 둠.
+      // (비즈니스 예외 발생 시에도 개인 락이 유지되는 부작용은 있으나, 이는 5초 후 해소됨)
+  }
+```
 
 ### 구현 코드
 
-- DistributedLockAop 클래스 내부에서 구현
+- src/main/java/com/example/LunchGo/reservation/aop/DistributedLockAop.java
 
 <details>
 
