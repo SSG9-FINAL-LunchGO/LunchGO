@@ -76,10 +76,12 @@
 ### 구현 코드
 
 - 동시성 제어 로직: DistributedLockAop 클래스로 분리
-  - 동시성 제어 로직을 실제로 적용할 비즈니스 로직에 `@DistributedLock` 어노테이션을 붙이는 방식으로 사용 
+  - 예약 생성 트랜잭션 실행에 앞서 항상 동시성 락을 거는 것을 보장하기 위해, `@Order(Ordered.HIGHEST_PRECEDENCE)` 어노테이션 추가
+  - 동시성 제어 로직을 실제로 적용할 비즈니스 로직에 `@DistributedLock` 어노테이션을 붙이는 방식으로 사용
 - 기존 비즈니스 로직은 DistributedLockAop 클래스의 `joinPoint.proceed()` 부분에서 실행
   - ReservationServiceImpl의 `create()` 메서드에 해당
-  - [관련 내용 - feat(reservation): redisson 분산 락 활용 예약 대기열 추가 #454](https://github.com/SSG9-FINAL-LunchGO/LunchGO/pull/454)
+
+[관련 내용 - feat(reservation): redisson 분산 락 활용 예약 대기열 추가 #454](https://github.com/SSG9-FINAL-LunchGO/LunchGO/pull/454)
 
 <details>
 
