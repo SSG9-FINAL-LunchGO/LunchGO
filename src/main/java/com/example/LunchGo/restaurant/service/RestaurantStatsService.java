@@ -38,10 +38,12 @@ import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDType0Font;
+import org.redisson.api.RLock;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -162,17 +164,49 @@ public class RestaurantStatsService {
         LocalDate weekStart = LocalDate.now().with(DayOfWeek.MONDAY);
         String cacheKey = REDIS_CACHE_KEY_PREFIX + restaurantId + ":" + weekStart.toString();
         String refreshKey = REFRESH_COOLDOWN_KEY_PREFIX + restaurantId + ":" + weekStart.toString();
+        String lockKey = "lock:ai-insights:" + restaurantId + ":" + weekStart.toString();
 
         if (forceRefresh) {
             Optional<WeeklyAiInsightsResponse> cachedInsights =
                 getCachedInsights(cacheKey, restaurantId, weekStart);
-            if (redisUtil.existData(refreshKey) && cachedInsights.isPresent()) {
-                return cachedInsights.get();
+            if (redisUtil.existData(refreshKey)) {
+                return cachedInsights.orElseGet(
+                    () -> generateAndCacheInsights(restaurantId, weekStart, cacheKey)
+                );
             }
-            WeeklyAiInsightsResponse response =
-                generateAndCacheInsights(restaurantId, weekStart, cacheKey);
-            redisUtil.setDataExpire(refreshKey, "1", REFRESH_COOLDOWN_MILLIS);
-            return response;
+
+            RLock lock = redisUtil.getFairLock(lockKey);
+            try {
+                boolean isLocked = lock.tryLock(5, -1, TimeUnit.SECONDS);
+                if (!isLocked) {
+                    throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "인사이트를 생성 중입니다. 잠시 후 다시 시도해주세요."
+                    );
+                }
+
+                cachedInsights = getCachedInsights(cacheKey, restaurantId, weekStart);
+                if (redisUtil.existData(refreshKey)) {
+                    return cachedInsights.orElseGet(
+                        () -> generateAndCacheInsights(restaurantId, weekStart, cacheKey)
+                    );
+                }
+
+                WeeklyAiInsightsResponse response =
+                    generateAndCacheInsights(restaurantId, weekStart, cacheKey);
+                redisUtil.setDataExpire(refreshKey, "1", REFRESH_COOLDOWN_MILLIS);
+                return response;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "인사이트 생성 중 오류가 발생했습니다."
+                );
+            } finally {
+                if (lock.isHeldByCurrentThread()) {
+                    lock.unlock();
+                }
+            }
         }
 
         Optional<WeeklyAiInsightsResponse> cachedInsights = getCachedInsights(cacheKey, restaurantId, weekStart);
