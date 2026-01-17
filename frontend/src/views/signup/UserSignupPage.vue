@@ -6,7 +6,7 @@ import Button from '@/components/ui/Button.vue';
 import Card from '@/components/ui/Card.vue';
 import ConfirmModal from '@/components/ui/ConfirmModal.vue';
 import Input from '@/components/ui/Input.vue';
-import TERMS_POLICY_TEXT from '@/content/서비스 이용 약관.md?raw';
+import TERMS_POLICY_TEXT from '@/content/serviceTerms.md?raw';
 import PRIVACY_POLICY_TEXT from '@/content/privacyPolicy.md?raw';
 import MARKETING_POLICY_TEXT from '@/content/marketingPolicy.md?raw';
 import { marked } from 'marked';

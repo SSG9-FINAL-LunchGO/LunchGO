@@ -124,7 +124,8 @@ public class BusinessRestaurantController {
     @GetMapping("/restaurants/{id}/stats/weekly")
     public ResponseEntity<com.example.LunchGo.restaurant.dto.WeeklyAiInsightsResponse> getWeeklyStatsInsight(
             @PathVariable("id") Long id,
-            @AuthenticationPrincipal CustomUserDetails userDetails
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestParam(value = "refresh", defaultValue = "false") boolean refresh
     ) {
         Optional<Long> restaurantId = businessRestaurantService.findRestaurantIdByOwnerId(userDetails.getId());
         if (restaurantId.isEmpty()) {
@@ -133,7 +134,7 @@ public class BusinessRestaurantController {
         if (!restaurantId.get().equals(id)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
-        return ResponseEntity.ok(restaurantStatsService.getWeeklyStatsInsight(id));
+        return ResponseEntity.ok(restaurantStatsService.getWeeklyStatsInsight(id, refresh));
     }
 
     @PreAuthorize("hasAuthority('ROLE_OWNER')")

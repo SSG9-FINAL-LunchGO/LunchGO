@@ -3,6 +3,7 @@ import { ref, computed } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import httpRequest from '@/router/httpRequest';
 import { useAccountStore } from '@/stores/account';
+import ConfirmModal from '@/components/ui/ConfirmModal.vue';
 
 const router = useRouter();
 const accountStore = useAccountStore();
@@ -36,6 +37,11 @@ const props = defineProps({
 const emit = defineEmits(['update:searchQuery']);
 
 const isMenuOpen = ref(false);
+const isLogoutConfirmOpen = ref(false);
+const isLogoutAlertOpen = ref(false);
+const isLogoutErrorOpen = ref(false);
+const logoutButtonRef = ref(null);
+const logoutAnchorRect = ref(null);
 const searchText = computed({
   get: () => props.searchQuery,
   set: (value) => emit('update:searchQuery', value),
@@ -45,17 +51,38 @@ const toggleMenu = () => {
   isMenuOpen.value = !isMenuOpen.value;
 };
 
-const handleLogout = async () => {
+const openLogoutConfirm = () => {
+  logoutAnchorRect.value =
+    logoutButtonRef.value?.getBoundingClientRect() ?? null;
+  isLogoutConfirmOpen.value = true;
+};
+
+const handleLogoutConfirm = async () => {
+  isLogoutConfirmOpen.value = false;
+  let logoutSuccess = false;
   try {
     await httpRequest.post('/api/logout', {});
-    alert('로그아웃 되었습니다.');
+    logoutSuccess = true;
   } catch (error) {
     console.warn('로그아웃 요청 실패:', error);
   } finally {
     accountStore.clearAccount();
     isMenuOpen.value = false;
-    router.push('/');
+    if (logoutSuccess) {
+      isLogoutAlertOpen.value = true;
+    } else {
+      isLogoutErrorOpen.value = true;
+    }
   }
+};
+
+const handleLogoutAlertConfirm = () => {
+  isLogoutAlertOpen.value = false;
+  router.push('/');
+};
+
+const handleLogoutErrorConfirm = () => {
+  isLogoutErrorOpen.value = false;
 };
 </script>
 
@@ -117,7 +144,8 @@ const handleLogout = async () => {
                 </RouterLink>
 
                 <button
-                  @click="handleLogout"
+                  @click="openLogoutConfirm"
+                  ref="logoutButtonRef"
                   class="w-full text-center block px-4 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors"
                 >
                   로그아웃
@@ -144,6 +172,36 @@ const handleLogout = async () => {
       </div>
     </div>
   </header>
+
+  <ConfirmModal
+    :is-open="isLogoutConfirmOpen"
+    message="정말 로그아웃 하시겠습니까?"
+    confirm-text="로그아웃"
+    cancel-text="취소"
+    :anchor-rect="logoutAnchorRect"
+    @confirm="handleLogoutConfirm"
+    @close="isLogoutConfirmOpen = false"
+  />
+
+  <ConfirmModal
+    :is-open="isLogoutAlertOpen"
+    message="로그아웃 되었습니다."
+    :show-cancel="false"
+    confirm-text="확인"
+    :anchor-rect="logoutAnchorRect"
+    @confirm="handleLogoutAlertConfirm"
+    @close="handleLogoutAlertConfirm"
+  />
+
+  <ConfirmModal
+    :is-open="isLogoutErrorOpen"
+    message="로그아웃에 실패했습니다. 잠시 후 다시 시도해주세요."
+    :show-cancel="false"
+    confirm-text="확인"
+    :anchor-rect="logoutAnchorRect"
+    @confirm="handleLogoutErrorConfirm"
+    @close="handleLogoutErrorConfirm"
+  />
 </template>
 
 <style scoped>

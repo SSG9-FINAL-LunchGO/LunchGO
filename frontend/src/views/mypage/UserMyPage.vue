@@ -61,7 +61,7 @@ const statusMap: Record<string, string> = {
   COMPLETED: 'completed',
   REFUND_PENDING: 'refund_pending',
   REFUNDED: 'refunded',
-  CANCELLED: 'refunded',
+  CANCELLED: 'cancelled',
   NOSHOW: 'refunded',
   NO_SHOW: 'refunded',
 };
@@ -115,7 +115,12 @@ const prefetchCafeteriaRecommendations = async () => {
 };
 
 const mapReservation = (item: any) => {
-  const reservationStatus = statusMap[item.reservationStatus] || 'confirmed';
+  const rawStatus = item.reservationStatus || item.status;
+  let reservationStatus = statusMap[rawStatus] || 'confirmed';
+  const cancelledBy = String(item.cancelledBy || '').toUpperCase();
+  if (rawStatus === 'CANCELLED' && cancelledBy === 'OWNER') {
+    reservationStatus = 'restaurant_cancelled';
+  }
   const fallbackVisitCount = reservationStatus === 'completed' ? 1 : 0;
 
   return {
@@ -135,6 +140,9 @@ const mapReservation = (item: any) => {
     daysSinceLastVisit: item.daysSinceLastVisit ?? null,
     payment: item.payment?.amount ? { amount: item.payment.amount } : null,
     reservationStatus,
+    cancelledBy: item.cancelledBy,
+    cancelledReason: item.cancelledReason || null,
+    cancelledAt: item.cancelledAt || null,
     review: item.review
         ? {
           id: item.review.id,

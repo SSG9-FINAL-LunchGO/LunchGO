@@ -1,9 +1,10 @@
 ﻿<script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { Bell, LogOut } from 'lucide-vue-next';
 import httpRequest from '@/router/httpRequest';
 import { useAccountStore } from '@/stores/account';
+import ConfirmModal from '@/components/ui/ConfirmModal.vue';
 
 const router = useRouter();
 const accountStore = useAccountStore();
@@ -21,21 +22,43 @@ const getStoredMember = () => {
 
 const member = computed(() => accountStore.member || getStoredMember());
 const userName = computed(()=> {return "관리자";});
+const isLogoutConfirmOpen = ref(false);
+const isLogoutAlertOpen = ref(false);
+const isLogoutErrorOpen = ref(false);
+const logoutButtonRef = ref(null);
+const logoutAnchorRect = ref(null);
 
-const handleLogout = async () => {
-  const confirmLogout = confirm('정말 로그아웃 하시겠습니까?');
-  if (!confirmLogout) return;
+const openLogoutConfirm = () => {
+  logoutAnchorRect.value =
+    logoutButtonRef.value?.getBoundingClientRect() ?? null;
+  isLogoutConfirmOpen.value = true;
+};
 
+const handleLogoutConfirm = async () => {
+  isLogoutConfirmOpen.value = false;
+  let logoutSuccess = false;
   try {
     await httpRequest.post('/api/logout', {});
-    
-    alert('로그아웃 되었습니다.');
+    logoutSuccess = true;
   } catch (error) {
     console.warn('로그아웃 요청 실패:', error);
   } finally {
     accountStore.clearAccount();
-    router.push('/');
+    if (logoutSuccess) {
+      isLogoutAlertOpen.value = true;
+    } else {
+      isLogoutErrorOpen.value = true;
+    }
   }
+};
+
+const handleLogoutAlertConfirm = () => {
+  isLogoutAlertOpen.value = false;
+  router.push('/');
+};
+
+const handleLogoutErrorConfirm = () => {
+  isLogoutErrorOpen.value = false;
 };
 </script>
 
@@ -61,7 +84,8 @@ const handleLogout = async () => {
         </span>
 
         <button
-          @click="handleLogout"
+          @click="openLogoutConfirm"
+          ref="logoutButtonRef"
           class="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
         >
           <span class="text-sm">로그아웃</span>
@@ -70,4 +94,34 @@ const handleLogout = async () => {
       </div>
     </div>
   </header>
+
+  <ConfirmModal
+    :is-open="isLogoutConfirmOpen"
+    message="정말 로그아웃 하시겠습니까?"
+    confirm-text="로그아웃"
+    cancel-text="취소"
+    :anchor-rect="logoutAnchorRect"
+    @confirm="handleLogoutConfirm"
+    @close="isLogoutConfirmOpen = false"
+  />
+
+  <ConfirmModal
+    :is-open="isLogoutAlertOpen"
+    message="로그아웃 되었습니다."
+    :show-cancel="false"
+    confirm-text="확인"
+    :anchor-rect="logoutAnchorRect"
+    @confirm="handleLogoutAlertConfirm"
+    @close="handleLogoutAlertConfirm"
+  />
+
+  <ConfirmModal
+    :is-open="isLogoutErrorOpen"
+    message="로그아웃에 실패했습니다. 잠시 후 다시 시도해주세요."
+    :show-cancel="false"
+    confirm-text="확인"
+    :anchor-rect="logoutAnchorRect"
+    @confirm="handleLogoutErrorConfirm"
+    @close="handleLogoutErrorConfirm"
+  />
 </template>
