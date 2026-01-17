@@ -217,7 +217,7 @@
 - 예약 대기열 관련 기능은 Redisson의 FairLock을 활용
   - Redisson 라이브러리에서는 FairLock 등 예약 대기열 구현에 필요한 기능들을 제공
   - 구현한 코드에서 사용한 getFairLock 메서드는 RedissonFairLock을 반환
-    - RedissonFairLock은 선착순을 보장하는 내부 로직으로 인해 Queue의 유사하게 동작하면서 원자적 연산을 보장
+    - RedissonFairLock은 선착순을 보장하는 내부 로직으로 인해 Queue와 유사하게 동작하면서도 원자적 연산을 보장
     - 따라서, RedissonFairLock을 사용할 경우, 애플리케이션 레벨에서는 Queue 자료구조 사용 불필요
 
 ### 백엔드에서의 예약 대기 - waiting
