@@ -38,10 +38,12 @@ import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDType0Font;
+import org.redisson.api.RLock;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -63,6 +65,9 @@ public class RestaurantStatsService {
     private static final String REDIS_CACHE_KEY_PREFIX = "ai_insights:restaurant:";
     private static final long CACHE_TTL_HOURS = 24;
     private static final long CACHE_TTL_MILLIS = CACHE_TTL_HOURS * 60 * 60 * 1000;
+    private static final long REFRESH_COOLDOWN_MINUTES = 60;
+    private static final long REFRESH_COOLDOWN_MILLIS = REFRESH_COOLDOWN_MINUTES * 60 * 1000;
+    private static final String REFRESH_COOLDOWN_KEY_PREFIX = "ai-insights-refresh:";
     private static final Color COLOR_PRIMARY = new Color(30, 58, 95);
     private static final Color COLOR_ACCENT = new Color(255, 107, 74);
     private static final Color COLOR_ACCENT_LIGHT = new Color(255, 196, 184);
@@ -146,16 +151,69 @@ public class RestaurantStatsService {
      * @return 주간 AI 인사이트 응답
      */
     public WeeklyAiInsightsResponse getWeeklyStatsInsight(Long restaurantId) {
+        return getWeeklyStatsInsight(restaurantId, false);
+    }
+
+    /**
+     * 주간 AI 인사이트 데이터를 조회합니다. refresh 요청 시 60분 쿨다운이 적용됩니다.
+     * @param restaurantId 식당 ID
+     * @param forceRefresh 캐시 무시 여부
+     * @return 주간 AI 인사이트 응답
+     */
+    public WeeklyAiInsightsResponse getWeeklyStatsInsight(Long restaurantId, boolean forceRefresh) {
         LocalDate weekStart = LocalDate.now().with(DayOfWeek.MONDAY);
         String cacheKey = REDIS_CACHE_KEY_PREFIX + restaurantId + ":" + weekStart.toString();
+        String refreshKey = REFRESH_COOLDOWN_KEY_PREFIX + restaurantId + ":" + weekStart.toString();
+        String lockKey = "lock:ai-insights:" + restaurantId + ":" + weekStart.toString();
 
-        // 1. 캐시에서 데이터 조회 시도
+        if (forceRefresh) {
+            Optional<WeeklyAiInsightsResponse> cachedInsights =
+                getCachedInsights(cacheKey, restaurantId, weekStart);
+            if (redisUtil.existData(refreshKey)) {
+                return cachedInsights.orElseGet(
+                    () -> generateAndCacheInsights(restaurantId, weekStart, cacheKey)
+                );
+            }
+
+            RLock lock = redisUtil.getFairLock(lockKey);
+            try {
+                boolean isLocked = lock.tryLock(5, -1, TimeUnit.SECONDS);
+                if (!isLocked) {
+                    throw new ResponseStatusException(
+                        HttpStatus.CONFLICT,
+                        "인사이트를 생성 중입니다. 잠시 후 다시 시도해주세요."
+                    );
+                }
+
+                cachedInsights = getCachedInsights(cacheKey, restaurantId, weekStart);
+                if (redisUtil.existData(refreshKey)) {
+                    return cachedInsights.orElseGet(
+                        () -> generateAndCacheInsights(restaurantId, weekStart, cacheKey)
+                    );
+                }
+
+                WeeklyAiInsightsResponse response =
+                    generateAndCacheInsights(restaurantId, weekStart, cacheKey);
+                redisUtil.setDataExpire(refreshKey, "1", REFRESH_COOLDOWN_MILLIS);
+                return response;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "인사이트 생성 중 오류가 발생했습니다."
+                );
+            } finally {
+                if (lock.isHeldByCurrentThread()) {
+                    lock.unlock();
+                }
+            }
+        }
+
         Optional<WeeklyAiInsightsResponse> cachedInsights = getCachedInsights(cacheKey, restaurantId, weekStart);
         if (cachedInsights.isPresent()) {
             return cachedInsights.get();
         }
 
-        // 2. 캐시가 없으면 새로 생성하고 캐시에 저장
         return generateAndCacheInsights(restaurantId, weekStart, cacheKey);
     }
 
@@ -335,12 +393,40 @@ public class RestaurantStatsService {
         }
 
         StringBuilder builder = new StringBuilder();
-        builder.append("다음 데이터를 기반으로 주간 통계 요약을 한국어로 작성해 주세요.");
-        builder.append("반드시 아래 섹션 제목을 그대로 포함하세요: ");
-        builder.append("## 핵심 요약 ");
-        builder.append("## 상세 분석 ");
-        builder.append("## 통합 분석 및 추천 ");
-        builder.append("## 금주 방문 예측 ");
+        builder.append("다음 데이터를 기반으로 주간 AI 인사이트를 한국어로 작성해 주세요.\n");
+        builder.append("출력 규칙:\n");
+        builder.append("1) 섹션은 아래 4개만 출력: ## 핵심 요약 / ## 통합 분석 및 추천 / ## 이번 주 TODO / ## 데이터 격차\n");
+        builder.append("2) 각 섹션의 모든 항목은 반드시 '- ' 로 시작하며, 이어서 관련 이모지 1개를 붙일 것\n");
+        builder.append("3) ## 핵심 요약: 3줄 고정\n");
+        builder.append("4) ## 통합 분석 및 추천: 3~5개, 형식은 '근거: ... / 기대효과: ... / 우선순위: High|Med|Low 🔴/🟡/🟢 / 실행: ...'\n");
+        builder.append("5) ## 이번 주 TODO: '- 필수: ...', '- 선택: ...' 형식으로 각 3개 이내\n");
+        builder.append("6) ## 데이터 격차: 부족한 데이터와 이유를 작성(없으면 '- 데이터 부족 없음')\n");
+        builder.append("7) 요일을 언급할 때는 반드시 해당 날짜(YYYY-MM-DD)를 괄호로 병기하되, 일자별 나열은 금지\n");
+        builder.append("8) 동사로 시작하고 실행 가능한 문장만 작성\n");
+        builder.append("9) 아래 지표 중 최소 2개 이상을 근거로 사용: 전환율, 예약/방문, 매출, 구내식당 불일치/미운영, 키워드 겹침, 공유/북마크, 상위 회사\n");
+        builder.append("10) 신호 요약에 값이 있는 항목(0/없음 제외) 중 최소 1개는 반드시 근거 또는 실행에 반영\n");
+        builder.append("11) 모든 신호가 0/없음이면 '## 데이터 격차'에 '신호 데이터 부족'을 포함\n");
+        builder.append("12) 우선순위 기준 예시: 전환율 < 70% 또는 예약/방문 하락 → High, 불일치/미운영일 2일 이상 → Med, 개선 효과가 제한적이면 Low\n");
+        builder.append("13) 구내식당 미운영일 대응 실행은 '우리 식당 정보 제공' 또는 '특별 프로모션 기획'으로 작성\n");
+        builder.append("14) 일자별 예약/통계 데이터는 참고용이며 그대로 나열하지 말 것\n");
+
+        builder.append("기간 정보: 지난 주=")
+            .append(start)
+            .append("~")
+            .append(end)
+            .append(", 이번 주 예측=")
+            .append(weekStart)
+            .append("~")
+            .append(weekEnd)
+            .append("\n");
+        builder.append("이번 주 요일-날짜 매핑: ");
+        String[] weekdayLabels = {"월", "화", "수", "목", "금", "토", "일"};
+        for (int i = 0; i < weekdayLabels.length; i++) {
+            LocalDate date = weekStart.plusDays(i);
+            builder.append(weekdayLabels[i]).append("=")
+                .append(date)
+                .append(i == weekdayLabels.length - 1 ? "\n" : ", ");
+        }
 
         builder.append("일자별 예약 요약 (건수, 합계금액): ");
         for (Map.Entry<LocalDate, Integer> entry : reservationCounts.entrySet()) {
@@ -370,19 +456,13 @@ public class RestaurantStatsService {
             .mapToInt(stats -> nullToZero(stats.getVisitCount()))
             .sum();
         int conversionRate = totalConfirm == 0 ? 0 : Math.round((float) totalVisit / totalConfirm * 100);
-        builder.append("방문 전환율 정의: visit/confirm. 현재 방문 전환율=")
+        builder.append("방문 전환율 정의: visit 대비 confirm 비율. 현재 방문 전환율=")
             .append(conversionRate)
             .append("% ");
 
         builder.append("추가 참고 데이터 (요약 지표): ");
         builder.append(buildSignalSummary(signal, weekStart, weekEnd));
-        builder.append("예측 섹션에는 월~일 요일별 예상 방문 범위를 bullet로 포함하고, ");
-        builder.append("구내식당 미운영 요일은 외식 수요 증가 가능성으로 언급하세요. ");
-        builder.append("구내식당 메뉴/취향 불일치가 높은 요일은 외식 수요 증가 가능성으로 언급하세요. ");
-        builder.append("식당 메뉴/취향 겹침이 높으면 방문 가능성 강화 근거로 언급하세요. ");
-        builder.append("근거 2~3줄(식당 메뉴/취향, 구내식당, 공유, 회사 분포)을 포함하세요. ");
-        builder.append("방문 전환율(visit/confirm)을 높일 수 있는 실행 가능한 개선안을 2~3개 제안하세요. ");
-        builder.append("응답은 반드시 한국어로 작성하세요. 일자별 예약 요약과 일자별 식당 통계는 참고만 하고 작성하지 않아도 됩니다.");
+        builder.append("응답은 반드시 한국어로 작성하세요.");
         return builder.toString();
     }
 
@@ -604,11 +684,16 @@ public class RestaurantStatsService {
 
     private String buildFallbackSummary() {
         return "## 핵심 요약\n" +
-            "- AI 요약 생성에 실패하여 규칙 기반 예측으로 대체했습니다.\n" +
-            "## 상세 분석\n" +
-            "- 최근 예약/통계 데이터를 참고해 금주 수요를 계산했습니다.\n" +
-            "## 통합 분석 및 추천\n" +
-            "- 예측 섹션을 기준으로 운영 준비를 진행해 주세요.\n";
+            "- ⚠️ AI 요약 생성에 실패하여 기본 요약으로 대체했습니다.\n" +
+            "- 📊 지난 주 대비 변화 요인을 확인해 주세요.\n" +
+            "- ✅ 이번 주 운영 메시지/프로모션 준비가 필요합니다.\n" +
+        "## 통합 분석 및 추천\n" +
+        "- 📌 근거: 데이터 부족 / 기대효과: 운영 안정화 / 우선순위: Med 🟡 / 실행: 예약 확정 고객 리마인드 메시지 점검\n" +
+            "## 이번 주 TODO\n" +
+            "- ✅ 필수: 리마인드 메시지 템플릿 점검\n" +
+            "- ✍️ 선택: 프로모션 문구 1건 개선\n" +
+            "## 데이터 격차\n" +
+            "- ℹ️ 데이터 부족 없음\n";
     }
 
     private String appendPredictionSection(String summary, String predictionSection) {

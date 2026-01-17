@@ -35,6 +35,12 @@ const { fetchFavorites, clearFavorites, userId } = useFavorites();
 
 const route = useRoute();
 const restaurantId = route.params.id || 1; // Default to '1' if id is not available
+const loginRedirectPath = computed(
+  () =>
+    `/login?next=${encodeURIComponent(
+      `/restaurant/${restaurantId}/booking?select=1`
+    )}`
+);
 const restaurantInfo = ref(null);
 const isLoading = ref(true);
 const error = ref(null);
@@ -955,26 +961,34 @@ watch(detailMapDistanceStepIndex, () => {
           <HomeIcon class="w-5 h-5" />
         </RouterLink>
         <div class="flex gap-3">
-          <RouterLink
-            v-if="isLoggedIn && restaurantInfo?.preorderAvailable"
-            :to="`/restaurant/${restaurantId}/booking?type=preorder`"
-            class="flex-1"
-          >
-            <Button
-              class="w-full h-12 bg-white border-2 border-[#ff6b4a] text-[#ff6b4a] font-semibold text-base rounded-xl hover:bg-[#fff5f3] transition-colors"
+          <template v-if="isLoggedIn">
+            <RouterLink
+              v-if="restaurantInfo?.preorderAvailable"
+              :to="`/restaurant/${restaurantId}/booking?type=preorder`"
+              class="flex-1"
             >
-              선주문/선결제
-            </Button>
-          </RouterLink>
-          <RouterLink
-            v-if="isLoggedIn"
-            :to="`/restaurant/${restaurantId}/booking?type=reservation`"
-            class="flex-1"
-          >
+              <Button
+                class="w-full h-12 bg-white border-2 border-[#ff6b4a] text-[#ff6b4a] font-semibold text-base rounded-xl hover:bg-[#fff5f3] transition-colors"
+              >
+                선주문/선결제
+              </Button>
+            </RouterLink>
+            <RouterLink
+              :to="`/restaurant/${restaurantId}/booking?type=reservation`"
+              class="flex-1"
+            >
+              <Button
+                class="w-full h-12 gradient-primary text-white font-semibold text-base rounded-xl shadow-button-hover hover:shadow-button-pressed"
+              >
+                예약하기
+              </Button>
+            </RouterLink>
+          </template>
+          <RouterLink v-else :to="loginRedirectPath" class="flex-1">
             <Button
               class="w-full h-12 gradient-primary text-white font-semibold text-base rounded-xl shadow-button-hover hover:shadow-button-pressed"
             >
-              예약하기
+              로그인 하기
             </Button>
           </RouterLink>
         </div>

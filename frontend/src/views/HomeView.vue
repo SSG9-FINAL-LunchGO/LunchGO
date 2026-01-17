@@ -1953,12 +1953,12 @@ onBeforeUnmount(() => {
     </div>
 
     <main class="max-w-[500px] mx-auto pb-20">
-      <div class="bg-white px-4 py-4 border-b border-[#e9ecef]">
+      <div class="bg-white px-3 py-2 border-b border-[#e9ecef]">
         <div class="flex items-center justify-between gap-3">
           <div class="flex items-center gap-2">
             <MapPin class="w-5 h-5 text-[#ff6b4a]" />
             <div>
-              <h2 class="text-base font-semibold text-[#1e3a5f]">
+              <h2 class="text-sm font-semibold text-[#1e3a5f]">
                 {{ currentLocation }}
               </h2>
               <p class="text-xs text-gray-700">현재 위치 기준</p>

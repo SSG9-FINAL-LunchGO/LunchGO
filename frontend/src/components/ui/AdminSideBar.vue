@@ -1,5 +1,14 @@
 <script setup>
 import { RouterLink } from 'vue-router';
+import {
+  BarChart3,
+  ClipboardList,
+  Store,
+  MessageSquare,
+  UserCircle,
+  Users,
+  DollarSign,
+} from 'lucide-vue-next';
 
 // 'activeMenu' 라는 이름의 prop을 정의합니다.
 defineProps({
@@ -36,7 +45,10 @@ defineProps({
                 : 'text-[#1e3a5f] hover:bg-[#f8f9fa]',
             ]"
           >
-            대시보드
+            <span class="nav-item-content">
+              <BarChart3 class="nav-icon" />
+              대시보드
+            </span>
           </RouterLink>
         </li>
         <li>
@@ -49,7 +61,10 @@ defineProps({
                 : 'text-[#1e3a5f] hover:bg-[#f8f9fa]',
             ]"
           >
-            예약 등록 현황
+            <span class="nav-item-content">
+              <ClipboardList class="nav-icon" />
+              예약 등록 현황
+            </span>
           </RouterLink>
         </li>
         <li>
@@ -62,7 +77,10 @@ defineProps({
                 : 'text-[#1e3a5f] hover:bg-[#f8f9fa]',
             ]"
           >
-            가맹점 관리
+            <span class="nav-item-content">
+              <Store class="nav-icon" />
+              가맹점 관리
+            </span>
           </RouterLink>
         </li>
         <li>
@@ -75,7 +93,10 @@ defineProps({
                 : 'text-[#1e3a5f] hover:bg-[#f8f9fa]',
             ]"
           >
-            리뷰 관리
+            <span class="nav-item-content">
+              <MessageSquare class="nav-icon" />
+              리뷰 관리
+            </span>
           </RouterLink>
         </li>
         <li>
@@ -88,7 +109,10 @@ defineProps({
                 : 'text-[#1e3a5f] hover:bg-[#f8f9fa]',
             ]"
           >
-            사업자 현황
+            <span class="nav-item-content">
+              <UserCircle class="nav-icon" />
+              사업자 현황
+            </span>
           </RouterLink>
         </li>
         <li>
@@ -101,7 +125,10 @@ defineProps({
                 : 'text-[#1e3a5f] hover:bg-[#f8f9fa]',
             ]"
           >
-            회원 관리
+            <span class="nav-item-content">
+              <Users class="nav-icon" />
+              회원 관리
+            </span>
           </RouterLink>
         </li>
         <li>
@@ -114,10 +141,26 @@ defineProps({
                 : 'text-[#1e3a5f] hover:bg-[#f8f9fa]',
             ]"
           >
-            재무 관리
+            <span class="nav-item-content">
+              <DollarSign class="nav-icon" />
+              재무 관리
+            </span>
           </RouterLink>
         </li>
       </ul>
     </nav>
   </aside>
 </template>
+
+<style scoped>
+.nav-item-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.nav-icon {
+  width: 18px;
+  height: 18px;
+}
+</style>

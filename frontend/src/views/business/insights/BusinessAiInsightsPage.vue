@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed, onMounted } from "vue";
-import { useRoute, useRouter } from "vue-router";
+import { ref, computed, onMounted, onBeforeUnmount } from "vue";
+import { RouterLink, useRoute, useRouter } from "vue-router";
 import httpRequest from "@/router/httpRequest";
 import BusinessSidebar from "@/components/ui/BusinessSideBar.vue";
 import BusinessHeader from "@/components/ui/BusinessHeader.vue";
@@ -55,6 +55,46 @@ const userRole = computed(() => {
 const insight = ref(null);
 const isLoading = ref(false);
 const errorMessage = ref("");
+const isRefreshing = ref(false);
+const refreshMessage = ref("");
+const REFRESH_COOLDOWN_MINUTES = 60;
+const REFRESH_COOLDOWN_MILLIS = REFRESH_COOLDOWN_MINUTES * 60 * 1000;
+const refreshNow = ref(Date.now());
+const lastRefreshAt = ref(0);
+let refreshTimerId = 0;
+
+const getRefreshStorageKey = (rid) => `ai-insights-refresh:${rid}`;
+
+const loadRefreshTimestamp = (rid) => {
+  if (typeof window === "undefined" || !rid) return;
+  const raw = localStorage.getItem(getRefreshStorageKey(rid));
+  const parsed = Number(raw);
+  lastRefreshAt.value = Number.isFinite(parsed) ? parsed : 0;
+};
+
+const markRefreshTimestamp = (rid) => {
+  if (typeof window === "undefined" || !rid) return;
+  const now = Date.now();
+  refreshNow.value = now;
+  lastRefreshAt.value = now;
+  localStorage.setItem(getRefreshStorageKey(rid), String(now));
+};
+
+const refreshRemainingMs = computed(() => {
+  refreshNow.value;
+  if (!lastRefreshAt.value) return 0;
+  const elapsed = refreshNow.value - lastRefreshAt.value;
+  const remaining = REFRESH_COOLDOWN_MILLIS - elapsed;
+  return Math.max(0, Math.min(REFRESH_COOLDOWN_MILLIS, remaining));
+});
+
+const refreshRemainingLabel = computed(() => {
+  if (refreshRemainingMs.value <= 0) return "지금 새로고침 가능";
+  const minutes = Math.ceil(refreshRemainingMs.value / 60000);
+  return `다음 새로고침까지 ${minutes}분`;
+});
+
+const canRefresh = computed(() => refreshRemainingMs.value <= 0);
 
 const ensureRestaurantId = async () => {
   if (restaurantId.value) return restaurantId.value;
@@ -73,19 +113,39 @@ const ensureRestaurantId = async () => {
   return 0;
 };
 
-const loadInsights = async () => {
+const loadInsights = async (shouldRefresh = false) => {
   const rid = await ensureRestaurantId();
   if (!rid) {
-    errorMessage.value = "사업자 권한이 필요합니다.";
+    if (!shouldRefresh) {
+      errorMessage.value = "사업자 권한이 필요합니다.";
+    } else {
+      refreshMessage.value = "새로고침에 실패했습니다.";
+    }
     return;
   }
-  isLoading.value = true;
-  errorMessage.value = "";
+  loadRefreshTimestamp(rid);
+  if (shouldRefresh && !canRefresh.value) {
+    const minutes = Math.ceil(refreshRemainingMs.value / 60000);
+    refreshMessage.value = `쿨다운 중입니다. ${minutes}분 후 다시 시도해주세요.`;
+    return;
+  }
+  if (shouldRefresh) {
+    isRefreshing.value = true;
+    refreshMessage.value = "AI 인사이트 추론 중입니다.";
+  } else {
+    isLoading.value = true;
+    errorMessage.value = "";
+    refreshMessage.value = "";
+  }
   try {
     const response = await httpRequest.get(
-      `/api/business/restaurants/${rid}/stats/weekly`
+      `/api/business/restaurants/${rid}/stats/weekly`,
+      shouldRefresh ? { refresh: true } : undefined
     );
     insight.value = response.data;
+    if (shouldRefresh) {
+      markRefreshTimestamp(rid);
+    }
 
     // [MEDIUM] 디버깅 목적으로 사용된 console.log 문입니다.
     // 프로덕션 코드에 포함되지 않도록 병합 전에 제거하는 것이 좋습니다.
@@ -118,9 +178,20 @@ const loadInsights = async () => {
     // console.log("================================");
   } catch (error) {
     console.error("AI 인사이트 조회 실패:", error);
-    errorMessage.value = "AI 인사이트를 불러오지 못했습니다.";
+    if (shouldRefresh) {
+      refreshMessage.value = "새로고침에 실패했습니다.";
+    } else {
+      errorMessage.value = "AI 인사이트를 불러오지 못했습니다.";
+    }
   } finally {
-    isLoading.value = false;
+    if (shouldRefresh) {
+      isRefreshing.value = false;
+      if (refreshMessage.value === "AI 인사이트 추론 중입니다.") {
+        refreshMessage.value = "새로고침 완료";
+      }
+    } else {
+      isLoading.value = false;
+    }
   }
 };
 
@@ -170,7 +241,20 @@ const downloadWeeklyReport = async () => {
   }
 };
 
-onMounted(loadInsights);
+const handleRefreshInsights = () => loadInsights(true);
+
+onMounted(() => {
+  refreshTimerId = window.setInterval(() => {
+    refreshNow.value = Date.now();
+  }, 30000);
+  loadInsights();
+});
+
+onBeforeUnmount(() => {
+  if (refreshTimerId) {
+    window.clearInterval(refreshTimerId);
+  }
+});
 
 const pickSummaryIcon = (line) => {
   if (line.includes("예약")) return "📌";
@@ -182,6 +266,7 @@ const pickSummaryIcon = (line) => {
   if (line.includes("회사")) return "🏢";
   return "•";
 };
+
 
 const formatSummaryLines = (body) => {
   if (!body) return [];
@@ -264,6 +349,44 @@ const recommendationSection = computed(() => {
     section.title.includes("통합 분석")
   );
 });
+
+const restaurantQuery = computed(() => {
+  return restaurantId.value
+    ? { restaurantId: String(restaurantId.value) }
+    : {};
+});
+
+const todoTargets = {
+  message: "/business/notifications",
+  promotion: "/business/promotion",
+};
+
+const todoLink = (item) => {
+  const path = todoTargets[item?.target] || "/business/promotion";
+  return { path, query: restaurantQuery.value };
+};
+
+const formatShortDate = (value) => {
+  if (!value) return "";
+  const dateOnly = String(value).split(":")[0];
+  const parsed = new Date(dateOnly);
+  if (!Number.isNaN(parsed.getTime())) {
+    return `${parsed.getMonth() + 1}월 ${parsed.getDate()}일`;
+  }
+  return dateOnly;
+};
+
+const summarizeDates = (entries, limit = 3) => {
+  if (!entries?.length) return "";
+  const labels = entries
+    .map((entry) => formatShortDate(entry))
+    .filter(Boolean);
+  const sliced = labels.slice(0, limit);
+  if (labels.length > limit) {
+    sliced.push(`외 ${labels.length - limit}일`);
+  }
+  return sliced.join(", ");
+};
 
 const reservations = computed(() => insight.value?.reservations || []);
 const stats = computed(() => insight.value?.stats || []);
@@ -564,14 +687,15 @@ const restaurantMatchNote = computed(() => {
   return `우리 식당 메뉴/취향 매칭 지수 ${score}`;
 });
 
-const weekdayTokens = [
-  "월요일",
-  "화요일",
-  "수요일",
-  "목요일",
-  "금요일",
-  "토요일",
-  "일요일",
+const rawStatTokens = [
+  "=>",
+  "view=",
+  "try=",
+  "confirm=",
+  "visit=",
+  "noshow=",
+  "penalty=",
+  "revenue=",
 ];
 
 const stripMarkdown = (text) => {
@@ -588,10 +712,7 @@ const shouldDropLine = (line) => {
   if (!trimmed) return false;
   const isBullet = /^[-*•]\s+/.test(trimmed);
   if (!isBullet) return false;
-  if (/\d{4}-\d{2}-\d{2}/.test(trimmed)) return true;
-  if (/\d{1,2}월/.test(trimmed)) return true;
-  if (weekdayTokens.some((token) => trimmed.includes(token))) return true;
-  if (/\d+\s*~\s*\d+/.test(trimmed)) return true;
+  if (rawStatTokens.some((token) => trimmed.includes(token))) return true;
   return false;
 };
 
@@ -604,6 +725,162 @@ const cleanSummaryBody = (body) => {
     .filter((line) => !shouldDropLine(line));
   return lines.join("\n");
 };
+
+const parseRecommendationLine = (text) => {
+  if (!text) return null;
+  const cleaned = String(text)
+    .replace(/^[\p{Extended_Pictographic}]\s*/u, "")
+    .trim();
+  const labelRegex = /(근거|기대효과|우선순위|실행)\s*:\s*/g;
+  const matches = [];
+  let match;
+  while ((match = labelRegex.exec(cleaned)) !== null) {
+    matches.push({
+      label: match[1],
+      start: match.index,
+      end: labelRegex.lastIndex,
+    });
+  }
+  if (!matches.length) return null;
+  const result = {
+    evidence: "",
+    impact: "",
+    priority: "",
+    action: "",
+  };
+  matches.forEach((item, idx) => {
+    const next = matches[idx + 1];
+    let value = cleaned
+      .slice(item.end, next ? next.start : cleaned.length)
+      .trim();
+    value = value.replace(/\s*\/\s*$/, "").trim();
+    if (!value) return;
+    switch (item.label) {
+      case "근거":
+        result.evidence = value;
+        break;
+      case "기대효과":
+        result.impact = value;
+        break;
+      case "우선순위":
+        result.priority = value;
+        break;
+      case "실행":
+        result.action = value;
+        break;
+      default:
+        break;
+    }
+  });
+  const matched = Object.values(result).some((value) => value);
+  return matched ? result : null;
+};
+
+const parseRecommendationLines = (lines) => {
+  const rows = [];
+  const fallbackLines = [];
+  (lines || []).forEach((line) => {
+    const parsed = parseRecommendationLine(line.text);
+    if (parsed) {
+      rows.push(parsed);
+    } else {
+      fallbackLines.push(line);
+    }
+  });
+  return { rows, fallbackLines };
+};
+
+const recommendationDisplay = computed(() => {
+  return parseRecommendationLines(recommendationSection.value?.lines || []);
+});
+
+const getPriorityBadgeClass = (value) => {
+  const raw = String(value || "").toLowerCase();
+  if (raw.includes("high") || raw.includes("🔴")) return "priority-high";
+  if (raw.includes("med") || raw.includes("🟡")) return "priority-med";
+  if (raw.includes("low") || raw.includes("🟢")) return "priority-low";
+  return "priority-neutral";
+};
+
+const todoChecklist = computed(() => {
+  const required = [];
+  const optional = [];
+  const conversion = conversionRate.value;
+  const mismatchDates = signalSummary.value?.mismatchDates || [];
+  const noMenuDates = signalSummary.value?.noMenuDates || [];
+  const demandDates = [...mismatchDates, ...noMenuDates];
+
+  if (conversion > 0 && conversion < 70) {
+    required.push({
+      title: "예약 확정 고객 리마인드 메시지 발송",
+      detail: `방문 전환율 ${conversion}% → 방문 유도 메시지 강화`,
+      target: "message",
+      linkLabel: "메시지 템플릿",
+    });
+  }
+
+  if (demandDates.length > 0) {
+    required.push({
+      title: "외식 수요 집중일 프로모션/메뉴 추천 준비",
+      detail: `대상일: ${summarizeDates(demandDates)}`,
+      target: "promotion",
+      linkLabel: "프로모션 설정",
+    });
+  }
+
+  const keywordOverlap = Number(
+    signalSummary.value?.keywordOverlap ??
+      signalSummary.value?.restaurantMenuOverlap ??
+      0
+  );
+  if (Number.isFinite(keywordOverlap) && keywordOverlap <= 1) {
+    optional.push({
+      title: "메뉴/취향 키워드 겹침 확대",
+      detail: `현재 겹침 ${keywordOverlap}건 → 홍보 키워드 보강`,
+      target: "promotion",
+      linkLabel: "프로모션 설정",
+    });
+  }
+
+  if (signalSummary.value?.topCompanyName) {
+    optional.push({
+      title: "상위 회사 타겟 점심 제안/쿠폰",
+      detail: `${signalSummary.value.topCompanyName} 집중 프로모션`,
+      target: "promotion",
+      linkLabel: "프로모션 설정",
+    });
+  }
+
+  const publicBookmarks = Number(signalSummary.value?.publicBookmarkCount ?? 0);
+  if (Number.isFinite(publicBookmarks) && publicBookmarks < 5) {
+    optional.push({
+      title: "즐겨찾기/공유 유도 메시지 배포",
+      detail: `공개 북마크 ${publicBookmarks}건`,
+      target: "message",
+      linkLabel: "메시지 템플릿",
+    });
+  }
+
+  if (!required.length) {
+    required.push({
+      title: "이번 주 리마인드 메시지 템플릿 점검",
+      detail: "예약 확정 고객에게 보낼 문구를 업데이트",
+      target: "message",
+      linkLabel: "메시지 템플릿",
+    });
+  }
+
+  if (!optional.length) {
+    optional.push({
+      title: "프로모션 문구 1건 개선",
+      detail: "이번 주 인기 메뉴/혜택을 강조",
+      target: "promotion",
+      linkLabel: "프로모션 설정",
+    });
+  }
+
+  return { required, optional };
+});
 </script>
 
 <template>
@@ -628,29 +905,61 @@ const cleanSummaryBody = (body) => {
                 {{ insight?.startDate }} ~ {{ insight?.endDate }}
               </p>
               <p class="text-xs text-[#9ca3af] mt-1">
-                ⏰ AI 인사이트는 매일 자정에 한 번 업데이트됩니다.
+                최근 7일 데이터를 바탕으로 인사이트를 정리해 드려요.
               </p>
             </div>
-            <button
-              type="button"
-              @click="downloadWeeklyReport"
-              :disabled="isWeeklyReportLoading"
-              :class="[
-                'px-4 py-2 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-[#6366F1] via-[#EC4899] to-[#F97316] transition-opacity',
-                isWeeklyReportLoading
-                  ? 'opacity-70 cursor-not-allowed'
-                  : 'hover:opacity-90 cursor-pointer',
-              ]"
-            >
-              <span
-                v-if="isWeeklyReportLoading"
-                class="inline-flex items-center gap-2"
-              >
-                <span class="loading-spinner"></span>
-                AI 요약 생성 중...
-              </span>
-              <span v-else>AI 요약 분석서 PDF 다운로드</span>
-            </button>
+            <div class="flex flex-col items-end gap-2">
+              <div class="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  @click="handleRefreshInsights"
+                  :disabled="isRefreshing || isLoading || !canRefresh"
+                  class="px-4 py-2 rounded-lg text-sm font-semibold border border-[#dee2e6] text-[#1e3a5f] bg-white hover:bg-[#f8f9fa] transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  <span v-if="isRefreshing" class="inline-flex items-center gap-2">
+                    <span class="loading-spinner"></span>
+                    새로고침 중...
+                  </span>
+                  <span v-else>AI 인사이트 새로고침</span>
+                </button>
+                <button
+                  type="button"
+                  @click="downloadWeeklyReport"
+                  :disabled="isWeeklyReportLoading"
+                  :class="[
+                    'px-4 py-2 rounded-lg text-sm font-semibold text-white bg-gradient-to-r from-[#6366F1] via-[#EC4899] to-[#F97316] transition-opacity',
+                    isWeeklyReportLoading
+                      ? 'opacity-70 cursor-not-allowed'
+                      : 'hover:opacity-90 cursor-pointer',
+                  ]"
+                >
+                  <span
+                    v-if="isWeeklyReportLoading"
+                    class="inline-flex items-center gap-2"
+                  >
+                    <span class="loading-spinner"></span>
+                    AI 요약 생성 중...
+                  </span>
+                  <span v-else>AI 요약 분석서 PDF 다운로드</span>
+                </button>
+              </div>
+              <p v-if="refreshMessage" class="text-xs text-[#6c757d]">
+                <span
+                  v-if="isRefreshing"
+                  class="inline-flex items-center gap-2"
+                >
+                  <span class="loading-spinner"></span>
+                  {{ refreshMessage }}
+                </span>
+                <span v-else>{{ refreshMessage }}</span>
+              </p>
+              <p class="text-[11px] text-[#9ca3af]">
+                새로고침은 60분에 한 번 반영됩니다.
+              </p>
+              <p class="text-[11px] text-[#9ca3af]">
+                {{ refreshRemainingLabel }}
+              </p>
+            </div>
           </div>
 
           <div
@@ -680,7 +989,7 @@ const cleanSummaryBody = (body) => {
               <div
                 class="bg-white rounded-xl border border-[#e9ecef] p-6 lg:col-span-2"
               >
-                <h3 class="text-lg font-bold text-[#1e3a5f] mb-4">AI 요약</h3>
+                <h3 class="text-lg font-bold text-[#1e3a5f] mb-4">🧠 AI 요약</h3>
                 <div
                   v-if="insight?.aiFallbackUsed"
                   class="text-sm text-[#dc3545] mb-3"
@@ -692,13 +1001,72 @@ const cleanSummaryBody = (body) => {
                     <h4 class="text-sm font-semibold text-[#1e3a5f] mb-1">
                       {{ section.title }}
                     </h4>
-                    <ul class="space-y-2">
+                    <template v-if="section.title.includes('통합 분석')">
+                      <div
+                        v-if="parseRecommendationLines(section.lines).rows.length"
+                        class="recommendation-table"
+                      >
+                        <div class="recommendation-header">
+                          <span>근거</span>
+                          <span>기대효과</span>
+                          <span>실행</span>
+                          <span>우선순위</span>
+                        </div>
+                        <div
+                          v-for="(row, idx) in parseRecommendationLines(section.lines).rows"
+                          :key="`rec-summary-${idx}`"
+                          class="recommendation-row"
+                        >
+                          <div class="recommendation-cell">
+                            <span class="recommendation-label">근거</span>
+                            <span class="recommendation-value">{{ row.evidence || "-" }}</span>
+                          </div>
+                          <div class="recommendation-cell">
+                            <span class="recommendation-label">기대효과</span>
+                            <span class="recommendation-value">{{ row.impact || "-" }}</span>
+                          </div>
+                          <div class="recommendation-cell">
+                            <span class="recommendation-label">실행</span>
+                            <span class="recommendation-value">{{ row.action || "-" }}</span>
+                          </div>
+                          <div class="recommendation-cell">
+                            <span class="recommendation-label">우선순위</span>
+                            <span
+                              :class="[
+                                'priority-badge',
+                                getPriorityBadgeClass(row.priority),
+                              ]"
+                            >
+                              {{ row.priority || "-" }}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <ul
+                        v-if="parseRecommendationLines(section.lines).fallbackLines.length"
+                        class="space-y-2"
+                      >
+                        <li
+                          v-for="(line, idx) in parseRecommendationLines(section.lines).fallbackLines"
+                          :key="`rec-summary-fallback-${idx}`"
+                          class="summary-line"
+                        >
+                          <span class="summary-icon emoji-badge">
+                            {{ line.icon }}
+                          </span>
+                          <span class="summary-text">{{ line.text }}</span>
+                        </li>
+                      </ul>
+                    </template>
+                    <ul v-else class="space-y-2">
                       <li
                         v-for="(line, idx) in section.lines"
                         :key="idx"
                         class="summary-line"
                       >
-                        <span class="summary-icon">{{ line.icon }}</span>
+                        <span class="summary-icon emoji-badge">
+                          {{ line.icon }}
+                        </span>
                         <span class="summary-text">{{ line.text }}</span>
                       </li>
                     </ul>
@@ -707,57 +1075,81 @@ const cleanSummaryBody = (body) => {
               </div>
 
               <div class="bg-white rounded-xl border border-[#e9ecef] p-6">
-                <h3 class="text-lg font-bold text-[#1e3a5f] mb-4">신호 요약</h3>
+                <h3 class="text-lg font-bold text-[#1e3a5f] mb-4">📡 신호 요약</h3>
                 <div class="space-y-3 text-sm text-[#1e3a5f]">
-                  <div>
-                    공개 북마크: {{ signalSummary.publicBookmarkCount ?? 0 }}
+                  <div class="signal-row">
+                    <span class="emoji-badge">🔖</span>
+                    <span>공개 북마크: {{ signalSummary.publicBookmarkCount ?? 0 }}</span>
                   </div>
-                  <div>
-                    공유 링크: {{ signalSummary.approvedLinkCount ?? 0 }}
+                  <div class="signal-row">
+                    <span class="emoji-badge">🔗</span>
+                    <span>공유 링크: {{ signalSummary.approvedLinkCount ?? 0 }}</span>
                   </div>
-                  <div>
-                    우리 식당 메뉴 키워드:
-                    {{
-                      signalSummary.restaurantMenuKeywords
-                        ?.map(formatKeyword)
-                        .join(", ") || "없음"
-                    }}
+                  <div class="signal-row">
+                    <span class="emoji-badge">🍽️</span>
+                    <span>
+                      우리 식당 메뉴 키워드:
+                      {{
+                        signalSummary.restaurantMenuKeywords
+                          ?.map(formatKeyword)
+                          .join(", ") || "없음"
+                      }}
+                    </span>
                   </div>
-                  <div>
-                    우리 식당 메뉴/취향 겹침:
-                    {{ signalSummary.restaurantMenuOverlap ?? 0 }}
+                  <div class="signal-row">
+                    <span class="emoji-badge">❤️</span>
+                    <span>
+                      우리 식당 메뉴/취향 겹침:
+                      {{ signalSummary.restaurantMenuOverlap ?? 0 }}
+                    </span>
                   </div>
-                  <div>
-                    구내식당 메뉴 키워드:
-                    {{
-                      signalSummary.menuKeywords
-                        ?.map(formatKeyword)
-                        .join(", ") || "없음"
-                    }}
+                  <div class="signal-row">
+                    <span class="emoji-badge">🍱</span>
+                    <span>
+                      구내식당 메뉴 키워드:
+                      {{
+                        signalSummary.menuKeywords
+                          ?.map(formatKeyword)
+                          .join(", ") || "없음"
+                      }}
+                    </span>
                   </div>
-                  <div>
-                    사용자 취향 키워드:
-                    {{
-                      signalSummary.preferenceKeywords
-                        ?.map(formatKeyword)
-                        .join(", ") || "없음"
-                    }}
+                  <div class="signal-row">
+                    <span class="emoji-badge">🎯</span>
+                    <span>
+                      사용자 취향 키워드:
+                      {{
+                        signalSummary.preferenceKeywords
+                          ?.map(formatKeyword)
+                          .join(", ") || "없음"
+                      }}
+                    </span>
                   </div>
-                  <div>
-                    키워드 겹침: {{ signalSummary.keywordOverlap ?? 0 }}
+                  <div class="signal-row">
+                    <span class="emoji-badge">🔁</span>
+                    <span>키워드 겹침: {{ signalSummary.keywordOverlap ?? 0 }}</span>
                   </div>
-                  <div>
-                    불일치 높은 날짜:
-                    {{ signalSummary.mismatchDates?.join(", ") || "없음" }}
+                  <div class="signal-row">
+                    <span class="emoji-badge">⚠️</span>
+                    <span>
+                      불일치 높은 날짜:
+                      {{ signalSummary.mismatchDates?.join(", ") || "없음" }}
+                    </span>
                   </div>
-                  <div>
-                    구내식당 미운영 날짜:
-                    {{ signalSummary.noMenuDates?.join(", ") || "없음" }}
+                  <div class="signal-row">
+                    <span class="emoji-badge">📅</span>
+                    <span>
+                      구내식당 미운영 날짜:
+                      {{ signalSummary.noMenuDates?.join(", ") || "없음" }}
+                    </span>
                   </div>
-                  <div v-if="signalSummary.topCompanyName">
-                    상위 회사: {{ signalSummary.topCompanyName }} ({{
-                      Math.round(signalSummary.topCompanyShare * 100)
-                    }}%)
+                  <div v-if="signalSummary.topCompanyName" class="signal-row">
+                    <span class="emoji-badge">🏢</span>
+                    <span>
+                      상위 회사: {{ signalSummary.topCompanyName }} ({{
+                        Math.round(signalSummary.topCompanyShare * 100)
+                      }}%)
+                    </span>
                   </div>
                 </div>
               </div>
@@ -765,7 +1157,7 @@ const cleanSummaryBody = (body) => {
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div class="bg-white rounded-xl border border-[#e9ecef] p-6">
-                <h3 class="text-lg font-bold text-[#1e3a5f] mb-4">예약 건수</h3>
+                <h3 class="text-lg font-bold text-[#1e3a5f] mb-4">📅 예약 건수</h3>
                 <Line
                   v-if="reservationChartData"
                   :data="reservationChartData"
@@ -774,7 +1166,7 @@ const cleanSummaryBody = (body) => {
                 <p v-else class="text-sm text-[#6c757d]">데이터가 없습니다.</p>
               </div>
               <div class="bg-white rounded-xl border border-[#e9ecef] p-6">
-                <h3 class="text-lg font-bold text-[#1e3a5f] mb-4">예약 금액</h3>
+                <h3 class="text-lg font-bold text-[#1e3a5f] mb-4">💰 예약 금액</h3>
                 <Line
                   v-if="revenueChartData"
                   :data="revenueChartData"
@@ -787,7 +1179,7 @@ const cleanSummaryBody = (body) => {
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div class="bg-white rounded-xl border border-[#e9ecef] p-6">
                 <h3 class="text-lg font-bold text-[#1e3a5f] mb-4">
-                  요일별 예측 범위
+                  🔮 요일별 예측 범위
                 </h3>
                 <Line
                   v-if="predictionChartData"
@@ -797,7 +1189,7 @@ const cleanSummaryBody = (body) => {
                 <p v-else class="text-sm text-[#6c757d]">데이터가 없습니다.</p>
               </div>
               <div class="bg-white rounded-xl border border-[#e9ecef] p-6">
-                <h3 class="text-lg font-bold text-[#1e3a5f] mb-4">예측 상세</h3>
+                <h3 class="text-lg font-bold text-[#1e3a5f] mb-4">🗒️ 예측 상세</h3>
                 <p class="text-xs text-[#6c757d] mb-3">
                   구내식당/취향 매칭 지수는 좋아요(선호) 키워드 기준의 매칭
                   비율입니다.
@@ -842,7 +1234,7 @@ const cleanSummaryBody = (body) => {
                 class="bg-white rounded-xl border border-[#e9ecef] p-6 lg:col-span-2"
               >
                 <div class="flex items-center justify-between mb-4">
-                  <h3 class="text-lg font-bold text-[#1e3a5f]">퍼널 분석</h3>
+                  <h3 class="text-lg font-bold text-[#1e3a5f]">🔻 퍼널 분석</h3>
                   <span class="text-xs text-[#6c757d]">
                     방문 전환율 {{ conversionRate }}%
                   </span>
@@ -872,7 +1264,7 @@ const cleanSummaryBody = (body) => {
               </div>
               <div class="bg-white rounded-xl border border-[#e9ecef] p-6">
                 <h3 class="text-lg font-bold text-[#1e3a5f] mb-4">
-                  구내식당 메뉴 불일치(비선호 키워드 건수)
+                  ⚠️ 구내식당 메뉴 불일치(비선호 키워드 건수)
                 </h3>
                 <Bar
                   v-if="mismatchChartData"
@@ -888,36 +1280,160 @@ const cleanSummaryBody = (body) => {
                 class="bg-white rounded-xl border border-[#e9ecef] p-6 lg:col-span-2"
               >
                 <h3 class="text-lg font-bold text-[#1e3a5f] mb-4">
-                  통합 분석 및 추천
+                  📌 통합 분석 및 추천
                 </h3>
-                <div class="space-y-2 text-sm text-[#1e3a5f]">
+                <div v-if="recommendationDisplay.rows.length" class="recommendation-table">
+                  <div class="recommendation-header">
+                    <span>근거</span>
+                    <span>기대효과</span>
+                    <span>실행</span>
+                    <span>우선순위</span>
+                  </div>
                   <div
-                    v-for="(line, idx) in recommendationSection?.lines || []"
-                    :key="idx"
+                    v-for="(row, idx) in recommendationDisplay.rows"
+                    :key="`rec-${idx}`"
+                    class="recommendation-row"
+                  >
+                    <div class="recommendation-cell">
+                      <span class="recommendation-label">근거</span>
+                      <span class="recommendation-value">{{ row.evidence || "-" }}</span>
+                    </div>
+                    <div class="recommendation-cell">
+                      <span class="recommendation-label">기대효과</span>
+                      <span class="recommendation-value">{{ row.impact || "-" }}</span>
+                    </div>
+                    <div class="recommendation-cell">
+                      <span class="recommendation-label">실행</span>
+                      <span class="recommendation-value">{{ row.action || "-" }}</span>
+                    </div>
+                    <div class="recommendation-cell">
+                      <span class="recommendation-label">우선순위</span>
+                      <span
+                        :class="[
+                          'priority-badge',
+                          getPriorityBadgeClass(row.priority),
+                        ]"
+                      >
+                        {{ row.priority || "-" }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div
+                  v-if="recommendationDisplay.fallbackLines.length"
+                  class="space-y-2 text-sm text-[#1e3a5f] mt-4"
+                >
+                  <div
+                    v-for="(line, idx) in recommendationDisplay.fallbackLines"
+                    :key="`rec-fallback-${idx}`"
                     class="summary-line"
                   >
-                    <span class="summary-icon">{{ line.icon }}</span>
+                    <span class="summary-icon emoji-badge">
+                      {{ line.icon }}
+                    </span>
                     <span class="summary-text">{{ line.text }}</span>
                   </div>
                 </div>
+
               </div>
               <div class="bg-white rounded-xl border border-[#e9ecef] p-6">
-                <h3 class="text-lg font-bold text-[#1e3a5f] mb-4">핵심 지표</h3>
+                <h3 class="text-lg font-bold text-[#1e3a5f] mb-4">📊 핵심 지표</h3>
                 <div class="space-y-3 text-sm text-[#1e3a5f]">
-                  <div>
-                    공개 북마크: {{ signalSummary.publicBookmarkCount ?? 0 }}
+                  <div class="signal-row">
+                    <span class="emoji-badge">🔖</span>
+                    <span>공개 북마크: {{ signalSummary.publicBookmarkCount ?? 0 }}</span>
                   </div>
-                  <div>
-                    공유 링크: {{ signalSummary.approvedLinkCount ?? 0 }}
+                  <div class="signal-row">
+                    <span class="emoji-badge">🔗</span>
+                    <span>공유 링크: {{ signalSummary.approvedLinkCount ?? 0 }}</span>
                   </div>
-                  <div>
-                    키워드 겹침: {{ signalSummary.keywordOverlap ?? 0 }}
+                  <div class="signal-row">
+                    <span class="emoji-badge">🔁</span>
+                    <span>키워드 겹침: {{ signalSummary.keywordOverlap ?? 0 }}</span>
                   </div>
-                  <div v-if="signalSummary.topCompanyName">
-                    상위 회사: {{ signalSummary.topCompanyName }} ({{
-                      Math.round(signalSummary.topCompanyShare * 100)
-                    }}%)
+                  <div v-if="signalSummary.topCompanyName" class="signal-row">
+                    <span class="emoji-badge">🏢</span>
+                    <span>
+                      상위 회사: {{ signalSummary.topCompanyName }} ({{
+                        Math.round(signalSummary.topCompanyShare * 100)
+                      }}%)
+                    </span>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-xl border border-[#e9ecef] p-6">
+              <div class="flex items-center justify-between mb-4">
+                <h4 class="text-lg font-bold text-[#1e3a5f]">
+                  🧾 이번주 TODO 체크 리스트
+                </h4>
+                <span class="text-sm text-[#6c757d]">이번 주 기준</span>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p class="text-sm font-semibold text-[#ff6b4a] mb-2">
+                    해야 할 일
+                  </p>
+                  <ul class="space-y-2 text-base text-[#1e3a5f]">
+                    <li
+                      v-for="(item, idx) in todoChecklist.required"
+                      :key="`required-${idx}`"
+                      class="flex gap-2"
+                    >
+                      <input
+                        type="checkbox"
+                        class="mt-1 w-5 h-5 accent-[#ff6b4a]"
+                      />
+                      <RouterLink
+                        :to="todoLink(item)"
+                        class="flex-1 rounded-lg px-2 py-1 -mx-2 transition-colors hover:bg-[#fff5f3]"
+                      >
+                        <div class="font-medium">{{ item.title }}</div>
+                        <div
+                          v-if="item.detail"
+                          class="text-sm text-[#6c757d]"
+                        >
+                          {{ item.detail }}
+                        </div>
+                        <div class="text-sm text-[#ff6b4a] mt-1">
+                          {{ item.linkLabel }}로 이동 →
+                        </div>
+                      </RouterLink>
+                    </li>
+                  </ul>
+                </div>
+                <div>
+                  <p class="text-sm font-semibold text-[#1e3a5f] mb-2">
+                    하면 좋을 일
+                  </p>
+                  <ul class="space-y-2 text-base text-[#1e3a5f]">
+                    <li
+                      v-for="(item, idx) in todoChecklist.optional"
+                      :key="`optional-${idx}`"
+                      class="flex gap-2"
+                    >
+                      <input
+                        type="checkbox"
+                        class="mt-1 w-5 h-5 accent-[#1e3a5f]"
+                      />
+                      <RouterLink
+                        :to="todoLink(item)"
+                        class="flex-1 rounded-lg px-2 py-1 -mx-2 transition-colors hover:bg-[#f5f7ff]"
+                      >
+                        <div class="font-medium">{{ item.title }}</div>
+                        <div
+                          v-if="item.detail"
+                          class="text-sm text-[#6c757d]"
+                        >
+                          {{ item.detail }}
+                        </div>
+                        <div class="text-sm text-[#1e3a5f] mt-1">
+                          {{ item.linkLabel }}로 이동 →
+                        </div>
+                      </RouterLink>
+                    </li>
+                  </ul>
                 </div>
               </div>
             </div>
@@ -991,10 +1507,25 @@ const cleanSummaryBody = (body) => {
   gap: 8px;
 }
 
-.summary-icon {
-  font-size: 14px;
-  line-height: 1.4;
+.emoji-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid #e9ecef;
+  background: #f8f9fa;
+  font-size: 12px;
+  line-height: 1;
 }
+
+.summary-icon {
+  background: #fff5f3;
+  border-color: #ffd7cc;
+}
+
 
 .summary-text {
   color: #1e3a5f;
@@ -1002,11 +1533,97 @@ const cleanSummaryBody = (body) => {
   line-height: 1.5;
 }
 
+.signal-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
 .prediction-row {
   padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid #f1f3f5;
   background: #ffffff;
+}
+
+.recommendation-table {
+  display: grid;
+  gap: 8px;
+}
+
+.recommendation-header {
+  display: grid;
+  grid-template-columns: 2.1fr 1.6fr 1.6fr 0.7fr;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #6c757d;
+}
+
+.recommendation-row {
+  display: grid;
+  grid-template-columns: 2.1fr 1.6fr 1.6fr 0.7fr;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+  background: #f8f9fa;
+}
+
+.recommendation-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: #1e3a5f;
+  line-height: 1.4;
+}
+
+.recommendation-label {
+  display: none;
+  font-size: 11px;
+  color: #6c757d;
+}
+
+.recommendation-priority {
+  font-weight: 600;
+}
+
+.priority-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.priority-high {
+  background: #fff5f5;
+  border-color: #ffc9c9;
+  color: #e03131;
+}
+
+.priority-med {
+  background: #fff9db;
+  border-color: #ffe066;
+  color: #f08c00;
+}
+
+.priority-low {
+  background: #ebfbee;
+  border-color: #b2f2bb;
+  color: #2f9e44;
+}
+
+.priority-neutral {
+  background: #f8f9fa;
+  border-color: #e9ecef;
+  color: #6c757d;
 }
 
 .prediction-main {
@@ -1018,6 +1635,20 @@ const cleanSummaryBody = (body) => {
 
 .prediction-day {
   font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .recommendation-header {
+    display: none;
+  }
+
+  .recommendation-row {
+    grid-template-columns: 1fr;
+  }
+
+  .recommendation-label {
+    display: inline-block;
+  }
 }
 
 .prediction-range {
