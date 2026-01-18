@@ -385,11 +385,309 @@ public @interface DistributedLock {
 
 ### 원인
 
-- 락을 적용할 예약 트랜잭션의 범위가 넓음 
+- 예약 생성 시 락을 획득한 상태에서 진행해야 할 작업의 범위가 넓었던 것이 주요 원인 
   - 예약 생성 트랜잭션 내부에 락을 적용할 필요가 없는 예약 생성 로직까지 포함
-  - 락 설정 후 예약 생성 트랜잭션을 진행하는 동안, 다른 사용자들은 대기
-  - 즉, 예약 생성 트랜잭션에서 처리해야 할 작업이 많을수록 다른 사용자들의 대기시간도 증가
+  - 사용자 1명이 락 획득 후 예약 신청을 진행하는 동안, 다른 사용자들은 락을 획득할 때까지 대기
+  - 즉, 락을 획득한 후 예약 생성 트랜잭션에서 처리해야 할 작업이 많아지면 다른 사용자들의 대기시간도 증가하는 문제를 유발
 
-### 해결 방안
+### 해결 방안 - 락 적용 구간의 단축
 
-- 
+- 락을 획득하기 위한 대기시간을 줄이기 위해, 신규 예약 생성 시, 락을 획득한 상태로 진행해야 할 구간을 단축시키는 방향으로 개선  
+- 예약 생성에 관한 서비스 로직 중 락을 걸고 진행해야 할 작업과 그렇지 않은 작업들을 구분하고, 락을 걸 필요가 없는 작업들만 기존 예약 트랜잭션에서 분리
+  - 락 필수: 예약할 시간대에 해당하는 예약 슬롯 조회(비관적 락 획득), 중복 예약 사전 검증, 신규 예약 등록, 선주문/선결제 메뉴 등록, 방문상태 ttl 설정
+  - 락 불필요: 잔여석 사전 검증, 예약금 및 선주문/선결제 금액 계산 등 
+    - 신규 예약 신청 전 전처리 작업들에 해당
+- 예약 생성 로직 중 락을 걸 구간을 단축하고 동시 처리량을 늘리기 위해 Facade 패턴을 활용
+  - ReservationFacade 클래스의 `createReservation` 메서드
+    - 예약 생성 시, 락을 걸 필요가 없는 모든 사전 작업을 담당
+    - 다소 시간이 걸리지만 동시성 제어가 불필요한 작업들을 락 획득 이전에 미리 처리하여, 락을 적용하고 실행해야 하는 구간을 단축
+  - ReservationServiceImpl 클래스의 `createReservationLocked` 메서드
+    - 예약 생성 시, 반드시 락이 필요한 핵심 작업을 수행 
+    - 예약 생성 로직의 임계 영역에 해당
+
+### 구현 코드
+
+<details>
+
+<summary>ReservationFacade 클래스 내 createReservation() 메서드</summary>
+
+```java
+    /**
+     * Facade 패턴의 새로운 예약 생성 진입점.
+     * 예약 생성의 전체적인 흐름을 관리하며, 락이 필요 없는 로직은 여기서 처리하고
+     * 락이 필요한 핵심 로직은 ReservationServiceImpl에 위임합니다.
+     *
+     * @param request 예약 생성 요청 DTO
+     * @return 예약 생성 응답 DTO
+     */
+    public ReservationCreateResponse createReservation(ReservationCreateRequest request) {
+        // 1. 전처리 단계: 락이 필요 없는 로직 (ReservationServiceImpl에서 이동)
+        //    핵심 락이 걸리기 전에 최대한 많은 작업을 처리하여 락 점유 시간을 단축합니다.
+
+        // 요청 유효성 검증 (ServiceImpl에서 이동)
+        validate(request);
+
+        // Just-in-Time Redis Counter Initialization & Pre-Check
+        // 1. 이 슬롯의 최대 정원을 DB에서 조회 (락 없이)
+        Integer maxCapacity = restaurantRepository.findReservationLimitByRestaurantId(request.getRestaurantId())
+                .orElse(DEFAULT_MAX_CAPACITY); // 기본값 DEFAULT_MAX_CAPACITY (ReservationFacade 내부에 정의)
+
+        // 2. Redis 키 정의
+        String redisSeatKey = RedisUtil.generateSeatKey(request.getRestaurantId(), request.getSlotDate(), request.getSlotTime());
+
+        // 3. SETNX를 사용한 원자적 초기화 (키가 없을 때만 실행)
+        // TTL은 24시간으로 넉넉하게 설정
+        redisUtil.setIfAbsent(redisSeatKey, String.valueOf(maxCapacity), REDIS_SEAT_KEY_TTL_MILLIS);
+
+        // 4. Redis 좌석 사전 검증 (빠른 Fail-Fast)
+        Long remainingSeats = redisUtil.decrement(redisSeatKey, request.getPartySize());
+
+        if (remainingSeats < 0) {
+            // 좌석이 부족하면 Redis 카운터를 다시 원상 복구하고 예외 발생
+            redisUtil.increment(redisSeatKey, request.getPartySize());
+            throw new SlotCapacityExceededException("잔여석이 부족합니다. (Redis 사전 검증)");
+        }
+
+        // 선주문/선결제 메뉴 처리 및 금액 계산 (ServiceImpl에서 이동)
+        List<MenuSnapshot> menuSnapshots = new ArrayList<>();
+        Integer precalculatedPrepaySum = null;
+        if (ReservationType.PREORDER_PREPAY.equals(request.getReservationType())) {
+            // N+1 쿼리 방지를 위해 메뉴 ID 목록을 먼저 추출
+            List<Long> menuIds = request.getMenuItems().stream()
+                    .map(ReservationCreateRequest.MenuItem::getMenuId)
+                    .collect(Collectors.toList());
+
+            // IN 절을 사용해 한 번의 쿼리로 모든 메뉴 정보를 조회
+            List<Menu> foundMenus = menuRepository.findAllByMenuIdInAndRestaurantIdAndIsDeletedFalse(menuIds, request.getRestaurantId());
+
+            // 조회된 메뉴를 Map으로 변환하여 빠른 조회를 지원
+            Map<Long, Menu> menuMap = foundMenus.stream()
+                    .collect(Collectors.toMap(Menu::getMenuId, menu -> menu));
+
+            // 요청된 모든 메뉴가 실제로 조회되었는지 검증
+            if (menuMap.size() != menuIds.size()) {
+                throw new IllegalArgumentException("One or more menus not found or do not belong to the restaurant.");
+            }
+
+            int sum = 0;
+            for (ReservationCreateRequest.MenuItem mi : request.getMenuItems()) {
+                if (mi == null || mi.getMenuId() == null) {
+                    throw new IllegalArgumentException("menuId is required");
+                }
+                if (mi.getQuantity() == null || mi.getQuantity() <= 0) {
+                    throw new IllegalArgumentException("quantity must be positive");
+                }
+
+                // Map에서 메뉴 정보를 가져옴
+                Menu menu = menuMap.get(mi.getMenuId());
+
+                int unitPrice = menu.getPrice() == null ? 0 : menu.getPrice();
+                int qty = mi.getQuantity();
+                int lineAmount = unitPrice * qty;
+                sum += lineAmount;
+
+                menuSnapshots.add(new MenuSnapshot(menu.getMenuId(), menu.getName(), unitPrice, qty, lineAmount));
+            }
+            precalculatedPrepaySum = sum;
+        }
+
+        // 예약금 계산 (ServiceImpl에서 이동)
+        Integer precalculatedDepositAmount = null;
+        if (ReservationType.RESERVATION_DEPOSIT.equals(request.getReservationType())) {
+            int perPerson = request.getPartySize() >= DEPOSIT_LARGE_THRESHOLD
+                    ? DEPOSIT_PER_PERSON_LARGE
+                    : DEPOSIT_PER_PERSON_DEFAULT;
+            precalculatedDepositAmount = perPerson * request.getPartySize();
+        }
+
+        // 2. 핵심 로직 호출 단계: 락이 필요한 로직은 ServiceImpl에 위임
+        //    락이 걸린 ServiceImpl의 메서드를 호출하여, 동시성 제어가 필요한 DB 작업을 수행합니다.
+        ReservationCreateResponse response = reservationService.createReservationLocked(
+                request,
+                precalculatedPrepaySum,
+                menuSnapshots,
+                precalculatedDepositAmount
+        );
+
+        // 3. 후처리 단계: 트랜잭션 커밋 후 실행될 로직은 ReservationServiceImpl로 이동됨.
+        return response;
+    }
+```
+
+</details>
+
+
+<details>
+
+<summary>ReservationServiceImpl 클래스 내 createReservationLocked() 메서드</summary>
+
+```java
+    @Override
+    @Transactional
+    @DistributedLock(
+            lockKey = "'reservation_process_lock:restaurant:' + #request.restaurantId + ':slot:' + #request.slotDate + ':' + #request.slotTime",
+            userLockKey = "'reservation_lock:' + #request.userId + ':' + #request.restaurantId + ':' + #request.slotDate + ':' + #request.slotTime",
+            userLockTime = 5000L
+    )
+    public ReservationCreateResponse createReservationLocked(
+            ReservationCreateRequest request,
+            Integer precalculatedPrepaySum,
+            List<MenuSnapshot> menuSnapshots,
+            Integer precalculatedDepositAmount) {
+
+        // 지정한 날짜+시간대의 예약슬롯을 불러오는 서비스 로직(없으면 신규 생성)
+        ReservationSlot slot = reservationSlotService.getValidatedSlot(
+                request.getRestaurantId(),
+                request.getSlotDate(),
+                request.getSlotTime(),
+                request.getPartySize()
+        );
+
+        // [중복 예약 사전 검증]
+        // DB 유니크 제약조건(uk_user_slot_active) 위반 시 발생하는 SQL 에러 로그를 방지하고,
+        // 불필요한 트랜잭션 롤백 비용을 절감하기 위해 애플리케이션 레벨에서 먼저 확인합니다.
+        // DistributedLock(개인 락)은 5초 이내의 중복 요청만 막아주므로, 이 로직이 필수적입니다.
+        if (reservationMapper.countActiveReservation(request.getUserId(), slot.getSlotId()) > 0) {
+            throw new DuplicateReservationException("동일 시간대에 예약된 내역이 있습니다.");
+        }
+
+        Reservation reservation = new Reservation();
+        reservation.setReservationCode("PENDING");
+        reservation.setSlotId(slot.getSlotId());
+        reservation.setUserId(request.getUserId());
+        reservation.setPartySize(request.getPartySize());
+        reservation.setReservationType(request.getReservationType());
+        reservation.setStatus(ReservationStatus.TEMPORARY);
+        reservation.setRequestMessage(trimToNull(request.getRequestMessage()));
+        reservation.setHoldExpiresAt(LocalDateTime.now().plusMinutes(7));
+        reservation.setVisitStatus(VisitStatus.PENDING);
+
+        if (ReservationType.RESERVATION_DEPOSIT.equals(request.getReservationType())) {
+            reservation.setDepositAmount(precalculatedDepositAmount);
+            reservation.setTotalAmount(precalculatedDepositAmount);
+        } else if (ReservationType.PREORDER_PREPAY.equals(request.getReservationType())) {
+            // Facade에서 계산한 "DB 메뉴 합계" 기준으로 저장
+            reservation.setPrepayAmount(precalculatedPrepaySum);
+            reservation.setTotalAmount(precalculatedPrepaySum);
+        }
+
+        try {
+            reservationMapper.insertReservation(reservation);
+        } catch (DataIntegrityViolationException | PersistenceException e) {
+            // 결제 대기 시간 만료 전, 약간의 텀을 두고 중복된 예약 요청이 발생했을 때의 중복 예약 방지
+            throw new DuplicateReservationException("이미 결제 대기 중인 예약 요청입니다.");
+        }
+
+        // reservation_menu_items 저장 (예약 PK 생긴 다음에)
+        if (ReservationType.PREORDER_PREPAY.equals(request.getReservationType()) && menuSnapshots != null && !menuSnapshots.isEmpty()) {
+            reservationMapper.insertReservationMenuItems(reservation.getReservationId(), menuSnapshots);
+        }
+
+        String code = generateReservationCode(LocalDate.now(), reservation.getReservationId());
+        reservationMapper.updateReservationCode(reservation.getReservationId(), code);
+
+        ReservationCreateRow row = reservationMapper.selectReservationCreateRow(reservation.getReservationId());
+        if (row == null) {
+            throw new IllegalStateException("created reservation not found");
+        }
+
+        // 후처리: 트랜잭션 커밋 후 Redis에 방문 상태 TTL 설정
+        // 이 로직은 DB 트랜잭션 성공이 보장된 후에 실행되어야 데이터 정합성이 맞음.
+        // @Transactional 범위 내에서 TransactionSynchronizationManager를 사용하면
+        // 트랜잭션 커밋 직후에 콜백(afterCommit)을 실행할 수 있음.
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                // redis에 응답대기로 방문 확정 관련 상태 넣어놓기
+                LocalDateTime slotDateTime = LocalDateTime.of(request.getSlotDate(), request.getSlotTime());
+                long ttlMillis = Duration.between(LocalDateTime.now(), slotDateTime).toMillis();
+                if (ttlMillis > 0) {
+                    redisUtil.setDataExpire(String.valueOf(row.getReservationId()), VisitStatus.PENDING.name(), ttlMillis);
+                }
+            }
+        });
+
+        return new ReservationCreateResponse(
+                row.getReservationId(),
+                row.getReservationCode(),
+                row.getSlotId(),
+                row.getUserId(),
+                row.getRestaurantId(),
+                row.getSlotDate(),
+                row.getSlotTime(),
+                row.getPartySize(),
+                row.getReservationType(),
+                row.getStatus(),
+                row.getRequestMessage()
+        );
+    }
+```
+
+</details>
+
+---
+
+## 예약 생성 로직 요약 - 시퀀스 다이어그램
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client
+    participant Facade as ReservationFacade
+    participant LockAop as AOP (Lock)
+    participant TxMgr as Spring Transaction
+    participant Service as ReservationService
+    participant Redis as Redis (Redisson)
+    participant DB as Database
+
+    Client->>Facade: 1. 예약 요청 (Request)
+    
+    activate Facade
+    Facade->>Facade: 2. 전처리 (검증 등)
+    
+    Note over Facade, LockAop: 3. 핵심 로직 호출 (Facade -> Service)
+
+    %% AOP: Lock Acquisition
+    Facade->>LockAop: 메서드 진입 가로채기
+    activate LockAop
+    
+    LockAop->>Redis: 4. tryLock (락 획득 시도)
+    activate Redis
+    Redis-->>LockAop: 락 획득 성공 (True)
+    deactivate Redis
+
+    %% Transaction Start
+    LockAop->>TxMgr: 5. 트랜잭션 시작 요청
+    activate TxMgr
+    TxMgr->>DB: DB Transaction Begin
+    
+    %% Business Logic
+    TxMgr->>Service: 6. 비즈니스 로직 실행
+    activate Service
+    
+    Service->>DB: 조회 및 상태 변경 (INSERT/UPDATE)
+    DB-->>Service: 결과 반환
+    
+    Service-->>TxMgr: 로직 완료
+    deactivate Service
+
+    %% Transaction Commit
+    TxMgr->>DB: 7. DB Transaction Commit (커밋)
+    DB-->>TxMgr: 커밋 완료
+    TxMgr-->>LockAop: 트랜잭션 종료
+    deactivate TxMgr
+
+    %% AOP: Lock Release
+    Note right of LockAop: ⚠️ 커밋 완료 후 락 해제 (중요)
+    LockAop->>Redis: 8. unlock (락 해제)
+    activate Redis
+    Redis-->>LockAop: 해제 완료
+    deactivate Redis
+
+    LockAop-->>Facade: 반환
+    deactivate LockAop
+
+    Facade-->>Client: 9. 응답 (Response)
+    deactivate Facade
+```
+
