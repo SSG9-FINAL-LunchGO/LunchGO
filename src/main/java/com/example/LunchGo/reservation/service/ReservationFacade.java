@@ -36,7 +36,7 @@ public class ReservationFacade {
     private static final int DEPOSIT_PER_PERSON_LARGE = 10000;
     private static final int DEPOSIT_LARGE_THRESHOLD = 7;
     private static final int DEFAULT_MAX_CAPACITY = 20; // ReservationFacade 내부에서 사용할 기본 최대 정원
-    private static final long REDIS_SEAT_KEY_TTL_MILLIS = Duration.ofDays(1).toMillis(); // Redis 좌석 키의 TTL (24시간)
+    private static final long REDIS_SEAT_KEY_TTL_MILLIS = Duration.ofDays(15).toMillis(); // Redis 좌석 키의 TTL - 예약은 현재 날짜 기준 약 2주 뒤 날짜까지 가능
 
     private final ReservationService reservationService; // 수정된 ReservationService (락 핵심 로직 담당)
     private final MenuRepository menuRepository; // 메뉴 정보 조회 (선주문 처리용)
