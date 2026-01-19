@@ -91,9 +91,10 @@ public class ReservationPaymentExpiryService {
                     slot.getSlotDate(),
                     slot.getSlotTime()
                 );
-                // 동일한 슬롯에 대한 만료 건이 여러 개일 경우를 대비해 예약 만료로 인해 풀린 좌석수를 합산합니다.
+                // 동일한 슬롯에 대한 만료 건이 여러 개일 경우를 대비해 예약만료로 풀린 좌석 수를 합산합니다.
                 seatsToRestore.merge(redisSeatKey, partySize.longValue(), Long::sum);
             }
+
             expired++;
         }
 
@@ -102,6 +103,7 @@ public class ReservationPaymentExpiryService {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
+                    log.info("결제 만료로 인한 좌석 일괄 복구 시작. 대상 슬롯 수: {}", seatsToRestore.size());
                     // 6. Redis Pipelining을 사용하여 모든 INCRBY 명령을 한 번의 네트워크 요청으로 전송합니다.
                     stringRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
                         seatsToRestore.forEach((key, value) -> {
@@ -112,6 +114,7 @@ public class ReservationPaymentExpiryService {
                         });
                         return null; // Pipelining에서는 보통 null을 반환합니다.
                     });
+                    log.info("좌석 일괄 복구 완료.");
                 }
             });
         }
