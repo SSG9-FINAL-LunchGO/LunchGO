@@ -33,7 +33,6 @@ public class ReservationPaymentExpiryService {
     private final PaymentRepository paymentRepository;
     // --- 새로 추가된 의존성 ---
     private final ReservationSlotRepository reservationSlotRepository; // ReservationSlot 조회를 위해 추가
-    private final RedisUtil redisUtil; // Redis 유틸리티(키 생성 등)를 위해 추가
     private final StringRedisTemplate stringRedisTemplate; // Redis Pipelining을 위해 추가
 
     @Transactional
